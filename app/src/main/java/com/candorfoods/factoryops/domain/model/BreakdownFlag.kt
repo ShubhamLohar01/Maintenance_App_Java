@@ -1,0 +1,37 @@
+package com.candorfoods.factoryops.domain.model
+
+data class BreakdownFlag(
+    val id: String,
+    val machineId: String,
+    val assetName: String? = null,
+    val building: String? = null,
+    val operatorId: String,
+    val severity: Severity,
+    val description: String,
+    val beforePhotoLocalPath: String?,
+    val raisedAt: Long,
+    val status: BreakdownStatus,
+    val acknowledgedBy: String?,
+    val acknowledgedByName: String?,
+    val acknowledgedAt: Long?,
+    val resolvedBy: String?,
+    val resolvedByName: String?,
+    val resolvedAt: Long?,
+    val partsUsed: String?,
+    val afterPhotoLocalPath: String?,
+    // QC verification fields (Phase 2A)
+    val qcStatus: QcStatus?,
+    val qcAcknowledgedBy: String?,
+    val qcAcknowledgedByName: String?,
+    val qcAcknowledgedAt: Long?,
+    val qcDecidedBy: String?,
+    val qcDecidedByName: String?,
+    val qcDecidedAt: Long?,
+    val qcDecisionNotes: String?,
+    val qcAfterPhotoLocalPath: String?,
+    val qcChecklistJson: String?,
+    val qcOverrideFromUserId: String?,
+    val qcOverrideFromName: String?,
+    val qcOverrideAt: Long?,
+    val syncStatus: SyncStatus
+)

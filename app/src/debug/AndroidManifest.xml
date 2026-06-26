@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug-only manifest. Merged into the app manifest for DEBUG builds only, so
+  release builds are unaffected and stay HTTPS-only.
+
+  Allows plain-HTTP ("cleartext") so the app can reach a local backend during
+  development, e.g.:
+    - http://localhost:8000/  via `adb reverse tcp:8000 tcp:8000`
+    - http://10.0.2.2:8000/   on the Android emulator (host loopback alias)
+  Without this, targetSdk 35 blocks cleartext and calls fail with
+  "CLEARTEXT communication ... not permitted by network security policy".
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application android:usesCleartextTraffic="true" />
+
+</manifest>

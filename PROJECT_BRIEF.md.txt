@@ -1,0 +1,333 @@
+# FactoryOps — Maintenance & Energy Mobile App
+
+## Context
+You are building a native Android mobile application from scratch. This is a
+greenfield product — no existing codebase, no parent system to integrate with.
+The app is a complete, standalone solution for factory operators and technicians.
+
+The product is being built in two phases. Build Phase 1 fully before Phase 2.
+- Phase 1: Power Consumption module (operator daily logging)
+- Phase 2: Preventive Maintenance module (technician work orders + QC gate)
+
+## Product purpose
+A factory floor mobile app that lets:
+- Operators log when machines start and stop production, so the system can
+  calculate per-machine power consumption and surface inefficient machines.
+- Technicians receive scheduled preventive-maintenance work orders, execute
+  digital checklists, log spares, and submit for QC sign-off.
+
+The factory has many machines spread across multiple floors and warehouses.
+Most machines do not have dedicated electricity meters, so consumption is
+calculated using a formula and calibrated quarterly with a clamp meter.
+
+## Tech stack — non-negotiable
+- Language: Kotlin (NOT Java)
+- UI: Jetpack Compose (declarative, modern, Google-official)
+- Min SDK: 24 (Android 7.0 — covers cheap factory devices)
+- Target SDK: latest stable
+- Build: Gradle Kotlin DSL (build.gradle.kts)
+- Architecture: MVVM with Clean Architecture (data / domain / presentation)
+- Async: Kotlin Coroutines + Flow
+- DI: Hilt (Dagger)
+- Networking: Retrofit + OkHttp + Kotlinx Serialization
+- Local DB: Room (offline-first is mandatory)
+- Background sync: WorkManager
+- Auth: JWT bearer tokens in EncryptedSharedPreferences
+- Push notifications: Firebase Cloud Messaging (FCM)
+- Image handling: Coil for display, CameraX for capture
+- Date/time: kotlinx-datetime
+- Testing: JUnit 5 + MockK + Turbine for Flow tests + Compose UI tests
+
+## Backend assumptions
+A FastAPI + PostgreSQL backend will exist (separate project, separate repo).
+The mobile app talks to this backend via REST. For now, build the mobile app
+against a mocked API layer using a sealed `Result` wrapper, so all screens
+work end-to-end before any backend code exists. Define the REST contract
+clearly (request/response data classes) so backend can match it later.
+
+Do NOT block on backend availability. Mock everything that returns from the
+network, and make it easy to swap mocks for real Retrofit calls via Hilt.
+
+## User roles for this app
+This mobile app serves 2 roles:
+- Operator — logs production start/stop on assigned machines, raises
+  breakdown flags
+- Technician — receives PM work orders (Phase 2), executes checklists,
+  submits for supervisor + QC sign-off
+
+Supervisor / maintenance-head / plant-head dashboards will live on a
+separate web admin panel (different project). Do not build management
+dashboards on mobile.
+
+# ============================================================
+# PHASE 1 — POWER CONSUMPTION MODULE — BUILD THIS FIRST
+# ============================================================
+
+## Functional flow (operator)
+
+1. Login screen — username + password -> JWT token
+   POST /auth/login -> { token, user_id, name, role, plant_id }
+
+2. Home screen — list of machines assigned to the logged-in operator
+   GET /machines/assigned -> list of Machine objects
+   Each card shows: machine code, name, location, current status
+   (Idle / Running / Stopped), tap to open detail.
+
+3. Machine detail screen
+   - Header: machine name, code, location, rated_kW, load_factor, criticality
+   - Big colored status badge (green Running, gray Idle, red Stopped, amber Flagged)
+   - Primary action button:
+     - If Idle -> "Production Start" (green)
+     - If Running -> "Production Stop" (red)
+     - If Stopped -> button hidden, show last run summary
+   - Secondary action: "Flag breakdown" (always visible)
+   - Below: today's run history (start time, stop time, duration, kWh estimate)
+
+4. Tap "Production Start" -> confirm dialog -> POST /energy/runs/start
+   { machine_id, started_at }
+   - Status flips to Running locally first, then synced
+   - T1 saved to Room
+
+5. Tap "Production Stop" -> confirm dialog -> POST /energy/runs/{run_id}/stop
+   { ended_at }
+   - Status flips to Stopped locally first
+   - T2 saved to Room
+   - Client-side daily_kWh preview computed:
+     daily_kwh = rated_kw x running_hours x load_factor
+   - Server is source of truth for final value
+
+6. History screen — last 30 days for selected machine
+   - Daily list: date, total run hours, kWh, estimated cost
+   - Tap a day -> see individual runs of that day
+   GET /energy/machines/{id}/history?from=...&to=...
+
+## Critical: 15-minute flag system
+A WorkManager periodic worker runs every 5 minutes:
+
+For each Run record where status = Running:
+- Compute time_since_expected_stop = now - scheduled_end_at
+  (scheduled_end_at = started_at + machine.expected_run_duration, default 8 hours
+  unless operator entered a planned duration at start)
+- If time_since_expected_stop > 15 minutes AND no stop logged:
+  - Set flag_status = MISSED_STOP
+  - Show high-priority local notification:
+    "You forgot to stop {machine_name}. Tap to confirm stop time."
+  - Continue alerting every 30 minutes until resolved
+
+Same logic for missed-start:
+- If shift started but no production_start logged for an assigned machine in
+  15 minutes (and there is reason to believe machine is running — to keep
+  Phase 1 simple, just check if shift started at standard 0800/1600/2400 IST
+  for shifts A/B/C), set flag_status = MISSED_START.
+
+Flag resolution:
+- Operator can manually log the missed stop with the actual time
+- Supervisor (on web panel) can override and enter actual times — these
+  changes flow back to the app via sync, app shows updated record
+
+## Offline-first behavior — NON-NEGOTIABLE
+Factory floor has Wi-Fi dead zones near big motors and DG sets.
+
+- Every operator action writes to Room FIRST, then enqueues a WorkManager
+  sync job
+- UI always reads from Room — backend is the eventual sync target, never the
+  primary source
+- Each record has sync_status: PENDING / SYNCING / SYNCED / FAILED
+- Sync indicator in top app bar:
+  - All synced (green check)
+  - Syncing (animated spinner)
+  - N pending (amber, tappable to open sync queue)
+  - Sync failed (red, tappable to retry)
+- Conflict resolution for now: last-write-wins, server timestamp authoritative
+- WorkManager retry policy: exponential backoff, max 5 retries, then mark FAILED
+
+## Local data model (Room)
+
+```kotlin
+@Entity
+data class MachineEntity(
+  @PrimaryKey val id: String,
+  val code: String,         // e.g. "FLR1-ROAST-01"
+  val name: String,
+  val location: String,     // floor + section
+  val plantId: String,
+  val ratedKw: Double,
+  val loadFactor: Double,   // 0.0 - 1.0, e.g. 0.7 for roaster
+  val loadFactorSource: String, // ASSUMED / SPOT_MEASURED / IOT_METERED
+  val criticality: String,  // A / B / C
+  val expectedRunHours: Double, // default planned shift duration
+  val currentStatus: String,  // IDLE / RUNNING / STOPPED / FLAGGED
+  val updatedAt: Long
+)
+
+@Entity
+data class ProductionRunEntity(
+  @PrimaryKey val id: String,  // local UUID, mapped to server ID after sync
+  val machineId: String,
+  val operatorId: String,
+  val startedAt: Long,
+  val scheduledEndAt: Long,
+  val endedAt: Long?,
+  val computedKwh: Double?,
+  val syncStatus: String,    // PENDING / SYNCING / SYNCED / FAILED
+  val flagStatus: String?,   // null / MISSED_START / MISSED_STOP / RESOLVED
+  val createdAt: Long,
+  val updatedAt: Long
+)
+
+@Entity
+data class UserEntity(
+  @PrimaryKey val id: String,
+  val name: String,
+  val username: String,
+  val role: String,          // OPERATOR / TECHNICIAN
+  val plantId: String,
+  val jwtToken: String,
+  val tokenExpiresAt: Long
+)
+
+@Entity
+data class SyncQueueEntity(
+  @PrimaryKey(autoGenerate = true) val id: Long = 0,
+  val actionType: String,    // RUN_START / RUN_STOP / FLAG_RAISE / etc
+  val payloadJson: String,
+  val retryCount: Int = 0,
+  val lastErrorMessage: String?,
+  val createdAt: Long
+)
+
+@Entity
+data class BreakdownFlagEntity(
+  @PrimaryKey val id: String,
+  val machineId: String,
+  val operatorId: String,
+  val severity: String,      // CRITICAL / MAJOR / MINOR
+  val description: String,
+  val photoLocalPath: String?,
+  val raisedAt: Long,
+  val syncStatus: String
+)
+```
+
+## Screens to build (Phase 1)
+1. Login
+2. Home (assigned machine list with status chips)
+3. Machine detail (start/stop, today's runs)
+4. Run history (30-day calendar + daily breakdown)
+5. Sync status / pending actions queue
+6. Breakdown flag form (severity, description, photo capture)
+7. Settings (logout, server URL config, notification preferences,
+   shift schedule preview)
+
+## kWh calculation (client-side preview only)
+Server is the source of truth. Client preview is for instant UI feedback.
+
+```
+running_hours = (ended_at - started_at) / 3600  // in hours
+daily_kwh = rated_kw x running_hours x load_factor
+```
+
+Show this on the run detail UI as "Estimated kWh: 12.4 (preview)" with
+a small refresh icon that pulls the server-confirmed value when synced.
+
+## UI/UX requirements (factory floor reality)
+- Larger tap targets — operators wear gloves
+- High-contrast typography — dim factory lighting, dusty screens
+- Material 3 design system, dark mode supported from day 1
+- Big colored buttons for primary actions (Start = green, Stop = red)
+- Confirmation dialogs for all destructive or irreversible actions
+- All numeric values use Indian-style formatting (e.g. Rs.1,23,456 not $123,456)
+- Date format: dd MMM yyyy (e.g. 30 Apr 2026)
+- Time format: 24-hour (e.g. 14:35)
+- All user-facing strings in strings.xml — Hindi/Marathi localization Phase 3
+- Semantic colors:
+  - Green = running / synced / success
+  - Amber = warning / pending / flagged
+  - Red = error / critical / breakdown / stop action
+  - Gray = idle / disabled / archived
+  - Blue = informational / neutral primary actions
+
+# ============================================================
+# PHASE 2 — PREVENTIVE MAINTENANCE — DO NOT START YET
+# ============================================================
+
+When Phase 1 is shipped and tested with real users for at least 1 week,
+share Phase 2 spec separately. For now, leave a TODO placeholder in
+the navigation graph and a "Coming soon" screen for the technician role.
+
+# ============================================================
+# PROJECT STRUCTURE
+# ============================================================
+
+```
+app/
+├── data/
+│   ├── local/        # Room DB, entities, DAOs, type converters
+│   ├── remote/       # Retrofit interfaces, DTOs, mock implementations
+│   ├── repository/   # Repository implementations
+│   └── sync/         # WorkManager workers (sync, flag-checker)
+├── domain/
+│   ├── model/        # Pure Kotlin domain models (no Android deps)
+│   ├── repository/   # Repository interfaces
+│   └── usecase/      # Single-responsibility use cases
+├── presentation/
+│   ├── login/
+│   ├── home/
+│   ├── machine/
+│   ├── history/
+│   ├── breakdown/
+│   ├── sync/
+│   ├── settings/
+│   └── common/       # Reusable Composables, theme, components
+├── di/               # Hilt modules
+└── util/             # Constants, formatters, extensions
+```
+
+# ============================================================
+# CODING STANDARDS
+# ============================================================
+
+- All Composables stateless where possible — state in, events out
+- ViewModels expose `StateFlow<UiState>` for state and `SharedFlow<UiEvent>`
+  for one-shot events (snackbar, navigation)
+- UseCases are `suspend` functions or return `Flow`
+- Sealed classes for UI state, sealed interfaces for events
+- Repository methods return `Flow<Result<T>>` where `Result` is a sealed
+  hierarchy: Success / Loading / Error
+- No business logic in Composables, no Android deps in domain layer
+- Every screen has a UiState data class and a ViewModel
+- Every API call goes through a Repository interface, never direct from UI
+- Tests for every UseCase and ViewModel; UI tests for critical screens
+
+# ============================================================
+# DELIVERABLES FOR THE FIRST SESSION
+# ============================================================
+
+1. Confirm understanding of this brief in 5 bullet points
+2. List any clarifying questions before writing code
+3. Propose the exact list of Gradle dependencies with versions
+4. Wait for my approval
+
+After approval:
+5. Set up the Gradle Kotlin DSL project with all dependencies
+6. Create the package structure as above
+7. Implement the Room database with all 5 entities and DAOs
+8. Implement the API contract (Retrofit interfaces with mock implementations)
+9. Implement Login screen end-to-end (Compose + ViewModel + UseCase + Repo)
+10. Run the build, confirm no errors, tell me what to test on device
+
+DO NOT BUILD ALL SCREENS IN ONE GO. Build the Login screen first, make me
+confirm it works, then move to Home. After each screen, run the build and
+list testing instructions.
+
+# ============================================================
+# WHEN IN DOUBT
+# ============================================================
+
+- Prefer simplicity over cleverness
+- Prefer Compose-native patterns over legacy XML/View patterns
+- Ask before adding dependencies not in the approved list
+- Ask if any contract or behavior is unclear
+- Always show your work — file structure, what changed, why
+
+Begin.

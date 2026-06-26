@@ -1,0 +1,78 @@
+<h2>Documents tab — placement & form list</h2>
+<p class="subtitle">A new "Documents" tab joins the Technician home tab row. Tapping it lists the 3 forms. Does this placement + the form-card layout look right?</p>
+
+<style>
+  .phone { width: 360px; margin: 0 auto; border: 10px solid #222; border-radius: 28px; overflow: hidden; background: #fafafa; box-shadow: 0 8px 30px rgba(0,0,0,.25); }
+  .appbar { background: #1f6feb; color: #fff; padding: 10px 14px; }
+  .appbar .t { font-size: 15px; font-weight: 600; }
+  .appbar .s { font-size: 11px; opacity: .85; }
+  .tabs { display: flex; gap: 0; background: #fff; border-bottom: 1px solid #e3e3e3; overflow-x: auto; font-size: 12px; }
+  .tab { padding: 10px 12px; white-space: nowrap; color: #666; border-bottom: 2px solid transparent; }
+  .tab.active { color: #1f6feb; border-bottom-color: #1f6feb; font-weight: 600; }
+  .body { padding: 12px; background: #f3f4f6; min-height: 360px; }
+  .card { background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.08); display: flex; align-items: center; gap: 12px; }
+  .ic { width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+  .ic.m { background: #e8f0fe; } .ic.q { background: #e6f4ea; } .ic.b { background: #fde8e8; }
+  .card .ti { font-size: 14px; font-weight: 600; color: #1f2328; }
+  .card .de { font-size: 11px; color: #777; margin-top: 2px; }
+  .card .doc { font-size: 10px; color: #aaa; margin-top: 3px; font-family: monospace; }
+  .chev { margin-left: auto; color: #ccc; font-size: 18px; }
+</style>
+
+<div class="phone">
+  <div class="appbar">
+    <div class="t">FactoryOps — Maintenance</div>
+    <div class="s">Anil Yadav — 185-Koparkhairnae</div>
+  </div>
+  <div class="tabs">
+    <div class="tab">Open 3</div>
+    <div class="tab">My Active 1</div>
+    <div class="tab">Resolved</div>
+    <div class="tab">PM tasks 4</div>
+    <div class="tab active">Documents</div>
+  </div>
+  <div class="body">
+    <div class="card">
+      <div class="ic m">🗓️</div>
+      <div>
+        <div class="ti">Preventive Maintenance — Monthly</div>
+        <div class="de">Location → equipment checklist · 70 items</div>
+        <div class="doc">CFPLA.C4.F.50a</div>
+      </div>
+      <div class="chev">›</div>
+    </div>
+    <div class="card">
+      <div class="ic q">📅</div>
+      <div>
+        <div class="ti">Preventive Maintenance — Quarterly</div>
+        <div class="de">Location → equipment checklist · 41 items</div>
+        <div class="doc">CFPLA.C4.F.50b</div>
+      </div>
+      <div class="chev">›</div>
+    </div>
+    <div class="card">
+      <div class="ic b">🛠️</div>
+      <div>
+        <div class="ti">Breakdown Maintenance Record</div>
+        <div class="de">Log of breakdown events · add rows</div>
+        <div class="doc">CFPLA.C4.F.06</div>
+      </div>
+      <div class="chev">›</div>
+    </div>
+  </div>
+</div>
+
+<div class="options" style="margin-top:24px">
+  <div class="option" data-choice="looks-good" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content"><h3>Looks right</h3><p>Documents as a 5th tab, 3 form cards as shown</p></div>
+  </div>
+  <div class="option" data-choice="change-placement" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content"><h3>Change placement</h3><p>e.g. put Documents in the overflow ⋮ menu, or a different spot</p></div>
+  </div>
+  <div class="option" data-choice="change-cards" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content"><h3>Change the card layout</h3><p>Different info/grouping on each form card</p></div>
+  </div>
+</div>

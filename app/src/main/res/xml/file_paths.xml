@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <files-path name="breakdown_after" path="breakdown_after/" />
+    <files-path name="breakdown_qc"    path="breakdown_qc/" />
+    <files-path name="transfer_photos" path="transfer_photos/" />
+    <cache-path  name="checklist_pdfs" path="checklist_pdfs/" />
+</paths>

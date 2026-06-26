@@ -1,0 +1,370 @@
+package com.candorfoods.factoryops.presentation.transfer
+
+import android.Manifest
+import android.content.pm.PackageManager
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import com.candorfoods.factoryops.util.TransferPhotoStorage
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
+import com.candorfoods.factoryops.presentation.common.components.FactoryCard
+import com.candorfoods.factoryops.presentation.common.components.PrimaryButton
+import com.candorfoods.factoryops.presentation.common.components.PrimaryButtonSize
+import com.candorfoods.factoryops.presentation.common.theme.Spacing
+
+/** Machine Transfer form. Submits to POST /machine-transfers (multipart/form-data). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TransferFormScreen(
+    onBack: () -> Unit,
+    onSubmitted: () -> Unit,
+    viewModel: TransferFormViewModel = hiltViewModel(),
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(state.submittedOk) {
+        if (state.submittedOk) {
+            snackbarHostState.showSnackbar("Transfer recorded.")
+            viewModel.consumeSubmitResult()
+            onSubmitted()
+        }
+    }
+    LaunchedEffect(state.submitError) {
+        state.submitError?.let { msg ->
+            snackbarHostState.showSnackbar(msg)
+            viewModel.consumeSubmitResult()
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Column {
+                        Text("Machine Transfer", style = MaterialTheme.typography.titleLarge)
+                        Text(
+                            "Move an asset between warehouses",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        )
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(Spacing.base),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md),
+        ) {
+            // ─── Route ───────────────────────────────────────────────────────
+            FactoryCard(modifier = Modifier.fillMaxWidth()) {
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    SectionTitle("Transfer route")
+                    Field("Date (YYYY-MM-DD)", state.date) { v -> viewModel.update { it.copy(date = v) } }
+                    DropdownField(
+                        label = "From warehouse *",
+                        value = state.fromWarehouse,
+                        options = TransferFormViewModel.WAREHOUSES,
+                    ) { v -> viewModel.update { it.copy(fromWarehouse = v) } }
+                    DropdownField(
+                        label = "To warehouse *",
+                        value = state.toWarehouse,
+                        options = TransferFormViewModel.WAREHOUSES,
+                    ) { v -> viewModel.update { it.copy(toWarehouse = v) } }
+                    if (state.sameWarehouseError) {
+                        Text(
+                            "From and To warehouse can't be the same.",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
+            }
+
+            // ─── Machine ─────────────────────────────────────────────────────
+            FactoryCard(modifier = Modifier.fillMaxWidth()) {
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    SectionTitle("Machine")
+                    MachineAutocompleteField(
+                        value = state.machineName,
+                        suggestions = state.machineSuggestions,
+                    ) { v -> viewModel.update { it.copy(machineName = v) } }
+                    if (state.machineSuggestions.isEmpty() && state.machinesError == null) {
+                        Text(
+                            "Loading machines…",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        )
+                    }
+                    if (state.machinesError != null) {
+                        Text(
+                            "Couldn't load machine list — you can still type the name. (${state.machinesError})",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    Field("Model / Sr. No. (optional)", state.machineCode) { v ->
+                        viewModel.update { it.copy(machineCode = v) }
+                    }
+                    DropdownField(
+                        label = "Condition",
+                        value = state.condition,
+                        options = TransferFormViewModel.CONDITIONS,
+                    ) { v -> viewModel.update { it.copy(condition = v) } }
+                }
+            }
+
+            // ─── Proof photo ─────────────────────────────────────────────────
+            FactoryCard(modifier = Modifier.fillMaxWidth()) {
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    SectionTitle("Proof — photo of machine")
+                    ProofImagePicker(
+                        imageUri = state.proofImageUri,
+                        onPicked = { uri -> viewModel.update { it.copy(proofImageUri = uri) } },
+                        onClear = { viewModel.update { it.copy(proofImageUri = null) } },
+                    )
+                }
+            }
+
+            // ─── Authorisation ───────────────────────────────────────────────
+            FactoryCard(modifier = Modifier.fillMaxWidth()) {
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    SectionTitle("Authorisation")
+                    Field("Reason for transfer", state.reason, singleLine = false) { v ->
+                        viewModel.update { it.copy(reason = v) }
+                    }
+                    Field("Authorised by (person)", state.authorisedPerson) { v ->
+                        viewModel.update { it.copy(authorisedPerson = v) }
+                    }
+                    Field("Remarks (optional)", state.remarks, singleLine = false) { v ->
+                        viewModel.update { it.copy(remarks = v) }
+                    }
+                }
+            }
+
+            PrimaryButton(
+                text = if (state.submitting) "Submitting…" else "Submit transfer",
+                onClick = { viewModel.submit() },
+                enabled = state.canSubmit && !state.submitting,
+                size = PrimaryButtonSize.Hero,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SectionTitle(text: String) {
+    Text(text, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+}
+
+@Composable
+private fun Field(
+    label: String,
+    value: String,
+    singleLine: Boolean = true,
+    onChange: (String) -> Unit,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onChange,
+        label = { Text(label) },
+        singleLine = singleLine,
+        maxLines = if (singleLine) 1 else 4,
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+/** Read-only picker (From/To warehouse, Condition). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DropdownField(
+    label: String,
+    value: String,
+    options: List<String>,
+    onSelect: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(),
+        )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option) },
+                    onClick = {
+                        onSelect(option)
+                        expanded = false
+                    },
+                )
+            }
+        }
+    }
+}
+
+/** Editable field with live suggestions — type to search OR enter a name manually. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MachineAutocompleteField(
+    value: String,
+    suggestions: List<String>,
+    onChange: (String) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val filtered = remember(value) {
+        if (value.isBlank()) suggestions
+        else suggestions.filter { it.contains(value, ignoreCase = true) && it != value }
+    }
+    ExposedDropdownMenuBox(
+        expanded = expanded && filtered.isNotEmpty(),
+        onExpandedChange = { expanded = it },
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {
+                onChange(it)
+                expanded = true
+            },
+            label = { Text("Machine name * — search or type") },
+            singleLine = true,
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(),
+        )
+        if (filtered.isNotEmpty()) {
+            ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                filtered.take(8).forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option) },
+                        onClick = {
+                            onChange(option)
+                            expanded = false
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProofImagePicker(
+    imageUri: String?,
+    onPicked: (String) -> Unit,
+    onClear: () -> Unit,
+) {
+    val context = LocalContext.current
+    var pendingUri by remember { mutableStateOf<Uri?>(null) }
+
+    val galleryPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+    ) { uri: Uri? -> if (uri != null) onPicked(uri.toString()) }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture(),
+    ) { success ->
+        val uri = pendingUri
+        if (success && uri != null) onPicked(uri.toString())
+        pendingUri = null
+    }
+
+    // Capture a live photo into our FileProvider file, then keep the uri on success.
+    fun startCamera() {
+        val file = TransferPhotoStorage.createPhotoFile(context)
+        val uri = TransferPhotoStorage.fileToShareUri(context, file)
+        pendingUri = uri
+        cameraLauncher.launch(uri)
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted -> if (granted) startCamera() }
+
+    fun takePhoto() {
+        val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+            PackageManager.PERMISSION_GRANTED
+        if (granted) startCamera() else permissionLauncher.launch(Manifest.permission.CAMERA)
+    }
+
+    if (imageUri == null) {
+        Button(onClick = { takePhoto() }, modifier = Modifier.fillMaxWidth()) {
+            Icon(Icons.Filled.Add, contentDescription = null)
+            Spacer(Modifier.width(Spacing.sm))
+            Text("Take photo (camera)")
+        }
+        OutlinedButton(
+            onClick = { galleryPicker.launch("image/*") },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Choose from gallery")
+        }
+    } else {
+        AsyncImage(
+            model = imageUri,
+            contentDescription = "Machine proof photo",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(180.dp)
+                .clip(RoundedCornerShape(12.dp)),
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+        ) {
+            OutlinedButton(onClick = { takePhoto() }, modifier = Modifier.weight(1f)) {
+                Text("Retake")
+            }
+            OutlinedButton(onClick = { galleryPicker.launch("image/*") }, modifier = Modifier.weight(1f)) {
+                Text("Gallery")
+            }
+            OutlinedButton(onClick = onClear, modifier = Modifier.weight(1f)) {
+                Text("Remove")
+            }
+        }
+    }
+}
