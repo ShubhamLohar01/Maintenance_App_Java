@@ -1235,9 +1235,20 @@ On an emulator/device, sign in and confirm:
 
 - [ ] **Step 4: Final commit**
 
+> Stage ONLY reminder-feature files — never `git add -A` (the working tree contains unrelated warehouse-filter WIP that must stay uncommitted).
+
 ```bash
-git add -A
-git commit -m "test: verify role-based reminders end-to-end (manual notes in body)"
+git add src/main/java/com/candorfoods/factoryops/domain/model/Reminder.kt \
+        src/main/java/com/candorfoods/factoryops/domain/usecase/reminder/ReminderEvaluator.kt \
+        src/main/java/com/candorfoods/factoryops/notification/ReminderDispatcher.kt \
+        src/main/java/com/candorfoods/factoryops/notification/NotificationEnvelope.kt \
+        src/main/java/com/candorfoods/factoryops/notification/NotificationHelper.kt \
+        src/main/java/com/candorfoods/factoryops/notification/FcmService.kt \
+        src/main/java/com/candorfoods/factoryops/sync/BreakdownPollWorker.kt \
+        src/main/java/com/candorfoods/factoryops/sync/PmSchedulerWorker.kt \
+        src/main/java/com/candorfoods/factoryops/util/Constants.kt \
+        src/test/java/com/candorfoods/factoryops/reminder/
+git commit -m "test: verify role-based reminders end-to-end (manual notes in body)" || echo "nothing to commit"
 ```
 
 ---
