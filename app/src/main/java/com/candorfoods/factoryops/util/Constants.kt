@@ -60,4 +60,27 @@ object Constants {
 
     const val NOTIFICATION_CHANNEL_PM_ESCALATION = "pm_escalation"
     const val NOTIFICATION_ID_PM_ESCALATION_BASE = 4000
+
+    // ─── Role-based reminders (2026-06-27) ────────────────────────────────────
+    /**
+     * Breakdown escalation thresholds in MINUTES for a MAJOR flag. Tier rises as the
+     * pending state ages. Severity scales these (see ReminderEvaluator):
+     * CRITICAL = ×0.5 (faster), MINOR = ×2.0 (slower).
+     */
+    const val BD_TIER_1_MINUTES = 30L
+    const val BD_TIER_2_MINUTES = 60L   // also: escalate to Supervisor
+    const val BD_TIER_3_MINUTES = 120L  // also: escalate to Head
+
+    /** PM handoff (review/QC) escalation thresholds in HOURS. */
+    const val PM_HANDOFF_TIER_1_HOURS = 24L  // escalate to next role
+    const val PM_HANDOFF_TIER_2_HOURS = 48L  // escalate to Head
+
+    /**
+     * Source of truth for reminder delivery. LOCAL_POLL = the on-device evaluator
+     * computes + fires reminders (current). SERVER_PUSH = the backend fans out FCM
+     * and the local evaluator stands down (future; see FcmService).
+     */
+    const val NOTIFICATIONS_SOURCE_LOCAL_POLL = "LOCAL_POLL"
+    const val NOTIFICATIONS_SOURCE_SERVER_PUSH = "SERVER_PUSH"
+    const val NOTIFICATIONS_SOURCE = NOTIFICATIONS_SOURCE_LOCAL_POLL
 }
