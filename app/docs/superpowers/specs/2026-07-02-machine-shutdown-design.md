@@ -39,6 +39,8 @@ state is **reversible** — the same roles can restore it, which clears the cond
 - Blocking in-flight PM or existing-breakdown completion.
 - Any change to the separate `Machine`/`MachineStatus` model (the app treats it as
   read-only; the UI runs on `MtMachine`).
+- Filtering shut-down machines from the PM-plan machine picker (wrong model + planning
+  maintenance on a down machine is legitimate — see §6.2).
 - The role-based reminders feature (separate branch/spec).
 
 ## 4. Grounding — current code (verified)
@@ -91,7 +93,12 @@ state is **reversible** — the same roles can restore it, which clears the cond
 | **Report Breakdown** button | `MachineDetailScreen` | show only when `isOperator && !underBreakdown && !isShutDown` |
 | Breakdown **submit** | `BreakdownFlagViewModel.onSubmit()` | fetch machine; block + error if shut down (defensive, in case the screen was reached another way) |
 | **Runnable-asset picker** | `GetRunnableAssetsUseCase.invoke()` | add `.filter { !it.isShutDown() }` alongside the existing `isRunnable()` filter |
-| **PM-plan machine picker** | `PlanEditorViewModel` | exclude shut-down machines from the selectable list |
+
+**PM-plan machine picker — deliberately NOT filtered.** `PlanEditorViewModel` lists the
+*other* machine model (`Machine`, keyed by `MachineStatus`), which has no `condition`
+field, so `isShutDown()` doesn't apply cleanly there. More importantly, scheduling a PM
+for a shut-down machine is often legitimate (a machine is frequently shut down *because*
+it needs maintenance). So PM-plan creation stays available for shut-down machines.
 
 ### 6.3 Display
 - **Machine list** (`MachineListScreen` / `MachineListViewModel`): shut-down rows shown
