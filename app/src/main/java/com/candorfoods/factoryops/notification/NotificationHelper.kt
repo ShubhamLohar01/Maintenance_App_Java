@@ -6,9 +6,13 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.Bundle
 import androidx.core.app.NotificationCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.candorfoods.factoryops.MainActivity
+import com.candorfoods.factoryops.domain.model.Reminder
+import com.candorfoods.factoryops.domain.model.ReminderCategory
+import com.candorfoods.factoryops.domain.model.notificationId
 import com.candorfoods.factoryops.util.Constants
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -166,5 +170,63 @@ class NotificationHelper @Inject constructor(
             Constants.NOTIFICATION_ID_PM_ESCALATION_BASE + woId.hashCode(),
             notification
         )
+    }
+
+    /**
+     * Fire or update a reminder notification. The stable id means re-calling with the
+     * same reminder updates the existing notification rather than stacking. `alert`
+     * controls whether the user is re-buzzed: pass true on first appearance or when
+     * the tier increased, false for a silent refresh at the same tier. The current
+     * tier and an is-reminder marker are stored in extras so ReminderDispatcher can
+     * read prior tier and identify which active notifications it owns.
+     */
+    fun showReminder(reminder: Reminder, alert: Boolean) {
+        val channel = when (reminder.category) {
+            ReminderCategory.BREAKDOWN -> Constants.NOTIFICATION_CHANNEL_BREAKDOWN
+            ReminderCategory.PM -> Constants.NOTIFICATION_CHANNEL_PM_ESCALATION
+        }
+        val id = reminder.notificationId()
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra(reminder.deepLinkExtraKey, reminder.entityId)
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context, id, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val extras = Bundle().apply {
+            putInt(EXTRA_TIER, reminder.tier)
+            putBoolean(EXTRA_IS_REMINDER, true)
+        }
+        val priority = if (reminder.tier >= 1) {
+            NotificationCompat.PRIORITY_HIGH
+        } else {
+            NotificationCompat.PRIORITY_DEFAULT
+        }
+        val builder = NotificationCompat.Builder(context, channel)
+            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setContentTitle(reminder.title)
+            .setContentText(reminder.body.take(80))
+            .setStyle(NotificationCompat.BigTextStyle().bigText(reminder.body))
+            .setPriority(priority)
+            .setOnlyAlertOnce(!alert)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .addExtras(extras)
+        if (alert) {
+            builder.setDefaults(
+                if (reminder.tier >= 2) NotificationCompat.DEFAULT_ALL else NotificationCompat.DEFAULT_SOUND
+            )
+        }
+        notificationManager.notify(id, builder.build())
+    }
+
+    fun cancel(notificationId: Int) {
+        notificationManager.cancel(notificationId)
+    }
+
+    companion object {
+        const val EXTRA_TIER = "reminder_tier"
+        const val EXTRA_IS_REMINDER = "is_reminder"
     }
 }

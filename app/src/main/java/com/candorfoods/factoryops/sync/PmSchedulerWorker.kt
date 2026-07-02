@@ -45,7 +45,10 @@ class PmSchedulerWorker @AssistedInject constructor(
     private val woRepo: PmWorkOrderRepository,
     private val machineRepo: MachineRepository,
     private val computeTier: com.candorfoods.factoryops.domain.usecase.pm.ComputePmEscalationTierUseCase,
-    private val notificationHelper: com.candorfoods.factoryops.notification.NotificationHelper
+    private val notificationHelper: com.candorfoods.factoryops.notification.NotificationHelper,
+    private val authRepository: com.candorfoods.factoryops.domain.repository.AuthRepository,
+    private val reminderEvaluator: com.candorfoods.factoryops.domain.usecase.reminder.ReminderEvaluator,
+    private val reminderDispatcher: com.candorfoods.factoryops.notification.ReminderDispatcher,
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
@@ -163,6 +166,21 @@ class PmSchedulerWorker @AssistedInject constructor(
                 // stage, the worker fires a local notification on whichever device is
                 // running. There's no FCM fan-out yet — full cascade behaviour ships
                 // with the Phase 3 backend.
+            }
+        }
+
+        // 4. Role-based PM handoff reminders (P2-P5). P1 overdue escalation is handled
+        //    by step 3 above; the evaluator deliberately does not emit P1.
+        if (Constants.NOTIFICATIONS_SOURCE == Constants.NOTIFICATIONS_SOURCE_LOCAL_POLL) {
+            val user = authRepository.getCurrentUser().first()
+            if (user != null) {
+                val reminders = reminderEvaluator(
+                    user = user,
+                    flags = emptyList(),
+                    workOrders = openWos,
+                    now = System.currentTimeMillis(),
+                )
+                reminderDispatcher.dispatch(reminders)
             }
         }
 
