@@ -1,7 +1,15 @@
 # Language Switch (i18n) — Design Spec
 
+> **⚠️ SUPERSEDED (2026-07-08)** by
+> [`2026-07-08-multilanguage-support-design.md`](2026-07-08-multilanguage-support-design.md).
+> A re-brainstorm changed three material decisions: **per-user (reset on logout)**
+> persistence instead of device-local, a **Compose `CompositionLocal` locale override**
+> instead of AppCompat `setApplicationLocales`, and a **broad worker-facing scope**
+> (incl. technician screens) instead of the 3-screen pilot. The draft translations
+> below are still useful as source material. Kept for history — do not implement from this file.
+
 **Date:** 2026-07-07
-**Status:** Approved design, pending translation review
+**Status:** Superseded by 2026-07-08 spec (see banner above)
 **Scope:** Pilot slice — infrastructure + a core set of screens localized end-to-end in English / Hindi / Marathi.
 
 ## Goal
