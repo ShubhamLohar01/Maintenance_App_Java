@@ -12,9 +12,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.*
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.candorfoods.factoryops.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.candorfoods.factoryops.presentation.common.components.LoadingOverlay
 import com.candorfoods.factoryops.presentation.common.components.PrimaryButton
@@ -73,7 +75,7 @@ private fun LoginContent(
                 OutlinedTextField(
                     value           = uiState.username,
                     onValueChange   = onUsernameChanged,
-                    label           = { Text("Username") },
+                    label           = { Text(stringResource(R.string.label_username)) },
                     singleLine      = true,
                     keyboardOptions = KeyboardOptions(
                         capitalization = KeyboardCapitalization.None,
@@ -88,7 +90,7 @@ private fun LoginContent(
                 OutlinedTextField(
                     value           = uiState.password,
                     onValueChange   = onPasswordChanged,
-                    label           = { Text("Password") },
+                    label           = { Text(stringResource(R.string.label_password)) },
                     singleLine      = true,
                     visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(
@@ -102,7 +104,7 @@ private fun LoginContent(
                         IconButton(onClick = { passwordVisible = !passwordVisible }) {
                             Icon(
                                 if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = if (passwordVisible) "Hide password" else "Show password"
+                                contentDescription = if (passwordVisible) stringResource(R.string.cd_hide_password) else stringResource(R.string.cd_show_password)
                             )
                         }
                     },
@@ -118,7 +120,7 @@ private fun LoginContent(
                 }
 
                 PrimaryButton(
-                    text = "Login",
+                    text = stringResource(R.string.action_login),
                     onClick = onLoginClicked,
                     enabled = !uiState.isLoading,
                     size = PrimaryButtonSize.Primary,
