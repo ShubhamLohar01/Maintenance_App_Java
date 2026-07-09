@@ -25,8 +25,20 @@
     <string name="shift_a">Shift A: 08:00 – 16:00 IST</string>
     <string name="shift_b">Shift B: 16:00 – 24:00 IST</string>
     <string name="shift_c">Shift C: 00:00 – 08:00 IST</string>
-    <string name="notification_missed_stop_title">Missed Stop</string>
+    <string name="notification_missed_stop_title">Missed Stop — %1$s</string>
     <string name="notification_missed_stop_body">You forgot to stop %1$s. Tap to confirm stop time.</string>
     <string name="demo_hint">Demo: shubhammhatre / pass123</string>
     <string name="phase2_coming_soon">Coming Soon — Preventive Maintenance (Phase 2)</string>
+
+    <!-- i18n: login + settings + notifications (2026-07-08) -->
+    <string name="cd_show_password">Show password</string>
+    <string name="cd_hide_password">Hide password</string>
+    <string name="action_retry">Retry</string>
+    <string name="settings_role">Role</string>
+    <string name="settings_plant">Plant</string>
+    <string name="settings_shift_schedule">Shift Schedule</string>
+    <string name="settings_server">Server</string>
+    <string name="settings_language">Language</string>
+    <string name="logout_confirm_message">Any unsynced data will be lost. Are you sure?</string>
+    <string name="notification_breakdown_title">%1$s breakdown — %2$s</string>
 </resources>
