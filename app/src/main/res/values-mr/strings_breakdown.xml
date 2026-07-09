@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="breakdown_flag_title">ब्रेकडाउन फ्लॅग करा</string>
+    <string name="breakdown_back">मागे</string>
+    <string name="breakdown_severity">गंभीरता</string>
+    <string name="breakdown_description_label">वर्णन</string>
+    <string name="breakdown_description_placeholder">ब्रेकडाउनचे वर्णन करा — आवाज, धूर, कंपन, इत्यादी.</string>
+    <string name="breakdown_photo_optional">फोटो (ऐच्छिक)</string>
+    <string name="breakdown_photo_capture_hint">कॅमेऱ्याने फोटो घ्या — परवानगी मिळाल्यावर उपलब्ध</string>
+    <string name="breakdown_photo_attached">फोटो जोडला: …%1$s</string>
+    <string name="breakdown_submit">ब्रेकडाउन फ्लॅग सबमिट करा</string>
+</resources>

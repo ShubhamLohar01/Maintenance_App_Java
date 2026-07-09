@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dialogs -->
+    <string name="machine_dialog_start_title">उत्पादन शुरू करें</string>
+    <string name="machine_dialog_start_message">%1$s पर उत्पादन रन शुरू करें?</string>
+    <string name="machine_action_start">शुरू करें</string>
+    <string name="machine_dialog_stop_title">उत्पादन रोकें</string>
+    <string name="machine_dialog_stop_message">%1$s पर उत्पादन रन रोकें?</string>
+    <string name="machine_action_stop">रोकें</string>
+    <string name="machine_dialog_shutdown_title">मशीन बंद करें</string>
+    <string name="machine_dialog_shutdown_message">%1$s को बंद करें? पुनर्स्थापित होने तक यह सभी उपयोगकर्ताओं के लिए लॉक रहेगी।</string>
+    <string name="machine_action_shut_down">बंद करें</string>
+    <string name="machine_dialog_restore_title">मशीन पुनर्स्थापित करें</string>
+    <string name="machine_dialog_restore_message">%1$s को पुनर्स्थापित करें? ऑपरेटर इसे फिर से उपयोग कर सकेंगे।</string>
+    <string name="machine_action_restore">पुनर्स्थापित करें</string>
+
+    <!-- Top bar -->
+    <string name="machine_asset_fallback">एसेट</string>
+    <string name="machine_cd_back">वापस</string>
+    <string name="machine_cd_edit">मशीन संपादित करें</string>
+    <string name="machine_cd_restore">मशीन पुनर्स्थापित करें</string>
+    <string name="machine_cd_shut_down">मशीन बंद करें</string>
+
+    <!-- Action buttons -->
+    <string name="machine_action_resume">फिर से शुरू करें</string>
+    <string name="machine_action_stop_end_shift">रोकें (शिफ्ट समाप्त करें)</string>
+    <string name="machine_action_recess">विराम (रोकें)</string>
+    <string name="machine_action_production_stop">उत्पादन रोकें</string>
+    <string name="machine_action_production_start">उत्पादन शुरू करें</string>
+    <string name="machine_action_report_breakdown">ब्रेकडाउन रिपोर्ट करें</string>
+    <string name="machine_run_locked">यह रन %1$s द्वारा शुरू किया गया था — केवल वही इसे रोक सकते हैं।</string>
+    <string name="machine_another_operator">किसी अन्य ऑपरेटर</string>
+
+    <!-- Runs section -->
+    <string name="machine_todays_runs">आज के रन</string>
+    <string name="machine_30_day_history">30-दिन का इतिहास</string>
+    <string name="machine_no_runs_today">आज कोई रन दर्ज नहीं हुआ</string>
+    <string name="machine_run_running">चल रहा है…</string>
+
+    <!-- Info labels -->
+    <string name="machine_label_rated_power">रेटेड पावर</string>
+    <string name="machine_label_category">श्रेणी</string>
+    <string name="machine_label_condition">स्थिति</string>
+
+    <!-- Banners -->
+    <string name="machine_status_running">● चल रहा है</string>
+    <string name="machine_operator">ऑपरेटर: %1$s</string>
+    <string name="machine_since">%1$s से · %2$s</string>
+    <string name="machine_active_time">सक्रिय समय: %1$s</string>
+    <string name="machine_status_on_recess">● विराम पर</string>
+    <string name="machine_active_time_paused">सक्रिय समय: %1$s (रुका हुआ)</string>
+    <string name="machine_paused_for">%1$s से रुका हुआ — जारी रखने के लिए फिर से शुरू करें टैप करें।</string>
+    <string name="machine_status_shut_down">● बंद</string>
+    <string name="machine_shutdown_banner_message">यह मशीन बंद कर दी गई है और सभी उपयोगकर्ताओं के लिए लॉक है।</string>
+    <string name="machine_shutdown_banner_hint">सुपरवाइज़र, एडमिन या हेड इसे ऊपर-दाएँ मेनू से पुनर्स्थापित कर सकते हैं।</string>
+    <string name="machine_status_under_breakdown">● ब्रेकडाउन में</string>
+    <string name="machine_severity_status">गंभीरता: %1$s  ·  स्थिति: %2$s</string>
+    <string name="machine_breakdown_start_disabled">जब तक तकनीशियन समस्या हल नहीं करता और QC मंज़ूरी नहीं देता, तब तक उत्पादन शुरू निष्क्रिय रहेगा।</string>
+
+    <!-- Severity (enum labels) -->
+    <string name="machine_severity_critical">गंभीर</string>
+    <string name="machine_severity_major">बड़ा</string>
+    <string name="machine_severity_minor">छोटा</string>
+
+    <!-- Breakdown status (enum labels) -->
+    <string name="machine_bd_status_open">खुला</string>
+    <string name="machine_bd_status_acknowledged">स्वीकृत</string>
+    <string name="machine_bd_status_pending_qc">QC लंबित</string>
+    <string name="machine_bd_status_closed">बंद</string>
+    <string name="machine_bd_status_reopened">पुनः खोला गया</string>
+
+    <!-- Edit sheet -->
+    <string name="machine_edit_title">मशीन विवरण संपादित करें</string>
+    <string name="machine_field_asset_name">एसेट का नाम</string>
+    <string name="machine_field_building">इमारत</string>
+    <string name="machine_field_category">श्रेणी</string>
+    <string name="machine_field_sub_location">उप-स्थान</string>
+    <string name="machine_field_quantity">मात्रा</string>
+    <string name="machine_field_model_no">मॉडल नं.</string>
+    <string name="machine_field_serial_no">सीरियल नं.</string>
+    <string name="machine_field_power_load">पावर लोड (उदा. 120Watt)</string>
+    <string name="machine_field_condition">स्थिति</string>
+    <string name="machine_field_remarks">टिप्पणियाँ</string>
+    <string name="machine_action_saving">सहेजा जा रहा है…</string>
+    <string name="machine_action_save_changes">परिवर्तन सहेजें</string>
+</resources>

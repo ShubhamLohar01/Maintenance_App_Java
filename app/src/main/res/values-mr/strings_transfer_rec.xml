@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="transfer_rec_title">मशीन ट्रान्सफर</string>
+    <string name="transfer_rec_back">मागे</string>
+    <string name="transfer_rec_refresh">रिफ्रेश करा</string>
+    <string name="transfer_rec_create">ट्रान्सफर तयार करा</string>
+    <string name="transfer_rec_records">रेकॉर्ड</string>
+    <string name="transfer_rec_empty">अजून कोणतेही ट्रान्सफर नाहीत. रेकॉर्ड करण्यासाठी \"ट्रान्सफर तयार करा\" वर टॅप करा.</string>
+    <string name="transfer_rec_delete_title">ट्रान्सफर हटवायचे?</string>
+    <string name="transfer_rec_delete_message">हे ट्रान्सफर रेकॉर्ड काढून टाकते आणि मशीन त्याच्या स्रोत गोदामात परत पाठवते.</string>
+    <string name="transfer_rec_delete">हटवा</string>
+    <string name="transfer_rec_cancel">रद्द करा</string>
+    <string name="transfer_rec_machine_fallback">मशीन</string>
+    <string name="transfer_rec_condition_value">स्थिती: %1$s</string>
+    <string name="transfer_rec_acknowledged">स्वीकारले</string>
+    <string name="transfer_rec_acknowledged_by">%1$s यांनी स्वीकारले</string>
+    <string name="transfer_rec_acknowledge">स्वीकारा</string>
+    <string name="transfer_rec_waiting_ack">%1$s च्या स्वीकृतीची प्रतीक्षा आहे</string>
+    <string name="transfer_rec_edit">संपादित करा</string>
+    <string name="transfer_rec_status_approved">मंजूर</string>
+    <string name="transfer_rec_status_pending">प्रलंबित</string>
+    <string name="transfer_rec_edit_title">ट्रान्सफर संपादित करा</string>
+    <string name="transfer_rec_from">कडून</string>
+    <string name="transfer_rec_swap">दिशा बदला</string>
+    <string name="transfer_rec_to">कडे</string>
+    <string name="transfer_rec_machine_name">मशीनचे नाव</string>
+    <string name="transfer_rec_date">तारीख (YYYY-MM-DD)</string>
+    <string name="transfer_rec_condition_label">स्थिती</string>
+    <string name="transfer_rec_model_sr">मॉडेल / अनु. क्रमांक</string>
+    <string name="transfer_rec_reason">कारण</string>
+    <string name="transfer_rec_authorised_by">अधिकृत करणारे</string>
+    <string name="transfer_rec_remarks">शेरा</string>
+    <string name="transfer_rec_save">जतन करा</string>
+</resources>

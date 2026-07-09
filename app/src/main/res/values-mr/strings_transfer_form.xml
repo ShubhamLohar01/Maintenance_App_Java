@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="transfer_form_transfer_recorded">ट्रान्सफर नोंदवले गेले.</string>
+    <string name="transfer_form_title">मशीन ट्रान्सफर</string>
+    <string name="transfer_form_subtitle">गोदामांदरम्यान मालमत्ता हलवा</string>
+    <string name="transfer_form_back">मागे</string>
+    <string name="transfer_form_section_route">ट्रान्सफर मार्ग</string>
+    <string name="transfer_form_date_label">तारीख (YYYY-MM-DD)</string>
+    <string name="transfer_form_section_machine">मशीन</string>
+    <string name="transfer_form_loading_machines">मशीन लोड होत आहेत…</string>
+    <string name="transfer_form_machines_load_error">मशीन सूची लोड करता आली नाही — तरीही तुम्ही नाव टाइप करू शकता. (%1$s)</string>
+    <string name="transfer_form_machine_code_label">मॉडेल / सीरियल क्र. (पर्यायी)</string>
+    <string name="transfer_form_condition_label">स्थिती</string>
+    <string name="transfer_form_section_proof">पुरावा — मशीनचा फोटो</string>
+    <string name="transfer_form_section_authorisation">प्राधिकरण</string>
+    <string name="transfer_form_reason_label">ट्रान्सफरचे कारण</string>
+    <string name="transfer_form_authorised_by_label">अधिकृत करणारा (व्यक्ती)</string>
+    <string name="transfer_form_remarks_label">शेरा (पर्यायी)</string>
+    <string name="transfer_form_submitting">सबमिट होत आहे…</string>
+    <string name="transfer_form_submit">ट्रान्सफर सबमिट करा</string>
+    <string name="transfer_form_warehouse_from">पासून</string>
+    <string name="transfer_form_switch_warehouses">पासून आणि पर्यंत बदला</string>
+    <string name="transfer_form_warehouse_to">पर्यंत</string>
+    <string name="transfer_form_machine_name_label">मशीनचे नाव * — शोधा किंवा टाइप करा</string>
+    <string name="transfer_form_take_photo">फोटो घ्या (कॅमेरा)</string>
+    <string name="transfer_form_choose_gallery">गॅलरीमधून निवडा</string>
+    <string name="transfer_form_proof_photo_desc">मशीन पुरावा फोटो</string>
+    <string name="transfer_form_retake">पुन्हा घ्या</string>
+    <string name="transfer_form_gallery">गॅलरी</string>
+    <string name="transfer_form_remove">काढा</string>
+</resources>

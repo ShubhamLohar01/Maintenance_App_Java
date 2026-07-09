@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Shared between Preventive list & detail screens -->
+    <string name="preventive_back">वापस</string>
+    <string name="preventive_pdf_create_error">पीडीएफ नहीं बन सका — %1$s</string>
+    <string name="preventive_type_monthly">मासिक (50a)</string>
+    <string name="preventive_type_quarterly">त्रैमासिक (50b)</string>
+
+    <!-- Preventive list screen -->
+    <string name="preventive_title_records">चेकलिस्ट रिकॉर्ड</string>
+    <string name="preventive_title_list">प्रिवेंटिव चेकलिस्ट</string>
+    <string name="preventive_create">बनाएँ</string>
+    <string name="preventive_load_records_error">रिकॉर्ड लोड नहीं हो सके — %1$s।</string>
+    <string name="preventive_empty_filled">अभी तक कोई भरी हुई चेकलिस्ट नहीं।</string>
+    <string name="preventive_empty_editable">अभी तक कोई चेकलिस्ट नहीं। पहली भरने के लिए बनाएँ पर टैप करें।</string>
+    <string name="preventive_draft">ड्राफ्ट</string>
+    <string name="preventive_list_date_line">तारीख %1$s · #%2$d</string>
+    <string name="preventive_done_by_value">%1$s ने किया</string>
+    <string name="preventive_download">डाउनलोड</string>
+
+    <!-- Preventive detail screen -->
+    <string name="preventive_title_detail">चेकलिस्ट रिकॉर्ड</string>
+    <string name="preventive_download_pdf">पीडीएफ डाउनलोड करें</string>
+    <string name="preventive_load_error">लोड नहीं हो सका — %1$s</string>
+    <string name="preventive_label_date">तारीख</string>
+    <string name="preventive_label_done_by">करने वाला</string>
+    <string name="preventive_label_checked_by">जाँच करने वाला</string>
+    <string name="preventive_label_verified_by">सत्यापन करने वाला</string>
+    <string name="preventive_label_remarks">टिप्पणी</string>
+    <string name="preventive_general_check">सामान्य जाँच</string>
+    <string name="preventive_status_ok">ठीक</string>
+    <string name="preventive_status_not_ok">ठीक नहीं</string>
+</resources>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="transfer_rec_title">मशीन ट्रांसफर</string>
+    <string name="transfer_rec_back">वापस</string>
+    <string name="transfer_rec_refresh">रिफ़्रेश करें</string>
+    <string name="transfer_rec_create">ट्रांसफर बनाएँ</string>
+    <string name="transfer_rec_records">रिकॉर्ड</string>
+    <string name="transfer_rec_empty">अभी तक कोई ट्रांसफर नहीं। रिकॉर्ड करने के लिए \"ट्रांसफर बनाएँ\" पर टैप करें।</string>
+    <string name="transfer_rec_delete_title">ट्रांसफर हटाएँ?</string>
+    <string name="transfer_rec_delete_message">यह ट्रांसफर रिकॉर्ड हटा देता है और मशीन को उसके स्रोत गोदाम में वापस भेज देता है।</string>
+    <string name="transfer_rec_delete">हटाएँ</string>
+    <string name="transfer_rec_cancel">रद्द करें</string>
+    <string name="transfer_rec_machine_fallback">मशीन</string>
+    <string name="transfer_rec_condition_value">स्थिति: %1$s</string>
+    <string name="transfer_rec_acknowledged">स्वीकृत</string>
+    <string name="transfer_rec_acknowledged_by">%1$s द्वारा स्वीकृत</string>
+    <string name="transfer_rec_acknowledge">स्वीकार करें</string>
+    <string name="transfer_rec_waiting_ack">%1$s के स्वीकार करने की प्रतीक्षा है</string>
+    <string name="transfer_rec_edit">संपादित करें</string>
+    <string name="transfer_rec_status_approved">स्वीकृत</string>
+    <string name="transfer_rec_status_pending">लंबित</string>
+    <string name="transfer_rec_edit_title">ट्रांसफर संपादित करें</string>
+    <string name="transfer_rec_from">से</string>
+    <string name="transfer_rec_swap">दिशा बदलें</string>
+    <string name="transfer_rec_to">तक</string>
+    <string name="transfer_rec_machine_name">मशीन का नाम</string>
+    <string name="transfer_rec_date">तारीख़ (YYYY-MM-DD)</string>
+    <string name="transfer_rec_condition_label">स्थिति</string>
+    <string name="transfer_rec_model_sr">मॉडल / क्रम संख्या</string>
+    <string name="transfer_rec_reason">कारण</string>
+    <string name="transfer_rec_authorised_by">अधिकृत करने वाला</string>
+    <string name="transfer_rec_remarks">टिप्पणियाँ</string>
+    <string name="transfer_rec_save">सहेजें</string>
+</resources>

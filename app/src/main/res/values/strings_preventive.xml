@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Shared between Preventive list & detail screens -->
+    <string name="preventive_back">Back</string>
+    <string name="preventive_pdf_create_error">Couldn\'t create PDF — %1$s</string>
+    <string name="preventive_type_monthly">Monthly (50a)</string>
+    <string name="preventive_type_quarterly">Quarterly (50b)</string>
+
+    <!-- Preventive list screen -->
+    <string name="preventive_title_records">Checklist Records</string>
+    <string name="preventive_title_list">Preventive Checklist</string>
+    <string name="preventive_create">Create</string>
+    <string name="preventive_load_records_error">Couldn\'t load records — %1$s.</string>
+    <string name="preventive_empty_filled">No filled checklists yet.</string>
+    <string name="preventive_empty_editable">No checklists yet. Tap Create to fill the first one.</string>
+    <string name="preventive_draft">Draft</string>
+    <string name="preventive_list_date_line">Date %1$s · #%2$d</string>
+    <string name="preventive_done_by_value">Done by %1$s</string>
+    <string name="preventive_download">Download</string>
+
+    <!-- Preventive detail screen -->
+    <string name="preventive_title_detail">Checklist Record</string>
+    <string name="preventive_download_pdf">Download PDF</string>
+    <string name="preventive_load_error">Couldn\'t load — %1$s</string>
+    <string name="preventive_label_date">Date</string>
+    <string name="preventive_label_done_by">Done by</string>
+    <string name="preventive_label_checked_by">Checked by</string>
+    <string name="preventive_label_verified_by">Verified by</string>
+    <string name="preventive_label_remarks">Remarks</string>
+    <string name="preventive_general_check">General check</string>
+    <string name="preventive_status_ok">OK</string>
+    <string name="preventive_status_not_ok">NOT OK</string>
+</resources>

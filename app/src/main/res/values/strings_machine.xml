@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dialogs -->
+    <string name="machine_dialog_start_title">Start Production</string>
+    <string name="machine_dialog_start_message">Start production run on %1$s?</string>
+    <string name="machine_action_start">Start</string>
+    <string name="machine_dialog_stop_title">Stop Production</string>
+    <string name="machine_dialog_stop_message">Stop production run on %1$s?</string>
+    <string name="machine_action_stop">Stop</string>
+    <string name="machine_dialog_shutdown_title">Shut Down Machine</string>
+    <string name="machine_dialog_shutdown_message">Shut down %1$s? It will be locked for all users until restored.</string>
+    <string name="machine_action_shut_down">Shut Down</string>
+    <string name="machine_dialog_restore_title">Restore Machine</string>
+    <string name="machine_dialog_restore_message">Restore %1$s? Operators will be able to use it again.</string>
+    <string name="machine_action_restore">Restore</string>
+
+    <!-- Top bar -->
+    <string name="machine_asset_fallback">Asset</string>
+    <string name="machine_cd_back">Back</string>
+    <string name="machine_cd_edit">Edit machine</string>
+    <string name="machine_cd_restore">Restore machine</string>
+    <string name="machine_cd_shut_down">Shut down machine</string>
+
+    <!-- Action buttons -->
+    <string name="machine_action_resume">Resume</string>
+    <string name="machine_action_stop_end_shift">Stop (end shift)</string>
+    <string name="machine_action_recess">Recess (pause)</string>
+    <string name="machine_action_production_stop">Production Stop</string>
+    <string name="machine_action_production_start">Production Start</string>
+    <string name="machine_action_report_breakdown">Report Breakdown</string>
+    <string name="machine_run_locked">This run was started by %1$s — only they can stop it.</string>
+    <string name="machine_another_operator">another operator</string>
+
+    <!-- Runs section -->
+    <string name="machine_todays_runs">Today\'s Runs</string>
+    <string name="machine_30_day_history">30-day history</string>
+    <string name="machine_no_runs_today">No runs logged today</string>
+    <string name="machine_run_running">Running…</string>
+
+    <!-- Info labels -->
+    <string name="machine_label_rated_power">Rated Power</string>
+    <string name="machine_label_category">Category</string>
+    <string name="machine_label_condition">Condition</string>
+
+    <!-- Banners -->
+    <string name="machine_status_running">● RUNNING</string>
+    <string name="machine_operator">Operator: %1$s</string>
+    <string name="machine_since">Since %1$s · %2$s</string>
+    <string name="machine_active_time">Active time: %1$s</string>
+    <string name="machine_status_on_recess">● ON RECESS</string>
+    <string name="machine_active_time_paused">Active time: %1$s (paused)</string>
+    <string name="machine_paused_for">Paused for %1$s — tap Resume to continue.</string>
+    <string name="machine_status_shut_down">● SHUT DOWN</string>
+    <string name="machine_shutdown_banner_message">This machine has been shut down and is locked for all users.</string>
+    <string name="machine_shutdown_banner_hint">A supervisor, admin, or head can restore it from the top-right menu.</string>
+    <string name="machine_status_under_breakdown">● UNDER BREAKDOWN</string>
+    <string name="machine_severity_status">Severity: %1$s  ·  Status: %2$s</string>
+    <string name="machine_breakdown_start_disabled">Production Start is disabled until a technician resolves and QC clears it.</string>
+
+    <!-- Severity (enum labels) -->
+    <string name="machine_severity_critical">Critical</string>
+    <string name="machine_severity_major">Major</string>
+    <string name="machine_severity_minor">Minor</string>
+
+    <!-- Breakdown status (enum labels) -->
+    <string name="machine_bd_status_open">Open</string>
+    <string name="machine_bd_status_acknowledged">Acknowledged</string>
+    <string name="machine_bd_status_pending_qc">Pending QC</string>
+    <string name="machine_bd_status_closed">Closed</string>
+    <string name="machine_bd_status_reopened">Reopened</string>
+
+    <!-- Edit sheet -->
+    <string name="machine_edit_title">Edit machine details</string>
+    <string name="machine_field_asset_name">Asset name</string>
+    <string name="machine_field_building">Building</string>
+    <string name="machine_field_category">Category</string>
+    <string name="machine_field_sub_location">Sub location</string>
+    <string name="machine_field_quantity">Quantity</string>
+    <string name="machine_field_model_no">Model No.</string>
+    <string name="machine_field_serial_no">Serial No.</string>
+    <string name="machine_field_power_load">Power load (e.g. 120Watt)</string>
+    <string name="machine_field_condition">Condition</string>
+    <string name="machine_field_remarks">Remarks</string>
+    <string name="machine_action_saving">Saving…</string>
+    <string name="machine_action_save_changes">Save changes</string>
+</resources>

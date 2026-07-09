@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="breakdown_flag_title">Flag Breakdown</string>
+    <string name="breakdown_back">Back</string>
+    <string name="breakdown_severity">Severity</string>
+    <string name="breakdown_description_label">Description</string>
+    <string name="breakdown_description_placeholder">Describe the breakdown — noise, smoke, vibration, etc.</string>
+    <string name="breakdown_photo_optional">Photo (Optional)</string>
+    <string name="breakdown_photo_capture_hint">Photo capture via camera — available once permissions granted</string>
+    <string name="breakdown_photo_attached">Photo attached: …%1$s</string>
+    <string name="breakdown_submit">Submit Breakdown Flag</string>
+</resources>

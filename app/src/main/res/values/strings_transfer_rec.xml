@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="transfer_rec_title">Machine Transfers</string>
+    <string name="transfer_rec_back">Back</string>
+    <string name="transfer_rec_refresh">Refresh</string>
+    <string name="transfer_rec_create">Create Transfer</string>
+    <string name="transfer_rec_records">Records</string>
+    <string name="transfer_rec_empty">No transfers yet. Tap \"Create Transfer\" to record one.</string>
+    <string name="transfer_rec_delete_title">Delete transfer?</string>
+    <string name="transfer_rec_delete_message">This removes the transfer record and moves the machine back to its source warehouse.</string>
+    <string name="transfer_rec_delete">Delete</string>
+    <string name="transfer_rec_cancel">Cancel</string>
+    <string name="transfer_rec_machine_fallback">Machine</string>
+    <string name="transfer_rec_condition_value">Condition: %1$s</string>
+    <string name="transfer_rec_acknowledged">Acknowledged</string>
+    <string name="transfer_rec_acknowledged_by">Acknowledged by %1$s</string>
+    <string name="transfer_rec_acknowledge">Acknowledge</string>
+    <string name="transfer_rec_waiting_ack">Waiting for %1$s to acknowledge</string>
+    <string name="transfer_rec_edit">Edit</string>
+    <string name="transfer_rec_status_approved">APPROVED</string>
+    <string name="transfer_rec_status_pending">PENDING</string>
+    <string name="transfer_rec_edit_title">Edit transfer</string>
+    <string name="transfer_rec_from">From</string>
+    <string name="transfer_rec_swap">Swap direction</string>
+    <string name="transfer_rec_to">To</string>
+    <string name="transfer_rec_machine_name">Machine name</string>
+    <string name="transfer_rec_date">Date (YYYY-MM-DD)</string>
+    <string name="transfer_rec_condition_label">Condition</string>
+    <string name="transfer_rec_model_sr">Model / Sr. No.</string>
+    <string name="transfer_rec_reason">Reason</string>
+    <string name="transfer_rec_authorised_by">Authorised by</string>
+    <string name="transfer_rec_remarks">Remarks</string>
+    <string name="transfer_rec_save">Save</string>
+</resources>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="transfer_form_transfer_recorded">Transfer recorded.</string>
+    <string name="transfer_form_title">Machine Transfer</string>
+    <string name="transfer_form_subtitle">Move an asset between warehouses</string>
+    <string name="transfer_form_back">Back</string>
+    <string name="transfer_form_section_route">Transfer route</string>
+    <string name="transfer_form_date_label">Date (YYYY-MM-DD)</string>
+    <string name="transfer_form_section_machine">Machine</string>
+    <string name="transfer_form_loading_machines">Loading machines…</string>
+    <string name="transfer_form_machines_load_error">Couldn\'t load machine list — you can still type the name. (%1$s)</string>
+    <string name="transfer_form_machine_code_label">Model / Sr. No. (optional)</string>
+    <string name="transfer_form_condition_label">Condition</string>
+    <string name="transfer_form_section_proof">Proof — photo of machine</string>
+    <string name="transfer_form_section_authorisation">Authorisation</string>
+    <string name="transfer_form_reason_label">Reason for transfer</string>
+    <string name="transfer_form_authorised_by_label">Authorised by (person)</string>
+    <string name="transfer_form_remarks_label">Remarks (optional)</string>
+    <string name="transfer_form_submitting">Submitting…</string>
+    <string name="transfer_form_submit">Submit transfer</string>
+    <string name="transfer_form_warehouse_from">From</string>
+    <string name="transfer_form_switch_warehouses">Switch From and To</string>
+    <string name="transfer_form_warehouse_to">To</string>
+    <string name="transfer_form_machine_name_label">Machine name * — search or type</string>
+    <string name="transfer_form_take_photo">Take photo (camera)</string>
+    <string name="transfer_form_choose_gallery">Choose from gallery</string>
+    <string name="transfer_form_proof_photo_desc">Machine proof photo</string>
+    <string name="transfer_form_retake">Retake</string>
+    <string name="transfer_form_gallery">Gallery</string>
+    <string name="transfer_form_remove">Remove</string>
+</resources>
