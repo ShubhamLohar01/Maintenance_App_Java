@@ -23,3 +23,6 @@ captures/
 
 # Node (tooling)
 node_modules/
+
+# Git worktrees (isolated workspaces)
+.worktrees/
