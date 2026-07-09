@@ -8,7 +8,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.candorfoods.factoryops.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -64,7 +66,7 @@ fun HomeRouterScreen(
 
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         if (giveUp && user == null) {
-            Text("Session lost. Returning to login…", style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.home_session_lost), style = MaterialTheme.typography.bodyMedium)
         } else {
             CircularProgressIndicator()
         }

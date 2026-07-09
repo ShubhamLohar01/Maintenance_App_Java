@@ -8,9 +8,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.candorfoods.factoryops.R
 import com.candorfoods.factoryops.domain.model.Severity
 import com.candorfoods.factoryops.presentation.common.components.FactoryCard
 import com.candorfoods.factoryops.presentation.common.components.LoadingOverlay
@@ -41,8 +43,8 @@ fun BreakdownFlagScreen(
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("Flag Breakdown") },
-                    navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } }
+                    title = { Text(stringResource(R.string.breakdown_flag_title)) },
+                    navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.breakdown_back)) } }
                 )
             },
             snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -55,7 +57,7 @@ fun BreakdownFlagScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text("Severity", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.breakdown_severity), style = MaterialTheme.typography.titleMedium)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Severity.values().forEach { sev ->
                         val selected = uiState.severity == sev
@@ -79,8 +81,8 @@ fun BreakdownFlagScreen(
                 OutlinedTextField(
                     value         = uiState.description,
                     onValueChange = viewModel::onDescriptionChanged,
-                    label         = { Text("Description") },
-                    placeholder   = { Text("Describe the breakdown — noise, smoke, vibration, etc.") },
+                    label         = { Text(stringResource(R.string.breakdown_description_label)) },
+                    placeholder   = { Text(stringResource(R.string.breakdown_description_placeholder)) },
                     minLines      = 4,
                     modifier      = Modifier.fillMaxWidth(),
                     isError       = uiState.error != null
@@ -92,20 +94,20 @@ fun BreakdownFlagScreen(
 
                 FactoryCard(modifier = Modifier.fillMaxWidth()) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Photo (Optional)", style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(R.string.breakdown_photo_optional), style = MaterialTheme.typography.titleSmall)
                         Text(
-                            "Photo capture via camera — available once permissions granted",
+                            stringResource(R.string.breakdown_photo_capture_hint),
                             style = MaterialTheme.typography.bodySmall,
                             color = FactoryTheme.colors.onSurfaceMuted,
                         )
                         uiState.beforePhotoLocalPath?.let {
-                            Text("Photo attached: …${it.takeLast(20)}", style = MaterialTheme.typography.bodySmall)
+                            Text(stringResource(R.string.breakdown_photo_attached, it.takeLast(20)), style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
 
                 PrimaryButton(
-                    text     = "Submit Breakdown Flag",
+                    text     = stringResource(R.string.breakdown_submit),
                     onClick  = viewModel::onSubmit,
                     style    = PrimaryButtonStyle.Danger,
                     size     = PrimaryButtonSize.Primary,
