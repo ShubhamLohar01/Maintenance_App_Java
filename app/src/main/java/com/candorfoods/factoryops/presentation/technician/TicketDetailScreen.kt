@@ -254,7 +254,7 @@ fun TicketDetailScreen(
                                 }
                             }
                             PrimaryButton(
-                                text = "Re-resolve",
+                                text = "Rework",
                                 onClick = viewModel::onOpenResolveSheet,
                                 enabled = !uiState.isSubmitting,
                                 style = PrimaryButtonStyle.Success,

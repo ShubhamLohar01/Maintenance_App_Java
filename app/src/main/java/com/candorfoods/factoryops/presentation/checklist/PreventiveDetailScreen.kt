@@ -7,7 +7,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.ui.platform.LocalContext
-import com.candorfoods.factoryops.util.pdf.PdfShareLauncher
+import androidx.compose.ui.res.stringResource
+import com.candorfoods.factoryops.util.pdf.PdfDownloader
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,6 +18,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.candorfoods.factoryops.R
 import com.candorfoods.factoryops.domain.model.ChecklistRecordDetail
 import com.candorfoods.factoryops.domain.model.ChecklistRecordItem
 import com.candorfoods.factoryops.presentation.common.components.FactoryCard
@@ -34,15 +36,13 @@ fun PreventiveDetailScreen(
 
     LaunchedEffect(uiState.pdfToShare) {
         uiState.pdfToShare?.let { file ->
-            if (!PdfShareLauncher.share(context, file)) {
-                snackbarHostState.showSnackbar("No app available to open the PDF")
-            }
+            snackbarHostState.showSnackbar(PdfDownloader.downloadAndOpen(context, file))
             viewModel.onPdfShared()
         }
     }
     LaunchedEffect(uiState.exportError) {
         uiState.exportError?.let {
-            snackbarHostState.showSnackbar("Couldn't create PDF — $it")
+            snackbarHostState.showSnackbar(context.getString(R.string.preventive_pdf_create_error, it))
             viewModel.onExportErrorShown()
         }
     }
@@ -50,10 +50,10 @@ fun PreventiveDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Checklist Record") },
+                title = { Text(stringResource(R.string.preventive_title_detail)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.preventive_back))
                     }
                 },
                 actions = {
@@ -67,7 +67,7 @@ fun PreventiveDetailScreen(
                             onClick = viewModel::exportPdf,
                             enabled = uiState.record != null,
                         ) {
-                            Icon(Icons.Default.Download, contentDescription = "Download PDF")
+                            Icon(Icons.Default.Download, contentDescription = stringResource(R.string.preventive_download_pdf))
                         }
                     }
                 },
@@ -79,7 +79,7 @@ fun PreventiveDetailScreen(
             when {
                 uiState.isLoading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 uiState.error != null -> Text(
-                    "Couldn't load — ${uiState.error}",
+                    stringResource(R.string.preventive_load_error, uiState.error!!),
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     modifier = Modifier.align(Alignment.Center).padding(Spacing.xl),
@@ -93,8 +93,8 @@ fun PreventiveDetailScreen(
 @Composable
 private fun RecordBody(record: ChecklistRecordDetail) {
     val typeLabel = when (record.formType.uppercase()) {
-        "MONTHLY"   -> "Monthly (50a)"
-        "QUARTERLY" -> "Quarterly (50b)"
+        "MONTHLY"   -> stringResource(R.string.preventive_type_monthly)
+        "QUARTERLY" -> stringResource(R.string.preventive_type_quarterly)
         else        -> record.formType
     }
     LazyColumn(
@@ -106,11 +106,11 @@ private fun RecordBody(record: ChecklistRecordDetail) {
             FactoryCard(modifier = Modifier.fillMaxWidth()) {
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                     Text("$typeLabel · ${record.docNo}", style = MaterialTheme.typography.titleMedium)
-                    InfoLine("Date", record.checklistDate)
-                    InfoLine("Done by", record.doneBy)
-                    InfoLine("Checked by", record.checkedBy)
-                    InfoLine("Verified by", record.verifiedBy)
-                    if (record.remarks.isNotBlank()) InfoLine("Remarks", record.remarks)
+                    InfoLine(stringResource(R.string.preventive_label_date), record.checklistDate)
+                    InfoLine(stringResource(R.string.preventive_label_done_by), record.doneBy)
+                    InfoLine(stringResource(R.string.preventive_label_checked_by), record.checkedBy)
+                    InfoLine(stringResource(R.string.preventive_label_verified_by), record.verifiedBy)
+                    if (record.remarks.isNotBlank()) InfoLine(stringResource(R.string.preventive_label_remarks), record.remarks)
                 }
             }
         }
@@ -153,7 +153,7 @@ private fun ItemRow(item: ChecklistRecordItem) {
         Row(verticalAlignment = Alignment.Top) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    item.checkpoint.ifBlank { "General check" },
+                    item.checkpoint.ifBlank { stringResource(R.string.preventive_general_check) },
                     style = MaterialTheme.typography.bodyLarge,
                 )
                 if (item.remarks.isNotBlank()) {
@@ -165,7 +165,7 @@ private fun ItemRow(item: ChecklistRecordItem) {
                 }
             }
             Text(
-                if (ok) "OK" else "NOT OK",
+                if (ok) stringResource(R.string.preventive_status_ok) else stringResource(R.string.preventive_status_not_ok),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
                 color = if (ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,

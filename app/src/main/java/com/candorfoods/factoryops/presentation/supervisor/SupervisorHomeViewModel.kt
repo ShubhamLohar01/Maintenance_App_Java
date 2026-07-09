@@ -2,12 +2,12 @@ package com.candorfoods.factoryops.presentation.supervisor
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.candorfoods.factoryops.domain.model.Machine
+import com.candorfoods.factoryops.domain.model.MtMachine
 import com.candorfoods.factoryops.domain.model.PmPlan
-import com.candorfoods.factoryops.domain.model.PmTemplate
 import com.candorfoods.factoryops.domain.model.PmWorkOrder
+import com.candorfoods.factoryops.domain.model.Result
 import com.candorfoods.factoryops.domain.model.User
-import com.candorfoods.factoryops.domain.repository.MachineRepository
+import com.candorfoods.factoryops.domain.repository.MtMachineRepository
 import com.candorfoods.factoryops.domain.repository.PmPlanRepository
 import com.candorfoods.factoryops.domain.repository.PmTemplateRepository
 import com.candorfoods.factoryops.domain.repository.PmWorkOrderRepository
@@ -25,7 +25,6 @@ import javax.inject.Inject
 data class SupervisorHomeUiState(
     val currentUser: User? = null,
     val isLoading: Boolean = true,
-    val templates: List<PmTemplate> = emptyList(),
     val plans: List<SupervisorPlanRow> = emptyList(),
     val workOrders: List<SupervisorWoRow> = emptyList(),
     val pendingApprovals: List<SupervisorWoRow> = emptyList()
@@ -51,13 +50,22 @@ class SupervisorHomeViewModel @Inject constructor(
     private val templateRepo: PmTemplateRepository,
     private val planRepo: PmPlanRepository,
     private val woRepo: PmWorkOrderRepository,
-    private val machineRepo: MachineRepository
+    private val mtMachineRepo: MtMachineRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SupervisorHomeUiState())
     val uiState: StateFlow<SupervisorHomeUiState> = _uiState.asStateFlow()
 
+    /** asset_id → asset, from mt_asset_list, so a plan/WO resolves its real name. */
+    private val assets = MutableStateFlow<Map<String, MtMachine>>(emptyMap())
+
     init {
+        viewModelScope.launch {
+            (mtMachineRepo.list() as? Result.Success)?.data?.let { list ->
+                assets.value = list.associateBy { it.assetId }
+            }
+        }
+
         viewModelScope.launch {
             getCurrentUser()
                 .filterNotNull()
@@ -66,50 +74,43 @@ class SupervisorHomeViewModel @Inject constructor(
                 }
         }
 
-        // Templates with their items resolved (each row needs item count).
-        viewModelScope.launch {
-            templateRepo.observeActiveTemplates().collect { tmpls ->
-                _uiState.update { it.copy(templates = tmpls, isLoading = false) }
-            }
-        }
-
-        // Plans joined to machine + template for display.
+        // Plans. A plan is bound to an asset (machineId = asset_id) and carries its
+        // own checklist (persisted as a template under the hood). Names resolve from
+        // the asset register, falling back to the stored checklist name.
         viewModelScope.launch {
             combine(
                 planRepo.observeAllPlans(),
-                machineRepo.observeAllMachines(),
-                templateRepo.observeActiveTemplates()
-            ) { plans, machines, templates ->
-                val machineById = machines.associateBy { it.id }
+                templateRepo.observeActiveTemplates(),
+                assets
+            ) { plans, templates, assetMap ->
                 val templateById = templates.associateBy { it.id }
-                plans.mapNotNull { plan ->
-                    val m = machineById[plan.machineId] ?: return@mapNotNull null
+                plans.map { plan ->
+                    val asset = assetMap[plan.machineId]
                     val t = templateById[plan.templateId]
                     SupervisorPlanRow(
                         plan = plan,
-                        machineName = m.name,
-                        machineCode = m.code,
-                        templateName = t?.name ?: "(template missing)",
-                        templateMachineType = (t?.machineType ?: m.machineType).name
+                        machineName = asset?.assetName ?: t?.name ?: "(machine)",
+                        machineCode = plan.machineId,
+                        templateName = t?.name ?: "(checklist)",
+                        templateMachineType = (t?.machineType?.name ?: asset?.category ?: "")
                     )
                 }
             }.collect { rows ->
-                _uiState.update { it.copy(plans = rows) }
+                _uiState.update { it.copy(plans = rows, isLoading = false) }
             }
         }
 
-        // Active WOs joined to machine.
+        // Active WOs. machineId is an asset_id; name from the register, else the
+        // WO's templateName snapshot (which = the asset name for asset-based plans).
         viewModelScope.launch {
-            combine(
-                woRepo.observeAll(),
-                machineRepo.observeAllMachines()
-            ) { wos, machines ->
-                val machineById: Map<String, Machine> = machines.associateBy { it.id }
-                wos.sortedBy { it.scheduledDate }
-                    .mapNotNull { wo ->
-                        val m = machineById[wo.machineId] ?: return@mapNotNull null
-                        SupervisorWoRow(wo = wo, machineName = m.name, machineCode = m.code)
-                    }
+            combine(woRepo.observeAll(), assets) { wos, assetMap ->
+                wos.sortedBy { it.scheduledDate }.map { wo ->
+                    SupervisorWoRow(
+                        wo = wo,
+                        machineName = assetMap[wo.machineId]?.assetName ?: wo.templateName,
+                        machineCode = wo.machineId
+                    )
+                }
             }.collect { rows ->
                 _uiState.update { it.copy(workOrders = rows) }
             }
@@ -119,14 +120,15 @@ class SupervisorHomeViewModel @Inject constructor(
         viewModelScope.launch {
             combine(
                 woRepo.observeByStatus(com.candorfoods.factoryops.domain.model.PmWoStatus.SUBMITTED),
-                machineRepo.observeAllMachines()
-            ) { wos, machines ->
-                val machineById = machines.associateBy { it.id }
-                wos.sortedBy { it.submittedAt ?: Long.MAX_VALUE }
-                    .mapNotNull { wo ->
-                        val m = machineById[wo.machineId] ?: return@mapNotNull null
-                        SupervisorWoRow(wo = wo, machineName = m.name, machineCode = m.code)
-                    }
+                assets
+            ) { wos, assetMap ->
+                wos.sortedBy { it.submittedAt ?: Long.MAX_VALUE }.map { wo ->
+                    SupervisorWoRow(
+                        wo = wo,
+                        machineName = assetMap[wo.machineId]?.assetName ?: wo.templateName,
+                        machineCode = wo.machineId
+                    )
+                }
             }.collect { rows ->
                 _uiState.update { it.copy(pendingApprovals = rows) }
             }

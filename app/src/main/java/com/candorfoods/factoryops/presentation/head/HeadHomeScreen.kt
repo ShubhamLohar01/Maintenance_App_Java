@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
@@ -35,6 +36,7 @@ fun HeadHomeScreen(
     onReports: () -> Unit,
     onTransfers: () -> Unit,
     onSettings: () -> Unit,
+    onManageUsers: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel(),
 ) {
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
@@ -79,6 +81,9 @@ fun HeadHomeScreen(
 
             item { GroupHeader("Analytics") }
             item { SectionCard(Icons.Filled.DateRange, "Reports", "Power consumption per warehouse", soon = true, onClick = onReports) }
+
+            item { GroupHeader("Administration") }
+            item { SectionCard(Icons.Filled.Person, "Manage Users", "Add, edit or remove app users", onClick = onManageUsers) }
         }
     }
 }

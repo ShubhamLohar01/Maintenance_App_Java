@@ -1,8 +1,10 @@
 package com.candorfoods.factoryops.util.pdf
 
+import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 
@@ -16,6 +18,7 @@ class CandorPdfCanvas(
     private val doc: PdfDocument,
     private val landscape: Boolean,
     private val meta: DocMeta,
+    private val logo: Bitmap? = null,
 ) {
     // A4 at 72 dpi in points; landscape swaps the dimensions.
     private val pageWidth = if (landscape) 842 else 595
@@ -68,9 +71,23 @@ class CandorPdfCanvas(
         c.drawLine(contentLeft + logoW, top, contentLeft + logoW, top + h, border)
         c.drawLine(contentRight - rightW, top, contentRight - rightW, top + h, border)
 
-        // Logo wordmark (no logo asset available; styled text stands in).
-        c.drawText("Candor", contentLeft + 12f, top + 26f, brand)
-        c.drawText("Foods", contentLeft + 12f, top + 44f, brand)
+        // Brand logo in the left cell, scaled to fit (aspect preserved). Falls back to a
+        // styled "Candor Foods" wordmark only if the logo asset can't be decoded.
+        val logoBmp = logo
+        if (logoBmp != null && logoBmp.width > 0 && logoBmp.height > 0) {
+            val pad = 8f
+            val cellW = logoW - pad * 2
+            val cellH = h - pad * 2
+            val scale = minOf(cellW / logoBmp.width, cellH / logoBmp.height)
+            val drawW = logoBmp.width * scale
+            val drawH = logoBmp.height * scale
+            val dl = contentLeft + pad + (cellW - drawW) / 2f
+            val dt = top + pad + (cellH - drawH) / 2f
+            c.drawBitmap(logoBmp, null, RectF(dl, dt, dl + drawW, dt + drawH), null)
+        } else {
+            c.drawText("Candor", contentLeft + 12f, top + 26f, brand)
+            c.drawText("Foods", contentLeft + 12f, top + 44f, brand)
+        }
 
         // Center block.
         val cx = contentLeft + logoW + 8f

@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import com.candorfoods.factoryops.domain.model.Result
 import com.candorfoods.factoryops.domain.model.Severity
+import com.candorfoods.factoryops.domain.model.isShutDown
+import com.candorfoods.factoryops.domain.repository.MtMachineRepository
 import com.candorfoods.factoryops.domain.usecase.breakdown.RaiseBreakdownFlagUseCase
 import com.candorfoods.factoryops.navigation.Screen
 import kotlinx.coroutines.flow.*
@@ -28,7 +30,8 @@ sealed interface BreakdownFlagUiEvent {
 @HiltViewModel
 class BreakdownFlagViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val raiseBreakdownFlag: RaiseBreakdownFlagUseCase
+    private val raiseBreakdownFlag: RaiseBreakdownFlagUseCase,
+    private val mtMachineRepository: MtMachineRepository
 ) : ViewModel() {
 
     val machineId: String = checkNotNull(savedStateHandle[Screen.BreakdownFlag.ARG])
@@ -46,6 +49,13 @@ class BreakdownFlagViewModel @Inject constructor(
     fun onSubmit() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
+            // Defensive: a shut-down machine cannot receive a breakdown report.
+            val machine = (mtMachineRepository.getByAssetId(machineId) as? Result.Success)?.data
+            if (machine?.isShutDown() == true) {
+                _uiState.update { it.copy(isLoading = false, error = "This machine is shut down.") }
+                _uiEvent.emit(BreakdownFlagUiEvent.ShowSnackbar("This machine is shut down."))
+                return@launch
+            }
             val s = _uiState.value
             when (val r = raiseBreakdownFlag(machineId, s.severity, s.description, s.beforePhotoLocalPath)) {
                 is Result.Success -> {

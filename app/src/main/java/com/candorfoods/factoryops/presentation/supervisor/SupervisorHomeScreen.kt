@@ -48,8 +48,6 @@ import com.candorfoods.factoryops.util.DateTimeFormatter
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SupervisorHomeScreen(
-    onCreateTemplate: () -> Unit,
-    onEditTemplate: (String) -> Unit,
     onCreatePlan: () -> Unit,
     onEditPlan: (String) -> Unit,
     onReviewPm: (String) -> Unit,
@@ -80,27 +78,20 @@ fun SupervisorHomeScreen(
             )
         },
         floatingActionButton = {
-            when (selectedTab) {
-                0 -> ExtendedFloatingActionButton(onClick = onCreateTemplate) {
-                    Icon(Icons.Default.Add, contentDescription = null)
-                    Spacer(Modifier.size(8.dp))
-                    Text("New template")
-                }
-                1 -> ExtendedFloatingActionButton(onClick = onCreatePlan) {
+            if (selectedTab == 0) {
+                ExtendedFloatingActionButton(onClick = onCreatePlan) {
                     Icon(Icons.Default.Add, contentDescription = null)
                     Spacer(Modifier.size(8.dp))
                     Text("New plan")
                 }
-                else -> Unit
             }
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             androidx.compose.material3.ScrollableTabRow(selectedTabIndex = selectedTab, edgePadding = 0.dp) {
-                SupervisorTab("Templates",  uiState.templates.size,        selectedTab == 0) { selectedTab = 0 }
-                SupervisorTab("Plans",      uiState.plans.size,            selectedTab == 1) { selectedTab = 1 }
-                SupervisorTab("Active WOs", uiState.workOrders.size,       selectedTab == 2) { selectedTab = 2 }
-                SupervisorTab("Approvals",  uiState.pendingApprovals.size, selectedTab == 3) { selectedTab = 3 }
+                SupervisorTab("Plan",       uiState.plans.size,            selectedTab == 0) { selectedTab = 0 }
+                SupervisorTab("Active WOs", uiState.workOrders.size,       selectedTab == 1) { selectedTab = 1 }
+                SupervisorTab("Approvals",  uiState.pendingApprovals.size, selectedTab == 2) { selectedTab = 2 }
             }
 
             if (uiState.isLoading) {
@@ -108,10 +99,9 @@ fun SupervisorHomeScreen(
                     CircularProgressIndicator()
                 }
             } else when (selectedTab) {
-                0 -> TemplatesList(uiState.templates, onEditTemplate)
-                1 -> PlansList(uiState.plans, onEditPlan)
-                2 -> WorkOrdersList(uiState.workOrders)
-                3 -> PendingApprovalsList(uiState.pendingApprovals, onReviewPm)
+                0 -> PlansList(uiState.plans, onEditPlan)
+                1 -> WorkOrdersList(uiState.workOrders)
+                2 -> PendingApprovalsList(uiState.pendingApprovals, onReviewPm)
             }
         }
     }
@@ -172,49 +162,12 @@ private fun SupervisorTab(label: String, count: Int, selected: Boolean, onClick:
 }
 
 @Composable
-private fun TemplatesList(
-    templates: List<com.candorfoods.factoryops.domain.model.PmTemplate>,
-    onEdit: (String) -> Unit
-) {
-    if (templates.isEmpty()) {
-        EmptyState("No templates yet. Tap + to create one.")
-        return
-    }
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        items(templates, key = { it.id }) { tmpl ->
-            FactoryCard(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = { onEdit(tmpl.id) }
-            ) {
-                Column {
-                    Text(tmpl.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        "${tmpl.machineType.name} · ${tmpl.estimatedDurationMinutes} min · ${tmpl.defaultTradeType.name}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = FactoryTheme.colors.onSurfaceMuted
-                    )
-                    if (tmpl.description.isNotBlank()) {
-                        Spacer(Modifier.height(4.dp))
-                        Text(tmpl.description, style = MaterialTheme.typography.bodySmall, maxLines = 2)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun PlansList(
     rows: List<SupervisorPlanRow>,
     onEdit: (String) -> Unit
 ) {
     if (rows.isEmpty()) {
-        EmptyState("No plans yet. Tap + to assign a template to a machine.")
+        EmptyState("No plans yet. Tap + to create one.")
         return
     }
     LazyColumn(

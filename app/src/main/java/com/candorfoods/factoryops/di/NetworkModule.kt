@@ -6,7 +6,9 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import com.candorfoods.factoryops.BuildConfig
+import com.candorfoods.factoryops.data.remote.TokenAuthenticator
 import com.candorfoods.factoryops.data.remote.TunnelColdStartRetryInterceptor
+import com.candorfoods.factoryops.data.remote.api.AssetScheduleApi
 import com.candorfoods.factoryops.data.remote.api.AuthApi
 import com.candorfoods.factoryops.data.remote.api.BreakdownApi
 import com.candorfoods.factoryops.data.remote.api.ChecklistApi
@@ -15,6 +17,8 @@ import com.candorfoods.factoryops.data.remote.api.FloorReadingApi
 import com.candorfoods.factoryops.data.remote.api.MachineApi
 import com.candorfoods.factoryops.data.remote.api.MachineTransferApi
 import com.candorfoods.factoryops.data.remote.api.MtMachineApi
+import com.candorfoods.factoryops.data.remote.api.MtUserApi
+import com.candorfoods.factoryops.data.remote.api.PmSyncApi
 import com.candorfoods.factoryops.data.remote.mock.MockAuthApi
 import com.candorfoods.factoryops.data.remote.mock.MockBreakdownApi
 import com.candorfoods.factoryops.data.remote.mock.MockChecklistApi
@@ -23,11 +27,13 @@ import com.candorfoods.factoryops.data.remote.mock.MockFloorReadingApi
 import com.candorfoods.factoryops.data.remote.mock.MockMachineApi
 import com.candorfoods.factoryops.data.remote.mock.MockMachineTransferApi
 import com.candorfoods.factoryops.data.remote.mock.MockMtMachineApi
+import com.candorfoods.factoryops.data.remote.mock.MockMtUserApi
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
+import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
 @Module
@@ -41,8 +47,19 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideRetrofit(): Retrofit {
+    fun provideRetrofit(authenticator: TokenAuthenticator): Retrofit {
         val client = OkHttpClient.Builder()
+            // A cold cloud backend (Render free tier sleeps) can take 30-50s to wake;
+            // the default 10s read timeout gives up before it answers, so the machine
+            // list / any first call fails with "(timeout)". Give a single attempt enough
+            // time to wait out a cold start (the retry interceptor then covers 502-504
+            // while it warms). Applies to every request.
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+            // On a 401 (expired / backend-invalidated token) clear the session so the next
+            // app launch routes to Login instead of looping on 401s.
+            .authenticator(authenticator)
             // Outermost: re-issues the whole call (incl. logging) when the dev tunnel
             // is waking from idle (502/503/504 or connect/read timeout, then works).
             .addInterceptor(TunnelColdStartRetryInterceptor())
@@ -90,6 +107,12 @@ object NetworkModule {
 
     @Provides
     @Singleton
+    fun provideMtUserApi(retrofit: Retrofit): MtUserApi =
+        if (BuildConfig.USE_MOCK_API) MockMtUserApi()
+        else retrofit.create(MtUserApi::class.java)
+
+    @Provides
+    @Singleton
     fun provideChecklistApi(retrofit: Retrofit): ChecklistApi =
         if (BuildConfig.USE_MOCK_API) MockChecklistApi()
         else retrofit.create(ChecklistApi::class.java)
@@ -105,4 +128,16 @@ object NetworkModule {
     fun provideFloorReadingApi(retrofit: Retrofit): FloorReadingApi =
         if (BuildConfig.USE_MOCK_API) MockFloorReadingApi()
         else retrofit.create(FloorReadingApi::class.java)
+
+    // Real backend only — no mock (feature relies on server-generated kWh rows).
+    @Provides
+    @Singleton
+    fun provideAssetScheduleApi(retrofit: Retrofit): AssetScheduleApi =
+        retrofit.create(AssetScheduleApi::class.java)
+
+    // Real backend only — PM plan + work-order sync (mt_pm_plan / mt_pm_work_order).
+    @Provides
+    @Singleton
+    fun providePmSyncApi(retrofit: Retrofit): PmSyncApi =
+        retrofit.create(PmSyncApi::class.java)
 }

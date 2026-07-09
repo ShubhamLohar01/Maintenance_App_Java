@@ -3,7 +3,9 @@ package com.candorfoods.factoryops.data.repository
 import com.candorfoods.factoryops.data.local.AuthPreferences
 import com.candorfoods.factoryops.data.remote.api.MtMachineApi
 import com.candorfoods.factoryops.data.remote.dto.MtMachineDto
+import com.candorfoods.factoryops.data.remote.dto.toAddDto
 import com.candorfoods.factoryops.data.remote.dto.toDomain
+import com.candorfoods.factoryops.data.remote.dto.toUpdateDto
 import com.candorfoods.factoryops.domain.model.MtMachine
 import com.candorfoods.factoryops.domain.model.Result
 import com.candorfoods.factoryops.domain.repository.MtMachineRepository
@@ -67,6 +69,35 @@ class MtMachineRepositoryImpl @Inject constructor(
             Result.Success(saved.toDomain())
         } catch (e: Exception) {
             Result.Error(e.message ?: "Failed to add asset", e)
+        }
+    }
+
+    override suspend fun addAsset(machine: MtMachine): Result<MtMachine> {
+        val token = authPreferences.getToken()
+            ?: return Result.Error("Not logged in")
+        return try {
+            val saved = mtMachineApi.add(
+                token = "Bearer $token",
+                dto = machine.toAddDto(),
+            )
+            Result.Success(saved.toDomain())
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Failed to add machine", e)
+        }
+    }
+
+    override suspend fun updateAsset(machine: MtMachine): Result<MtMachine> {
+        val token = authPreferences.getToken()
+            ?: return Result.Error("Not logged in")
+        return try {
+            val saved = mtMachineApi.update(
+                token = "Bearer $token",
+                assetId = machine.assetId,
+                dto = machine.toUpdateDto(),
+            )
+            Result.Success(saved.toDomain())
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Failed to update asset", e)
         }
     }
 }

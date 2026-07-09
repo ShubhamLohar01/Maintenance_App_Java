@@ -1,14 +1,14 @@
 package com.candorfoods.factoryops.data.remote.mock
 
 import com.candorfoods.factoryops.data.remote.api.BreakdownApi
-import com.candorfoods.factoryops.data.remote.dto.BreakdownFlagRequestDto
 import com.candorfoods.factoryops.data.remote.dto.BreakdownFlagResponseDto
-import com.candorfoods.factoryops.data.remote.dto.BreakdownWorkDoneRequestDto
 import com.candorfoods.factoryops.data.remote.dto.OpenBreakdownDto
 import com.candorfoods.factoryops.data.remote.dto.QcAcknowledgeRequestDto
 import com.candorfoods.factoryops.data.remote.dto.QcDecisionRequestDto
 import com.candorfoods.factoryops.data.remote.dto.QcUpdateResponseDto
 import kotlinx.coroutines.delay
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import java.util.UUID
 
 class MockBreakdownApi : BreakdownApi {
@@ -17,7 +17,15 @@ class MockBreakdownApi : BreakdownApi {
         return emptyList()
     }
 
-    override suspend fun raiseFlag(token: String, request: BreakdownFlagRequestDto): BreakdownFlagResponseDto {
+    override suspend fun raiseFlag(
+        token: String,
+        machineId: RequestBody,
+        operatorId: RequestBody,
+        severity: RequestBody,
+        description: RequestBody,
+        raisedAt: RequestBody,
+        beforePhoto: MultipartBody.Part?,
+    ): BreakdownFlagResponseDto {
         delay(400)
         return BreakdownFlagResponseDto(
             id = UUID.randomUUID().toString(),
@@ -43,7 +51,11 @@ class MockBreakdownApi : BreakdownApi {
     override suspend fun workDone(
         token: String,
         flagId: String,
-        request: BreakdownWorkDoneRequestDto
+        userId: RequestBody,
+        userName: RequestBody,
+        workDone: RequestBody,
+        doneAt: RequestBody,
+        afterPhoto: MultipartBody.Part?,
     ): QcUpdateResponseDto {
         delay(200)
         return QcUpdateResponseDto(

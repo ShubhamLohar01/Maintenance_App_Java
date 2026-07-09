@@ -14,7 +14,6 @@ import androidx.navigation.compose.*
 import com.candorfoods.factoryops.domain.model.UserRole
 import com.candorfoods.factoryops.presentation.admin.AdminHomeScreen
 import com.candorfoods.factoryops.presentation.breakdown.BreakdownFlagScreen
-import com.candorfoods.factoryops.presentation.checklist.BreakdownCompleteScreen
 import com.candorfoods.factoryops.presentation.checklist.BreakdownFormScreen
 import com.candorfoods.factoryops.presentation.checklist.BreakdownListScreen
 import com.candorfoods.factoryops.presentation.checklist.ChecklistHubScreen
@@ -32,6 +31,7 @@ import com.candorfoods.factoryops.presentation.machinelist.MachineListScreen
 import com.candorfoods.factoryops.presentation.login.LoginScreen
 import com.candorfoods.factoryops.presentation.login.LoginViewModel
 import com.candorfoods.factoryops.presentation.machine.MachineDetailScreen
+import com.candorfoods.factoryops.presentation.schedule.ScheduleElectricAssetsScreen
 import com.candorfoods.factoryops.presentation.machinemaster.MachineMasterScreen
 import com.candorfoods.factoryops.presentation.settings.SettingsScreen
 import com.candorfoods.factoryops.presentation.sync.SyncStatusScreen
@@ -42,13 +42,14 @@ import com.candorfoods.factoryops.presentation.qc.QcTicketDetailScreen
 import com.candorfoods.factoryops.presentation.supervisor.PlanEditorScreen
 import com.candorfoods.factoryops.presentation.supervisor.SupervisorHomeScreen
 import com.candorfoods.factoryops.presentation.supervisor.SupervisorPmReviewScreen
-import com.candorfoods.factoryops.presentation.supervisor.TemplateEditorScreen
 import com.candorfoods.factoryops.presentation.technician.DailyReadingScreen
 import com.candorfoods.factoryops.presentation.technician.TechnicianHomeScreen
 import com.candorfoods.factoryops.presentation.technician.TechnicianPmDetailScreen
 import com.candorfoods.factoryops.presentation.technician.TechnicianPmExecuteScreen
 import com.candorfoods.factoryops.presentation.technician.TicketDetailScreen
 import com.candorfoods.factoryops.presentation.transfer.TransferFormScreen
+import com.candorfoods.factoryops.presentation.transfer.TransferRecordsScreen
+import com.candorfoods.factoryops.presentation.user.ManageUsersScreen
 
 @Composable
 fun AppNavGraph() {
@@ -138,6 +139,13 @@ fun AppNavGraph() {
             )
         }
 
+        // Schedule Electric Assets — supervisor edits schedule + asset details, head read-only.
+        composable(Screen.ScheduleElectricAssets.route) {
+            ScheduleElectricAssetsScreen(
+                onBack = { navController.popBackStack() },
+            )
+        }
+
         composable(Screen.TechnicianHome.route) {
             TechnicianHomeScreen(
                 onTicketClick        = { id -> navController.navigate(Screen.TicketDetail.createRoute(id)) },
@@ -172,24 +180,10 @@ fun AppNavGraph() {
 
         composable(Screen.SupervisorHome.route) {
             SupervisorHomeScreen(
-                onCreateTemplate = { navController.navigate(Screen.SupervisorTemplateEditor.createRoute(null)) },
-                onEditTemplate   = { id -> navController.navigate(Screen.SupervisorTemplateEditor.createRoute(id)) },
                 onCreatePlan     = { navController.navigate(Screen.SupervisorPlanEditor.createRoute(null)) },
                 onEditPlan       = { id -> navController.navigate(Screen.SupervisorPlanEditor.createRoute(id)) },
                 onReviewPm       = { id -> navController.navigate(Screen.SupervisorPmReview.createRoute(id)) },
                 onSettingsClick  = { navController.navigate(Screen.Settings.route) }
-            )
-        }
-
-        composable(
-            route = Screen.SupervisorTemplateEditor.route,
-            arguments = listOf(navArgument(Screen.SupervisorTemplateEditor.ARG) {
-                type = NavType.StringType; nullable = true; defaultValue = null
-            })
-        ) {
-            TemplateEditorScreen(
-                onBack = { navController.popBackStack() },
-                onSaved = { navController.popBackStack() }
             )
         }
 
@@ -330,22 +324,27 @@ fun AppNavGraph() {
         composable(Screen.BreakdownList.route) {
             BreakdownListScreen(
                 onBack   = { navController.popBackStack() },
-                onCreate = { navController.navigate(Screen.BreakdownForm.route) },
-                onOpen   = { id -> navController.navigate(Screen.BreakdownComplete.createRoute(id)) },
+                onCreate = { navController.navigate(Screen.BreakdownForm.createRoute()) },
+                onOpen   = { id -> navController.navigate(Screen.BreakdownForm.createRoute(breakdownId = id)) },
             )
         }
 
         composable(
-            route = Screen.BreakdownComplete.route,
-            arguments = listOf(navArgument(Screen.BreakdownComplete.ARG) { type = NavType.StringType }),
+            route = Screen.BreakdownForm.route,
+            arguments = listOf(navArgument(Screen.BreakdownForm.ARG) {
+                type = NavType.StringType; nullable = true; defaultValue = null
+            }),
         ) {
-            BreakdownCompleteScreen(onBack = { navController.popBackStack() })
-        }
-
-        composable(Screen.BreakdownForm.route) {
             BreakdownFormScreen(
                 onBack      = { navController.popBackStack() },
                 onSubmitted = { navController.popBackStack() },
+            )
+        }
+
+        composable(Screen.TransferRecords.route) {
+            TransferRecordsScreen(
+                onBack   = { navController.popBackStack() },
+                onCreate = { navController.navigate(Screen.Transfer.route) },
             )
         }
 
@@ -374,6 +373,7 @@ fun AppNavGraph() {
                 onReports         = { navController.navigate(Screen.ComingSoon.createRoute("Reports")) },
                 onTransfers       = { navController.navigate(Screen.ComingSoon.createRoute("Transfer records")) },
                 onSettings        = { navController.navigate(Screen.Settings.route) },
+                onManageUsers     = { navController.navigate(Screen.ManageUsers.route) },
             )
         }
         composable(Screen.HeadBreakdowns.route) {
@@ -390,6 +390,10 @@ fun AppNavGraph() {
                 onFinal    = { id -> navController.navigate(Screen.PreventiveDetail.createRoute(id)) },
                 readOnly   = true,
             )
+        }
+
+        composable(Screen.ManageUsers.route) {
+            ManageUsersScreen(onBack = { navController.popBackStack() })
         }
     }
 }

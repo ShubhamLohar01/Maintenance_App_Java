@@ -1,5 +1,6 @@
 package com.candorfoods.factoryops.data.remote.api
 
+import com.candorfoods.factoryops.data.remote.dto.BreakdownRecordDto
 import com.candorfoods.factoryops.data.remote.dto.BreakdownSheetDto
 import com.candorfoods.factoryops.data.remote.dto.BreakdownSubmitResponseDto
 import com.candorfoods.factoryops.data.remote.dto.ChecklistRecordDetailDto
@@ -48,4 +49,10 @@ interface ChecklistApi {
         @Header("Authorization") token: String,
         @Body body: BreakdownSheetDto,
     ): BreakdownSubmitResponseDto
+
+    /** List submitted Breakdown F.06 records (newest first). */
+    @GET("preventive-maintenance/breakdowns")
+    suspend fun listBreakdowns(
+        @Header("Authorization") token: String,
+    ): List<BreakdownRecordDto>
 }

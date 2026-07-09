@@ -2,6 +2,7 @@ package com.candorfoods.factoryops.data.repository
 
 import com.candorfoods.factoryops.data.local.AppDatabase
 import com.candorfoods.factoryops.data.local.AuthPreferences
+import com.candorfoods.factoryops.data.local.LanguagePreferences
 import com.candorfoods.factoryops.data.local.entity.UserEntity
 import com.candorfoods.factoryops.data.remote.api.AuthApi
 import com.candorfoods.factoryops.data.remote.dto.LoginRequestDto
@@ -18,16 +19,18 @@ import javax.inject.Singleton
 class AuthRepositoryImpl @Inject constructor(
     private val authApi: AuthApi,
     private val db: AppDatabase,
-    private val authPreferences: AuthPreferences
+    private val authPreferences: AuthPreferences,
+    private val languagePreferences: LanguagePreferences,
 ) : AuthRepository {
 
     override suspend fun login(username: String, password: String): Result<User> {
         return try {
             val response = authApi.login(LoginRequestDto(username, password))
-            // Prefer the backend's expires_at when it's a clean epoch value; otherwise
-            // keep the local 7-day fallback. (Format unconfirmed — see AuthDtos.)
+            // Session window: honour the backend's expires_at when present; otherwise keep
+            // the user signed in for 2 weeks locally. (For the 2-week session to hold end
+            // to end, the backend must issue a token with a matching ~14-day TTL.)
             val tokenExpiresAt = parseExpiresAt(response.expiresAt)
-                ?: System.currentTimeMillis() + 7 * 24 * 3_600_000L
+                ?: System.currentTimeMillis() + 14 * 24 * 3_600_000L
             val entity = UserEntity(
                 id = response.userId,
                 name = response.name,
@@ -39,8 +42,10 @@ class AuthRepositoryImpl @Inject constructor(
             )
             db.userDao().insert(entity)
             authPreferences.saveToken(response.token)
+            authPreferences.saveTokenExpiresAt(tokenExpiresAt)
             authPreferences.saveUserId(response.userId)
             authPreferences.savePlantId(response.plantId)
+            languagePreferences.loadForUser(response.userId)
             Result.Success(entity.toDomain())
         } catch (e: Exception) {
             Result.Error(e.message ?: "Login failed", e)
@@ -50,6 +55,7 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun logout() {
         db.userDao().clearAll()
         authPreferences.clear()
+        languagePreferences.resetToDefault()
     }
 
     override fun getCurrentUser(): Flow<User?> =

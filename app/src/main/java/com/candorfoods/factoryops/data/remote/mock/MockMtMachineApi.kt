@@ -2,6 +2,7 @@ package com.candorfoods.factoryops.data.remote.mock
 
 import com.candorfoods.factoryops.data.remote.api.MtMachineApi
 import com.candorfoods.factoryops.data.remote.dto.MtMachineDto
+import com.candorfoods.factoryops.data.remote.dto.MtMachineUpdateDto
 import kotlinx.coroutines.delay
 
 class MockMtMachineApi : MtMachineApi {
@@ -31,6 +32,27 @@ class MockMtMachineApi : MtMachineApi {
         val withId = dto.copy(assetId = OthersCatalogSeed.nextAdminId(dto.building))
         OthersCatalogSeed.entries.add(withId)
         return withId
+    }
+
+    override suspend fun update(token: String, assetId: String, dto: MtMachineUpdateDto): MtMachineDto {
+        delay(300)
+        val updated = MtMachineDto(
+            assetId = assetId,
+            building = dto.building,
+            assetName = dto.assetName,
+            category = dto.category,
+            subLocation = dto.subLocation,
+            powerLoad = dto.powerLoad,
+            quantity = dto.quantity,
+            condition = dto.condition,
+            modelNo = dto.modelNo,
+            serialNo = dto.serialNo,
+            remarks = dto.remarks,
+        )
+        // Reflect the edit in the mutable OTHERS seed if the row lives there.
+        val idx = OthersCatalogSeed.entries.indexOfFirst { it.assetId == assetId }
+        if (idx >= 0) OthersCatalogSeed.entries[idx] = updated
+        return updated
     }
 
     // PRODUCTION sample rows — sub_category "Production Equipment" so they land

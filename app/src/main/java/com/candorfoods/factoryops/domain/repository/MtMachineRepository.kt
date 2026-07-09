@@ -22,4 +22,10 @@ interface MtMachineRepository {
         subCategory: String,
         powerLoad: String?,
     ): Result<MtMachine>
+
+    /** Append a new asset row from a fully-populated MtMachine → POST /mt-machines. */
+    suspend fun addAsset(machine: MtMachine): Result<MtMachine>
+
+    /** Supervisor: update an existing asset's editable fields → PUT /mt-machines/{asset_id}. */
+    suspend fun updateAsset(machine: MtMachine): Result<MtMachine>
 }

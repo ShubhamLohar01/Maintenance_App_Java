@@ -30,8 +30,12 @@ class AuthPreferences @Inject constructor(
     fun getUserId(): String? = prefs.getString(Constants.KEY_USER_ID, null)
     fun savePlantId(plantId: String) = prefs.edit().putString(Constants.KEY_PLANT_ID, plantId).apply()
     fun getPlantId(): String? = prefs.getString(Constants.KEY_PLANT_ID, null)
+    fun saveTokenExpiresAt(ts: Long) = prefs.edit().putLong(Constants.KEY_TOKEN_EXPIRES_AT, ts).apply()
+    fun getTokenExpiresAt(): Long = prefs.getLong(Constants.KEY_TOKEN_EXPIRES_AT, 0L)
     fun clear() = prefs.edit().clear().apply()
-    fun isLoggedIn(): Boolean = getToken() != null
+    /** Signed in only while a token exists AND its stored expiry is still in the future. */
+    fun isLoggedIn(): Boolean =
+        getToken() != null && System.currentTimeMillis() < getTokenExpiresAt()
 
     fun saveBreakdownLastSeenAt(ts: Long) =
         prefs.edit().putLong(Constants.KEY_BREAKDOWN_LAST_SEEN, ts).apply()

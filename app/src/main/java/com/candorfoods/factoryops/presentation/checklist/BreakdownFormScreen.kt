@@ -9,7 +9,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.candorfoods.factoryops.util.pdf.PdfShareLauncher
+import com.candorfoods.factoryops.util.pdf.PdfDownloader
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -50,9 +50,7 @@ fun BreakdownFormScreen(
     }
     LaunchedEffect(state.pdfToShare) {
         state.pdfToShare?.let { file ->
-            if (!PdfShareLauncher.share(context, file)) {
-                snackbarHostState.showSnackbar("No app available to open the PDF")
-            }
+            snackbarHostState.showSnackbar(PdfDownloader.downloadAndOpen(context, file))
             viewModel.onPdfShared()
         }
     }

@@ -8,6 +8,7 @@ import com.candorfoods.factoryops.domain.model.Result
 import com.candorfoods.factoryops.domain.model.User
 import com.candorfoods.factoryops.domain.model.UserRole
 import com.candorfoods.factoryops.domain.repository.BreakdownRepository
+import com.candorfoods.factoryops.domain.repository.MtMachineRepository
 import com.candorfoods.factoryops.domain.usecase.auth.GetCurrentUserUseCase
 import com.candorfoods.factoryops.domain.usecase.energy.GetActiveRunsUseCase
 import com.candorfoods.factoryops.domain.usecase.mtmachine.GetMachineMasterUseCase
@@ -54,11 +55,21 @@ data class MachineListUiState(
     val underQcIds: Set<String> = emptySet(),
     val searchQuery: String = "",
     val selectedCategory: String? = null,
+    val selectedBuilding: String? = null,        // null = Both (show all warehouses)
     val statusFilter: MachineStatusFilter = MachineStatusFilter.ALL,
     val pendingSyncCount: Int = 0,
     val isSyncing: Boolean = false,
+    val showAddSheet: Boolean = false,
+    val isAddingMachine: Boolean = false,
+    val addError: String? = null,
 ) {
     val isOperator: Boolean get() = currentUser?.role == UserRole.OPERATOR
+    /** Supervisor / Head / Technician / Admin may add a machine to the register. */
+    val canAddMachine: Boolean
+        get() = currentUser?.role == UserRole.SUPERVISOR ||
+            currentUser?.role == UserRole.HEAD ||
+            currentUser?.role == UserRole.TECHNICIAN ||
+            currentUser?.role == UserRole.ADMIN
 
     private val runByAsset: Map<String, ActiveRun> get() = activeRuns.associateBy { it.assetId }
 
@@ -72,6 +83,11 @@ data class MachineListUiState(
 
     val categories: List<String>
         get() = assets.map { it.category }.filter { it.isNotBlank() }.distinct().sorted()
+
+    /** Distinct warehouses present in the data — drives the warehouse switch. Operators
+     *  physically work across both buildings, so the switch is offered to every role. */
+    val buildings: List<String>
+        get() = assets.map { it.building }.filter { it.isNotBlank() }.distinct().sorted()
 
     /** Filtered (search + category + status) and ordered (status group, then name). */
     val items: List<MachineListItem>
@@ -91,6 +107,7 @@ data class MachineListUiState(
                         item.asset.subLocation.contains(q, true)
                 }
                 .filter { selectedCategory == null || it.asset.category.equals(selectedCategory, true) }
+                .filter { selectedBuilding == null || it.asset.building.equals(selectedBuilding, true) }
                 .filter { statusFilter.matches(it.status) }
                 .sortedWith(compareBy({ it.status.order }, { it.asset.assetName.lowercase() }))
                 .toList()
@@ -107,6 +124,7 @@ class MachineListViewModel @Inject constructor(
     private val getCurrentUser: GetCurrentUserUseCase,
     private val getPendingSyncCount: GetPendingSyncCountUseCase,
     private val breakdownRepository: BreakdownRepository,
+    private val mtMachineRepository: MtMachineRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MachineListUiState())
@@ -140,7 +158,25 @@ class MachineListViewModel @Inject constructor(
 
     fun onSearchChange(q: String)               = _uiState.update { it.copy(searchQuery = q) }
     fun onCategorySelected(c: String?)          = _uiState.update { it.copy(selectedCategory = c) }
+    fun onBuildingSelected(b: String?)          = _uiState.update { it.copy(selectedBuilding = b) }
     fun onStatusFilterChange(f: MachineStatusFilter) = _uiState.update { it.copy(statusFilter = f) }
+
+    fun onAddMachineClicked() = _uiState.update { it.copy(showAddSheet = true, addError = null) }
+    fun onAddDismiss() = _uiState.update { it.copy(showAddSheet = false, addError = null) }
+
+    fun onSubmitNewMachine(machine: MtMachine) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isAddingMachine = true, addError = null) }
+            when (val r = mtMachineRepository.addAsset(machine)) {
+                is Result.Success -> {
+                    _uiState.update { it.copy(isAddingMachine = false, showAddSheet = false) }
+                    loadAssets(initial = false)   // refresh so the new machine appears
+                }
+                is Result.Error -> _uiState.update { it.copy(isAddingMachine = false, addError = r.message) }
+                is Result.Loading -> _uiState.update { it.copy(isAddingMachine = false) }
+            }
+        }
+    }
 
     fun onRefresh() {
         loadAssets(initial = false)

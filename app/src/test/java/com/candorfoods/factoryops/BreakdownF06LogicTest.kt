@@ -1,17 +1,17 @@
 package com.candorfoods.factoryops
 
-import com.candorfoods.factoryops.domain.model.BreakdownF06Draft
+import com.candorfoods.factoryops.data.remote.dto.BreakdownRecordDto
+import com.candorfoods.factoryops.data.remote.dto.toDomain
 import com.candorfoods.factoryops.domain.model.BreakdownFlag
+import com.candorfoods.factoryops.domain.model.BreakdownRecord
 import com.candorfoods.factoryops.domain.model.BreakdownStatus
 import com.candorfoods.factoryops.domain.model.QcStatus
 import com.candorfoods.factoryops.domain.model.Severity
 import com.candorfoods.factoryops.domain.model.SyncStatus
+import com.candorfoods.factoryops.presentation.checklist.breakdownFlagToEntry
 import com.candorfoods.factoryops.presentation.checklist.breakdownStatusLabel
-import com.candorfoods.factoryops.presentation.checklist.buildF06Row
-import com.candorfoods.factoryops.presentation.checklist.defaultF06Fields
 import com.candorfoods.factoryops.presentation.checklist.isApproved
-import com.candorfoods.factoryops.presentation.checklist.toDraft
-import com.candorfoods.factoryops.presentation.checklist.toFields
+import com.candorfoods.factoryops.presentation.checklist.toF06Row
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -56,42 +56,69 @@ class BreakdownF06LogicTest {
         assertEquals("In progress", breakdownStatusLabel(flag(qcStatus = null, status = BreakdownStatus.ACKNOWLEDGED)))
         assertEquals("Reopened", breakdownStatusLabel(flag(qcStatus = QcStatus.REJECTED, status = BreakdownStatus.REOPENED)))
         assertEquals("Open", breakdownStatusLabel(flag(qcStatus = null, status = BreakdownStatus.OPEN)))
+        // CLOSED without APPROVED (data anomaly) must not read as "Open".
+        assertEquals("Closed", breakdownStatusLabel(flag(qcStatus = null, status = BreakdownStatus.CLOSED)))
     }
 
-    @Test fun `defaultF06Fields seeds location, equipment and signer suggestions from the flag`() {
-        val f = defaultF06Fields(flag())
-        assertEquals("W-202", f.location)
-        assertEquals("W202-0007", f.equipmentModel)
-        assertEquals("Tech Ravi", f.maintenancePersonSign)
-        assertEquals("QC Sam", f.qcClearanceSign)
-        assertEquals("", f.typeOfMaintenance)
-    }
+    private fun record(
+        id: Int = 12,
+        machineName: String = "Band Sealer",
+        equipmentModelNo: String = "W202-0007",
+    ) = BreakdownRecord(
+        id = id, docNo = "CFPLA.C4.F.06", recordDate = "2026-06-27", location = "W-202",
+        machineName = machineName, equipmentModelNo = equipmentModelNo,
+        problemInBrief = "Belt snapped", typeOfMaintenance = "Mechanical", partOfMachine = "Belt",
+        temporaryReason = "", durationStart = "10:00", durationEnd = "11:30",
+        machineOperatorSign = "Ravi", maintenancePersonSign = "Suresh", qcClearanceSign = "QC Sam",
+        verifiedBy = "Head", createdAt = "2026-06-27T11:35:00Z",
+    )
 
-    @Test fun `defaultF06Fields tolerates null building and names`() {
-        val f = defaultF06Fields(flag(building = null, resolvedByName = null, qcDecidedByName = null))
-        assertEquals("", f.location)
-        assertEquals("", f.maintenancePersonSign)
-        assertEquals("", f.qcClearanceSign)
-    }
-
-    @Test fun `buildF06Row maps flag plus entered fields and falls back to machineId for name`() {
-        val fields = defaultF06Fields(flag()).copy(typeOfMaintenance = "Mechanical", partOfMachine = "Belt")
-        val row = buildF06Row(flag(), fields)
+    @Test fun `toF06Row copies fields and uses srNo 1`() {
+        val row = record().toF06Row()
         assertEquals(1, row.srNo)
+        assertEquals("2026-06-27", row.date)
+        assertEquals("W-202", row.location)
         assertEquals("Band Sealer", row.machineName)
         assertEquals("W202-0007", row.equipmentModel)
         assertEquals("Belt snapped", row.problem)
         assertEquals("Mechanical", row.typeOfMaintenance)
         assertEquals("Belt", row.partOfMachine)
-        // name falls back to machineId when assetName is blank/null
-        assertEquals("W202-0007", buildF06Row(flag(assetName = null), fields).machineName)
+        assertEquals("10:00", row.durationStart)
+        assertEquals("QC Sam", row.qcClearanceSign)
     }
 
-    @Test fun `fields round-trip through a draft`() {
-        val fields = defaultF06Fields(flag()).copy(reason = "temp fix", verifiedBy = "Head")
-        val draft = fields.toDraft(breakdownId = "bd1", updatedAt = 123L)
-        assertEquals("bd1", draft.breakdownId)
-        assertEquals(123L, draft.updatedAt)
-        assertEquals(fields, draft.toFields())
+    @Test fun `toF06Row falls back to equipment model when machine name is blank`() {
+        assertEquals("W202-0007", record(machineName = "").toF06Row().machineName)
+    }
+
+    @Test fun `BreakdownRecordDto toDomain maps snake_case fields`() {
+        val dto = BreakdownRecordDto(
+            id = 7, recordDate = "2026-06-01", machineName = "Pet Sealer",
+            equipmentModelNo = "A185-0003", problemInBrief = "Jam", verifiedBy = "QA",
+        )
+        val d = dto.toDomain()
+        assertEquals(7, d.id)
+        assertEquals("2026-06-01", d.recordDate)
+        assertEquals("Pet Sealer", d.machineName)
+        assertEquals("A185-0003", d.equipmentModelNo)
+        assertEquals("Jam", d.problemInBrief)
+        assertEquals("QA", d.verifiedBy)
+        assertEquals("CFPLA.C4.F.06", d.docNo) // default
+    }
+
+    @Test fun `breakdownFlagToEntry pre-fills the reusable F06 columns`() {
+        val e = breakdownFlagToEntry(flag(), key = "bd-0")
+        assertEquals("bd-0", e.key)
+        assertEquals("W-202", e.location)
+        assertEquals("Band Sealer", e.machineName)
+        assertEquals("W202-0007", e.equipmentModel)
+        assertEquals("Belt snapped", e.problem)
+        assertEquals("QC Sam", e.qcClearanceSign)
+        assertEquals("Tech Ravi", e.maintenancePersonSign)
+        assertEquals("", e.machineOperatorSign)   // gap: only operator id is stored
+        // Date/time derive from raisedAt=0L in IST; resolvedAt is null → blank end.
+        assertEquals("1970-01-01", e.date)
+        assertEquals("05:30", e.durationStart)
+        assertEquals("", e.durationEnd)
     }
 }

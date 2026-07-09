@@ -71,6 +71,7 @@ CREATE INDEX IF NOT EXISTS ix_pm_plan_due     ON mt_pm_plan (is_active, next_due
 CREATE INDEX IF NOT EXISTS ix_pm_plan_tech    ON mt_pm_plan (assigned_technician_id);
 
 -- 3.2 WORK ORDER = one generated execution instance of a plan.
+-- Two tables only: task logs and spares live as JSONB columns here (no child tables).
 CREATE TABLE IF NOT EXISTS mt_pm_work_order (
     id                          VARCHAR(64) PRIMARY KEY,       -- 'wo-<plan>-<ts>'
     plan_id                     VARCHAR(64) NOT NULL,
@@ -95,49 +96,22 @@ CREATE TABLE IF NOT EXISTS mt_pm_work_order (
     qc_acknowledged_by          VARCHAR(128),
     qc_acknowledged_by_name     VARCHAR(128),
     qc_acknowledged_at          BIGINT,
-    qc_decided_by               VARCHAR(128),
-    qc_decided_by_name          VARCHAR(128),
-    qc_decided_at               BIGINT,
-    qc_decision_notes           TEXT,
-    qc_after_photo_url          TEXT,                          -- S3 URL
     qc_checklist                JSONB,                         -- QC sign-off blob
     closed_at                   BIGINT,
-    escalation_tier             SMALLINT    NOT NULL DEFAULT 0,   -- 0..4
+    task_logs                   JSONB       NOT NULL DEFAULT '[]'::jsonb,  -- per-step results, see §3.3
     spares                      JSONB       NOT NULL DEFAULT '[]'::jsonb,  -- see §3.5
     created_at                  BIGINT      NOT NULL,
     updated_at                  BIGINT      NOT NULL,
     CONSTRAINT ck_pm_wo_status CHECK (status IN (
         'DRAFT','NOTIFIED','ACKNOWLEDGED','IN_PROGRESS','SUBMITTED',
-        'SUPERVISOR_APPROVED','PENDING_QC','QC_APPROVED','CLOSED','OVERDUE','CANCELLED')),
-    CONSTRAINT ck_pm_wo_tier CHECK (escalation_tier BETWEEN 0 AND 4)
+        'SUPERVISOR_APPROVED','PENDING_QC','QC_APPROVED','CLOSED','OVERDUE','CANCELLED'))
 );
 CREATE INDEX IF NOT EXISTS ix_pm_wo_status ON mt_pm_work_order (status);
 CREATE INDEX IF NOT EXISTS ix_pm_wo_tech   ON mt_pm_work_order (assigned_technician_id);
 CREATE INDEX IF NOT EXISTS ix_pm_wo_plan   ON mt_pm_work_order (plan_id);
 
--- 3.3 TASK LOG = one checklist step of a work order (queryable: "which checkpoints fail").
-CREATE TABLE IF NOT EXISTS mt_pm_wo_task_log (
-    id                   VARCHAR(64) PRIMARY KEY,
-    wo_id                VARCHAR(64) NOT NULL REFERENCES mt_pm_work_order(id) ON DELETE CASCADE,
-    template_item_id     VARCHAR(64),
-    order_index          INTEGER     NOT NULL DEFAULT 0,
-    title                VARCHAR(255) NOT NULL,
-    description          TEXT        NOT NULL DEFAULT '',
-    expected_result      TEXT        NOT NULL DEFAULT '',
-    requires_photo       BOOLEAN     NOT NULL DEFAULT FALSE,
-    requires_measurement BOOLEAN     NOT NULL DEFAULT FALSE,
-    measurement_unit     VARCHAR(32),
-    measurement_min      DOUBLE PRECISION,
-    measurement_max      DOUBLE PRECISION,
-    status               VARCHAR(16) NOT NULL DEFAULT 'PENDING',
-    measurement_value    DOUBLE PRECISION,
-    photo_url            TEXT,                                 -- S3 URL
-    notes                TEXT,
-    completed_at         BIGINT,
-    completed_by         VARCHAR(128),
-    CONSTRAINT ck_pm_log_status CHECK (status IN ('PENDING','PASS','FAIL','NOT_APPLICABLE'))
-);
-CREATE INDEX IF NOT EXISTS ix_pm_log_wo ON mt_pm_wo_task_log (wo_id);
+-- 3.3 task_logs[] JSONB element (one per checklist step). NO separate table.
+--   status = PENDING | PASS | FAIL | NOT_APPLICABLE
 ```
 
 **3.4 `mt_pm_plan.items` JSONB element:**

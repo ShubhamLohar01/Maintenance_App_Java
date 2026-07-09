@@ -10,4 +10,14 @@ interface MachineTransferRepository {
 
     /** GET /machine-transfers. */
     suspend fun listTransfers(): Result<List<MachineTransfer>>
+
+    /** POST /machine-transfers/{id}/acknowledge — receiving warehouse confirms receipt
+     *  (status PENDING -> APPROVED). Backend enforces who may acknowledge. */
+    suspend fun acknowledgeTransfer(id: Int): Result<MachineTransfer>
+
+    /** PUT /machine-transfers/{id} — edit a still-PENDING transfer (creator only). */
+    suspend fun updateTransfer(id: Int, input: NewMachineTransfer): Result<MachineTransfer>
+
+    /** DELETE /machine-transfers/{id} — creator deletes their still-PENDING transfer. */
+    suspend fun deleteTransfer(id: Int): Result<Unit>
 }

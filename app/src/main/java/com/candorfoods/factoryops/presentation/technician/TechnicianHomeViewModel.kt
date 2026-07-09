@@ -110,8 +110,9 @@ class TechnicianHomeViewModel @Inject constructor(
             )
             combine(
                 pmWoRepository.observeForTechnician(user.id, activePmStatuses),
-                machines
-            ) { wos, machineMap -> wos.toPmRows(machineMap) }
+                machines,
+                assets
+            ) { wos, machineMap, assetMap -> wos.toPmRows(machineMap, assetMap) }
                 .collect { rows -> _uiState.update { it.copy(pmTasks = rows) } }
         }
     }
@@ -140,16 +141,20 @@ class TechnicianHomeViewModel @Inject constructor(
     }
 
     private fun List<com.candorfoods.factoryops.domain.model.PmWorkOrder>.toPmRows(
-        machineMap: Map<String, Machine>
+        machineMap: Map<String, Machine>,
+        assetMap: Map<String, MtMachine>,
     ): List<PmTaskRowUiModel> =
-        mapNotNull { wo ->
-            val m = machineMap[wo.machineId] ?: return@mapNotNull null
+        // machineId is an asset_id: resolve from the register first, then the legacy
+        // table, then the WO's snapshot name — never drop the task.
+        map { wo ->
+            val asset = assetMap[wo.machineId]
+            val legacy = machineMap[wo.machineId]
             PmTaskRowUiModel(
                 wo = wo,
-                machineName = m.name,
-                machineCode = m.code,
-                machineLocation = m.location,
-                criticality = m.criticality
+                machineName = asset?.assetName ?: legacy?.name ?: wo.templateName,
+                machineCode = asset?.assetId ?: legacy?.code ?: wo.machineId,
+                machineLocation = asset?.subLocation ?: legacy?.location ?: "",
+                criticality = legacy?.criticality ?: Criticality.C
             )
         }.sortedBy { it.wo.scheduledDate }
 }

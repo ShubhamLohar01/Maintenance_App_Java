@@ -15,6 +15,7 @@ sealed class Screen(val route: String) {
     object MachineMaster  : Screen("machine_master")
     object MachineList    : Screen("machines_list")   // shared live list (operator/supervisor/head)
     object DailyReading   : Screen("daily_reading")   // technician floor meter readings
+    object ScheduleElectricAssets : Screen("schedule_electric_assets")  // supervisor schedules, head read-only
 
     // ─── Checklist module ────────────────────────────────────────────────────
     object ChecklistHub   : Screen("checklist")                  // Preventive / Breakdown chooser
@@ -30,14 +31,17 @@ sealed class Screen(val route: String) {
         const val ARG = "id"
     }
     object BreakdownList   : Screen("checklist/breakdown")        // records + Create
-    object BreakdownForm   : Screen("checklist/breakdown/new")    // the F.06 form (UI only)
-    object BreakdownComplete : Screen("checklist/breakdown/complete/{id}") {
-        fun createRoute(id: String) = "checklist/breakdown/complete/$id"
-        const val ARG = "id"
+    object BreakdownForm   : Screen("checklist/breakdown/new?breakdownId={breakdownId}") {
+        // No id → blank F.06. With id → pre-fill from that QC-approved breakdown.
+        fun createRoute(breakdownId: String? = null) =
+            if (breakdownId == null) "checklist/breakdown/new"
+            else "checklist/breakdown/new?breakdownId=$breakdownId"
+        const val ARG = "breakdownId"
     }
 
     // ─── Transfer module ─────────────────────────────────────────────────────
-    object Transfer        : Screen("transfer")                   // machine transfer form (UI only)
+    object TransferRecords : Screen("transfer_records")           // records list + Create + acknowledge
+    object Transfer        : Screen("transfer")                   // the create/fill form
 
     // ─── Head oversight (read-only) ──────────────────────────────────────────
     object HeadHome             : Screen("head")
@@ -45,6 +49,7 @@ sealed class Screen(val route: String) {
     object HeadBreakdowns       : Screen("head/breakdowns")
     object HeadQc               : Screen("head/qc")
     object HeadChecklistRecords : Screen("head/checklist-records") // read-only filled checklists
+    object ManageUsers          : Screen("manage_users")           // head/admin user directory
 
     /** Role launcher grid (technician / supervisor / head). */
     object Dashboard : Screen("dashboard/{role}") {
@@ -98,12 +103,9 @@ sealed class Screen(val route: String) {
         const val ARG = "woId"
     }
 
-    // Phase 2C — supervisor screens
-    object SupervisorTemplateEditor : Screen("supervisor/template?id={templateId}") {
-        fun createRoute(templateId: String? = null) =
-            if (templateId == null) "supervisor/template?id=" else "supervisor/template?id=$templateId"
-        const val ARG = "templateId"
-    }
+    // Phase 2C — supervisor screens. A "plan" merges the old template (checklist)
+    // + plan (machine + schedule) into one editor; the standalone template editor
+    // route was removed.
     object SupervisorPlanEditor : Screen("supervisor/plan?id={planId}") {
         fun createRoute(planId: String? = null) =
             if (planId == null) "supervisor/plan?id=" else "supervisor/plan?id=$planId"

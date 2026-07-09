@@ -15,17 +15,20 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.candorfoods.factoryops.R
 import com.candorfoods.factoryops.presentation.common.components.FactoryCard
 import com.candorfoods.factoryops.presentation.common.components.PrimaryButton
 import com.candorfoods.factoryops.presentation.common.components.PrimaryButtonSize
@@ -41,10 +44,11 @@ fun TransferFormScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val transferRecordedMessage = stringResource(R.string.transfer_form_transfer_recorded)
 
     LaunchedEffect(state.submittedOk) {
         if (state.submittedOk) {
-            snackbarHostState.showSnackbar("Transfer recorded.")
+            snackbarHostState.showSnackbar(transferRecordedMessage)
             viewModel.consumeSubmitResult()
             onSubmitted()
         }
@@ -61,9 +65,9 @@ fun TransferFormScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("Machine Transfer", style = MaterialTheme.typography.titleLarge)
+                        Text(stringResource(R.string.transfer_form_title), style = MaterialTheme.typography.titleLarge)
                         Text(
-                            "Move an asset between warehouses",
+                            stringResource(R.string.transfer_form_subtitle),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         )
@@ -71,7 +75,7 @@ fun TransferFormScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.transfer_form_back))
                     }
                 },
             )
@@ -82,6 +86,9 @@ fun TransferFormScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                // Edge-to-edge draws behind the keyboard; shrink the scroll viewport to
+                // above the IME so the focused bottom field scrolls into view (not hidden).
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(Spacing.base),
             verticalArrangement = Arrangement.spacedBy(Spacing.md),
@@ -89,55 +96,45 @@ fun TransferFormScreen(
             // ─── Route ───────────────────────────────────────────────────────
             FactoryCard(modifier = Modifier.fillMaxWidth()) {
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                    SectionTitle("Transfer route")
-                    Field("Date (YYYY-MM-DD)", state.date) { v -> viewModel.update { it.copy(date = v) } }
-                    DropdownField(
-                        label = "From warehouse *",
-                        value = state.fromWarehouse,
-                        options = TransferFormViewModel.WAREHOUSES,
-                    ) { v -> viewModel.update { it.copy(fromWarehouse = v) } }
-                    DropdownField(
-                        label = "To warehouse *",
-                        value = state.toWarehouse,
-                        options = TransferFormViewModel.WAREHOUSES,
-                    ) { v -> viewModel.update { it.copy(toWarehouse = v) } }
-                    if (state.sameWarehouseError) {
-                        Text(
-                            "From and To warehouse can't be the same.",
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
+                    SectionTitle(stringResource(R.string.transfer_form_section_route))
+                    Field(stringResource(R.string.transfer_form_date_label), state.date) { v -> viewModel.update { it.copy(date = v) } }
+                    WarehouseSwapRow(
+                        from = state.fromWarehouse,
+                        to = state.toWarehouse,
+                        onSwap = { viewModel.swapWarehouses() },
+                    )
                 }
             }
 
             // ─── Machine ─────────────────────────────────────────────────────
             FactoryCard(modifier = Modifier.fillMaxWidth()) {
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                    SectionTitle("Machine")
+                    SectionTitle(stringResource(R.string.transfer_form_section_machine))
                     MachineAutocompleteField(
                         value = state.machineName,
                         suggestions = state.machineSuggestions,
-                    ) { v -> viewModel.update { it.copy(machineName = v) } }
+                        onValueChange = { v -> viewModel.onMachineNameChanged(v) },
+                        onPick = { opt -> viewModel.onMachinePicked(opt) },
+                    )
                     if (state.machineSuggestions.isEmpty() && state.machinesError == null) {
                         Text(
-                            "Loading machines…",
+                            stringResource(R.string.transfer_form_loading_machines),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         )
                     }
                     if (state.machinesError != null) {
                         Text(
-                            "Couldn't load machine list — you can still type the name. (${state.machinesError})",
+                            stringResource(R.string.transfer_form_machines_load_error, state.machinesError!!),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
                         )
                     }
-                    Field("Model / Sr. No. (optional)", state.machineCode) { v ->
+                    Field(stringResource(R.string.transfer_form_machine_code_label), state.machineCode) { v ->
                         viewModel.update { it.copy(machineCode = v) }
                     }
                     DropdownField(
-                        label = "Condition",
+                        label = stringResource(R.string.transfer_form_condition_label),
                         value = state.condition,
                         options = TransferFormViewModel.CONDITIONS,
                     ) { v -> viewModel.update { it.copy(condition = v) } }
@@ -147,7 +144,7 @@ fun TransferFormScreen(
             // ─── Proof photo ─────────────────────────────────────────────────
             FactoryCard(modifier = Modifier.fillMaxWidth()) {
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                    SectionTitle("Proof — photo of machine")
+                    SectionTitle(stringResource(R.string.transfer_form_section_proof))
                     ProofImagePicker(
                         imageUri = state.proofImageUri,
                         onPicked = { uri -> viewModel.update { it.copy(proofImageUri = uri) } },
@@ -159,21 +156,21 @@ fun TransferFormScreen(
             // ─── Authorisation ───────────────────────────────────────────────
             FactoryCard(modifier = Modifier.fillMaxWidth()) {
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                    SectionTitle("Authorisation")
-                    Field("Reason for transfer", state.reason, singleLine = false) { v ->
+                    SectionTitle(stringResource(R.string.transfer_form_section_authorisation))
+                    Field(stringResource(R.string.transfer_form_reason_label), state.reason, singleLine = false) { v ->
                         viewModel.update { it.copy(reason = v) }
                     }
-                    Field("Authorised by (person)", state.authorisedPerson) { v ->
+                    Field(stringResource(R.string.transfer_form_authorised_by_label), state.authorisedPerson) { v ->
                         viewModel.update { it.copy(authorisedPerson = v) }
                     }
-                    Field("Remarks (optional)", state.remarks, singleLine = false) { v ->
+                    Field(stringResource(R.string.transfer_form_remarks_label), state.remarks, singleLine = false) { v ->
                         viewModel.update { it.copy(remarks = v) }
                     }
                 }
             }
 
             PrimaryButton(
-                text = if (state.submitting) "Submitting…" else "Submit transfer",
+                text = if (state.submitting) stringResource(R.string.transfer_form_submitting) else stringResource(R.string.transfer_form_submit),
                 onClick = { viewModel.submit() },
                 enabled = state.canSubmit && !state.submitting,
                 size = PrimaryButtonSize.Hero,
@@ -186,6 +183,33 @@ fun TransferFormScreen(
 @Composable
 private fun SectionTitle(text: String) {
     Text(text, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+}
+
+/** From → To direction for the only two warehouses; the arrow swaps them. */
+@Composable
+private fun WarehouseSwapRow(from: String, to: String, onSwap: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+    ) {
+        WarehouseBox(stringResource(R.string.transfer_form_warehouse_from), from, Modifier.weight(1f))
+        FilledTonalIconButton(onClick = onSwap) {
+            Icon(Icons.Default.SwapHoriz, contentDescription = stringResource(R.string.transfer_form_switch_warehouses))
+        }
+        WarehouseBox(stringResource(R.string.transfer_form_warehouse_to), to, Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun WarehouseBox(label: String, value: String, modifier: Modifier = Modifier) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = {},
+        readOnly = true,
+        label = { Text(label) },
+        modifier = modifier,
+    )
 }
 
 @Composable
@@ -249,13 +273,14 @@ private fun DropdownField(
 @Composable
 private fun MachineAutocompleteField(
     value: String,
-    suggestions: List<String>,
-    onChange: (String) -> Unit,
+    suggestions: List<MachineOption>,
+    onValueChange: (String) -> Unit,
+    onPick: (MachineOption) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val filtered = remember(value) {
+    val filtered = remember(value, suggestions) {
         if (value.isBlank()) suggestions
-        else suggestions.filter { it.contains(value, ignoreCase = true) && it != value }
+        else suggestions.filter { it.name.contains(value, ignoreCase = true) }
     }
     ExposedDropdownMenuBox(
         expanded = expanded && filtered.isNotEmpty(),
@@ -265,10 +290,10 @@ private fun MachineAutocompleteField(
         OutlinedTextField(
             value = value,
             onValueChange = {
-                onChange(it)
+                onValueChange(it)
                 expanded = true
             },
-            label = { Text("Machine name * — search or type") },
+            label = { Text(stringResource(R.string.transfer_form_machine_name_label)) },
             singleLine = true,
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
@@ -279,9 +304,21 @@ private fun MachineAutocompleteField(
             ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                 filtered.take(8).forEach { option ->
                     DropdownMenuItem(
-                        text = { Text(option) },
+                        text = {
+                            Column {
+                                Text(option.name)
+                                // asset_id + building + floor disambiguate repeated names
+                                Text(
+                                    listOf(option.assetId, option.building, option.subLocation)
+                                        .filter { it.isNotBlank() }
+                                        .joinToString(" · "),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                )
+                            }
+                        },
                         onClick = {
-                            onChange(option)
+                            onPick(option)
                             expanded = false
                         },
                     )
@@ -334,18 +371,18 @@ private fun ProofImagePicker(
         Button(onClick = { takePhoto() }, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Filled.Add, contentDescription = null)
             Spacer(Modifier.width(Spacing.sm))
-            Text("Take photo (camera)")
+            Text(stringResource(R.string.transfer_form_take_photo))
         }
         OutlinedButton(
             onClick = { galleryPicker.launch("image/*") },
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Choose from gallery")
+            Text(stringResource(R.string.transfer_form_choose_gallery))
         }
     } else {
         AsyncImage(
             model = imageUri,
-            contentDescription = "Machine proof photo",
+            contentDescription = stringResource(R.string.transfer_form_proof_photo_desc),
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .fillMaxWidth()
@@ -357,13 +394,13 @@ private fun ProofImagePicker(
             horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
             OutlinedButton(onClick = { takePhoto() }, modifier = Modifier.weight(1f)) {
-                Text("Retake")
+                Text(stringResource(R.string.transfer_form_retake))
             }
             OutlinedButton(onClick = { galleryPicker.launch("image/*") }, modifier = Modifier.weight(1f)) {
-                Text("Gallery")
+                Text(stringResource(R.string.transfer_form_gallery))
             }
             OutlinedButton(onClick = onClear, modifier = Modifier.weight(1f)) {
-                Text("Remove")
+                Text(stringResource(R.string.transfer_form_remove))
             }
         }
     }

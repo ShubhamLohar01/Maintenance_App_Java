@@ -7,7 +7,9 @@ import com.candorfoods.factoryops.domain.model.Machine
 import com.candorfoods.factoryops.domain.model.PmWorkOrder
 import com.candorfoods.factoryops.domain.model.Result
 import com.candorfoods.factoryops.domain.model.User
-import com.candorfoods.factoryops.domain.repository.MachineRepository
+import com.candorfoods.factoryops.domain.model.placeholderMachine
+import com.candorfoods.factoryops.domain.model.toMachine
+import com.candorfoods.factoryops.domain.repository.MtMachineRepository
 import com.candorfoods.factoryops.domain.repository.PmWorkOrderRepository
 import com.candorfoods.factoryops.domain.usecase.auth.GetCurrentUserUseCase
 import com.candorfoods.factoryops.navigation.Screen
@@ -41,7 +43,7 @@ sealed class SupervisorPmReviewEvent {
 class SupervisorPmReviewViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val woRepo: PmWorkOrderRepository,
-    private val machineRepo: MachineRepository,
+    private val mtMachineRepo: MtMachineRepository,
     private val getCurrentUser: GetCurrentUserUseCase
 ) : ViewModel() {
 
@@ -52,6 +54,9 @@ class SupervisorPmReviewViewModel @Inject constructor(
 
     private val _events = Channel<SupervisorPmReviewEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
+
+    // machineId is an mt_asset_list.asset_id; resolve once (network) then reuse.
+    private var cachedMachine: Machine? = null
 
     init {
         viewModelScope.launch {
@@ -64,9 +69,11 @@ class SupervisorPmReviewViewModel @Inject constructor(
                     _uiState.update { it.copy(isLoading = false, error = "Work order not found.") }
                     return@collect
                 }
-                val machine = machineRepo.observeAllMachines().first()
-                    .firstOrNull { it.id == wo.machineId }
-                _uiState.update { it.copy(isLoading = false, workOrder = wo, machine = machine) }
+                if (cachedMachine == null) {
+                    cachedMachine = (mtMachineRepo.getByAssetId(wo.machineId) as? Result.Success)?.data?.toMachine()
+                        ?: placeholderMachine(wo.machineId, wo.templateName)
+                }
+                _uiState.update { it.copy(isLoading = false, workOrder = wo, machine = cachedMachine) }
             }
         }
     }

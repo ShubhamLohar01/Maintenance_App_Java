@@ -18,6 +18,9 @@ data class MtMachine(
     val quantity: Int? = null,
     val condition: String? = null,
     val assignedTo: String? = null,
+    val modelNo: String? = null,    // model_no
+    val serialNo: String? = null,   // serial_no
+    val remarks: String? = null,    // remarks
 )
 
 /**
@@ -44,3 +47,13 @@ val NON_RUNNABLE_CATEGORIES: Set<String> = setOf(
 fun MtMachine.isRunnable(): Boolean =
     !powerLoadRaw.isNullOrBlank() &&
         category.trim().lowercase() !in NON_RUNNABLE_CATEGORIES
+
+/** Canonical value written to [MtMachine.condition] to mark a machine as shut down. */
+const val CONDITION_SHUT_DOWN = "Shut Down"
+
+/**
+ * True when this asset has been shut down (soft-decommissioned). Trim + case-insensitive
+ * so pre-existing/backend variants still match. Single source of truth for every guard.
+ */
+fun MtMachine.isShutDown(): Boolean =
+    condition?.trim().equals(CONDITION_SHUT_DOWN, ignoreCase = true) == true

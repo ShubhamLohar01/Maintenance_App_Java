@@ -1,8 +1,11 @@
 package com.candorfoods.factoryops.util.pdf
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.pdf.PdfDocument
+import com.candorfoods.factoryops.R
 import com.candorfoods.factoryops.domain.model.ChecklistRecordDetail
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -16,12 +19,24 @@ class ChecklistPdfRenderer @Inject constructor(
 ) {
     private val headerFill = Color.parseColor("#F0F0F0")
 
+    // Brand logo for the PDF header (res/drawable/candor_logo.jpg). Decoded once at native
+    // pixel size (inScaled = false); null if it can't be decoded → header uses a text wordmark.
+    private val logo: Bitmap? by lazy {
+        runCatching {
+            BitmapFactory.decodeResource(
+                context.resources,
+                R.drawable.candor_logo,
+                BitmapFactory.Options().apply { inScaled = false },
+            )
+        }.getOrNull()
+    }
+
     suspend fun renderPreventive(detail: ChecklistRecordDetail): File = withContext(Dispatchers.Default) {
         val form = pdfFormFor(detail.formType)
         val meta = docMetaFor(form)
         val doc = PdfDocument()
         try {
-            val cv = CandorPdfCanvas(doc, landscape = meta.landscape, meta = meta)
+            val cv = CandorPdfCanvas(doc, landscape = meta.landscape, meta = meta, logo = logo)
             cv.startDocument()
 
             cv.gap()
@@ -57,7 +72,7 @@ class ChecklistPdfRenderer @Inject constructor(
         val meta = docMetaFor(PdfForm.BREAKDOWN)
         val doc = PdfDocument()
         try {
-            val cv = CandorPdfCanvas(doc, landscape = true, meta = meta)
+            val cv = CandorPdfCanvas(doc, landscape = true, meta = meta, logo = logo)
             cv.startDocument()
 
             cv.gap()

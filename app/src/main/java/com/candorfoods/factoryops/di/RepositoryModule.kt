@@ -4,6 +4,7 @@ import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import com.candorfoods.factoryops.data.repository.AssetScheduleRepositoryImpl
 import com.candorfoods.factoryops.data.repository.AuthRepositoryImpl
 import com.candorfoods.factoryops.data.repository.BreakdownRepositoryImpl
 import com.candorfoods.factoryops.data.repository.ChecklistRepositoryImpl
@@ -12,12 +13,13 @@ import com.candorfoods.factoryops.data.repository.FloorReadingRepositoryImpl
 import com.candorfoods.factoryops.data.repository.MachineRepositoryImpl
 import com.candorfoods.factoryops.data.repository.MachineTransferRepositoryImpl
 import com.candorfoods.factoryops.data.repository.MtMachineRepositoryImpl
+import com.candorfoods.factoryops.data.repository.MtUserRepositoryImpl
 import com.candorfoods.factoryops.data.repository.PmPlanRepositoryImpl
 import com.candorfoods.factoryops.data.repository.PmTemplateRepositoryImpl
-import com.candorfoods.factoryops.data.repository.BreakdownF06DraftRepositoryImpl
 import com.candorfoods.factoryops.data.repository.PmWorkOrderRepositoryImpl
+import com.candorfoods.factoryops.data.repository.UserRepositoryImpl
+import com.candorfoods.factoryops.domain.repository.AssetScheduleRepository
 import com.candorfoods.factoryops.domain.repository.AuthRepository
-import com.candorfoods.factoryops.domain.repository.BreakdownF06DraftRepository
 import com.candorfoods.factoryops.domain.repository.BreakdownRepository
 import com.candorfoods.factoryops.domain.repository.ChecklistRepository
 import com.candorfoods.factoryops.domain.repository.EnergyRepository
@@ -25,9 +27,11 @@ import com.candorfoods.factoryops.domain.repository.FloorReadingRepository
 import com.candorfoods.factoryops.domain.repository.MachineRepository
 import com.candorfoods.factoryops.domain.repository.MachineTransferRepository
 import com.candorfoods.factoryops.domain.repository.MtMachineRepository
+import com.candorfoods.factoryops.domain.repository.MtUserRepository
 import com.candorfoods.factoryops.domain.repository.PmPlanRepository
 import com.candorfoods.factoryops.domain.repository.PmTemplateRepository
 import com.candorfoods.factoryops.domain.repository.PmWorkOrderRepository
+import com.candorfoods.factoryops.domain.repository.UserRepository
 import javax.inject.Singleton
 
 @Module
@@ -47,6 +51,12 @@ abstract class RepositoryModule {
     abstract fun bindMtMachineRepository(impl: MtMachineRepositoryImpl): MtMachineRepository
 
     @Binds @Singleton
+    abstract fun bindMtUserRepository(impl: MtUserRepositoryImpl): MtUserRepository
+
+    @Binds @Singleton
+    abstract fun bindAssetScheduleRepository(impl: AssetScheduleRepositoryImpl): AssetScheduleRepository
+
+    @Binds @Singleton
     abstract fun bindEnergyRepository(impl: EnergyRepositoryImpl): EnergyRepository
 
     @Binds @Singleton
@@ -54,11 +64,6 @@ abstract class RepositoryModule {
 
     @Binds @Singleton
     abstract fun bindBreakdownRepository(impl: BreakdownRepositoryImpl): BreakdownRepository
-
-    @Binds @Singleton
-    abstract fun bindBreakdownF06DraftRepository(
-        impl: BreakdownF06DraftRepositoryImpl,
-    ): BreakdownF06DraftRepository
 
     @Binds @Singleton
     abstract fun bindChecklistRepository(impl: ChecklistRepositoryImpl): ChecklistRepository
@@ -71,4 +76,7 @@ abstract class RepositoryModule {
 
     @Binds @Singleton
     abstract fun bindPmWorkOrderRepository(impl: PmWorkOrderRepositoryImpl): PmWorkOrderRepository
+
+    @Binds @Singleton
+    abstract fun bindUserRepository(impl: UserRepositoryImpl): UserRepository
 }

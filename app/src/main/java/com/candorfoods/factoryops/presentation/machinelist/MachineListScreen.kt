@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
@@ -20,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.candorfoods.factoryops.domain.model.isShutDown
 import com.candorfoods.factoryops.presentation.common.components.FactoryCard
 import com.candorfoods.factoryops.presentation.common.components.SyncIndicator
 import com.candorfoods.factoryops.presentation.common.theme.FactoryTheme
@@ -39,6 +41,15 @@ fun MachineListScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var menuOpen by remember { mutableStateOf(false) }
+
+    if (uiState.showAddSheet) {
+        AddMachineSheet(
+            isSaving = uiState.isAddingMachine,
+            error = uiState.addError,
+            onDismiss = viewModel::onAddDismiss,
+            onSubmit = viewModel::onSubmitNewMachine,
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -109,6 +120,13 @@ fun MachineListScreen(
                 },
             )
         },
+        floatingActionButton = {
+            if (uiState.canAddMachine) {
+                FloatingActionButton(onClick = viewModel::onAddMachineClicked) {
+                    Icon(Icons.Default.Add, contentDescription = "Add new machine")
+                }
+            }
+        },
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             when {
@@ -124,6 +142,25 @@ fun MachineListScreen(
                     OutlinedButton(onClick = viewModel::onRefresh) { Text("Retry") }
                 }
                 else -> Column(Modifier.fillMaxSize()) {
+                    // Warehouse switch — operators move between A-185 / W-202, so any role
+                    // can scope the list to one warehouse (or Both). Shown when 2+ exist.
+                    if (uiState.buildings.size >= 2) {
+                        val options = listOf<String?>(null) + uiState.buildings
+                        SingleChoiceSegmentedButtonRow(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = Spacing.base, vertical = Spacing.xs),
+                        ) {
+                            options.forEachIndexed { index, building ->
+                                SegmentedButton(
+                                    selected = uiState.selectedBuilding == building,
+                                    onClick = { viewModel.onBuildingSelected(building) },
+                                    shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                                ) { Text(building ?: "Both") }
+                            }
+                        }
+                    }
+
                     OutlinedTextField(
                         value = uiState.searchQuery,
                         onValueChange = viewModel::onSearchChange,
@@ -208,6 +245,8 @@ private fun GroupHeader(label: String, count: Int) {
 @Composable
 private fun MachineRow(item: MachineListItem, onClick: () -> Unit) {
     val muted = FactoryTheme.colors.onSurfaceMuted
+    val shutDown = item.asset.isShutDown()
+    val nameAlpha = if (shutDown) 0.5f else 1f
     FactoryCard(modifier = Modifier.fillMaxWidth(), onClick = onClick) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -215,9 +254,10 @@ private fun MachineRow(item: MachineListItem, onClick: () -> Unit) {
                     item.asset.assetName.ifBlank { item.asset.assetId },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = nameAlpha),
                     modifier = Modifier.weight(1f),
                 )
-                StatusBadge(item.status)
+                if (shutDown) ShutDownBadge() else StatusBadge(item.status)
             }
             if (item.status == MachineLiveStatus.RUNNING) {
                 val by = item.operatorName?.let { "by $it" }
@@ -236,6 +276,16 @@ private fun MachineRow(item: MachineListItem, onClick: () -> Unit) {
             )
         }
     }
+}
+
+@Composable
+private fun ShutDownBadge() {
+    Text(
+        "● SHUT DOWN",
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.Bold,
+        color = FactoryTheme.colors.statusStopped,
+    )
 }
 
 @Composable

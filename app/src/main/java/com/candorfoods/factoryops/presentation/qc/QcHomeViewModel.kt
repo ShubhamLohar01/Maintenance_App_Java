@@ -90,9 +90,12 @@ class QcHomeViewModel @Inject constructor(
                     buildList {
                         flags.forEach { f -> add(breakdownRow(f, machineMap, assetMap)) }
                         wos.forEach { w ->
-                            machineMap[w.machineId]
-                                ?.takeIf { it.plantId == user.plantId }
-                                ?.let { add(rowFor(w, it)) }
+                            // Asset-based WOs have no legacy entry to plant-scope by;
+                            // include them rather than drop them from QC.
+                            val legacy = machineMap[w.machineId]
+                            if (legacy == null || legacy.plantId == user.plantId) {
+                                add(pmRow(w, machineMap, assetMap))
+                            }
                         }
                     }.sortedByDescending { it.sortMillis }
                 }.collect { rows ->
@@ -110,7 +113,7 @@ class QcHomeViewModel @Inject constructor(
                 ) { flags, wos, machineMap, assetMap ->
                     buildList {
                         flags.forEach { f -> add(breakdownRow(f, machineMap, assetMap)) }
-                        wos.forEach { w -> machineMap[w.machineId]?.let { add(rowFor(w, it)) } }
+                        wos.forEach { w -> add(pmRow(w, machineMap, assetMap)) }
                     }.sortedByDescending { it.sortMillis }
                 }.collect { rows ->
                     _uiState.update { it.copy(myActive = rows) }
@@ -128,7 +131,7 @@ class QcHomeViewModel @Inject constructor(
                 ) { flags, wos, machineMap, assetMap ->
                     buildList {
                         flags.forEach { f -> add(breakdownRow(f, machineMap, assetMap)) }
-                        wos.forEach { w -> machineMap[w.machineId]?.let { add(rowFor(w, it)) } }
+                        wos.forEach { w -> add(pmRow(w, machineMap, assetMap)) }
                     }.sortedByDescending { it.sortMillis }
                 }.collect { rows ->
                     _uiState.update { it.copy(doneToday = rows) }
@@ -171,12 +174,21 @@ class QcHomeViewModel @Inject constructor(
         Severity.MINOR    -> Criticality.C
     }
 
-    private fun rowFor(wo: PmWorkOrder, machine: Machine) =
-        QcInboxRow.Pm(
+    /** Resolve a PM row, asset register first then legacy machines, then the WO's
+     *  snapshot name — never dropping the row (machineId is an asset_id). */
+    private fun pmRow(
+        wo: PmWorkOrder,
+        machineMap: Map<String, Machine>,
+        assetMap: Map<String, MtMachine>,
+    ): QcInboxRow.Pm {
+        val asset = assetMap[wo.machineId]
+        val legacy = machineMap[wo.machineId]
+        return QcInboxRow.Pm(
             wo = wo,
-            machineCode = machine.code,
-            machineName = machine.name,
-            machineLocation = machine.location,
-            criticality = machine.criticality
+            machineCode = asset?.assetId ?: legacy?.code ?: wo.machineId,
+            machineName = asset?.assetName ?: legacy?.name ?: wo.templateName,
+            machineLocation = asset?.subLocation ?: legacy?.location ?: "",
+            criticality = legacy?.criticality ?: Criticality.C
         )
+    }
 }

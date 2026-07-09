@@ -7,7 +7,6 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import com.candorfoods.factoryops.data.remote.mock.MockSeedData
 import com.candorfoods.factoryops.domain.model.PmPlan
 import com.candorfoods.factoryops.domain.model.PmTaskLogStatus
 import com.candorfoods.factoryops.domain.model.PmTriggerType
@@ -52,11 +51,13 @@ class PmSchedulerWorker @AssistedInject constructor(
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
-        // 1. First-run seed (idempotent — guarded by row count internally)
-        templateRepo.seedMockIfEmpty(MockSeedData.pmTemplatesWithItems)
-        planRepo.seedMockIfEmpty(MockSeedData.pmPlans)
+        // PM plans/templates are now owned by the backend (mt_pm_plan) and synced via
+        // PmPlanRepository -> PmSyncApi. We no longer seed mock PM data: it created
+        // local-only rows that never reached the server and polluted the Plans list.
+        // (Leftover mock/test rows from older builds are removed by clearing app storage
+        // once — see the note in the PR/commit description.)
 
-        // 2. Walk active plans
+        // Walk active plans
         val now = System.currentTimeMillis()
         val plans = planRepo.getActivePlans()
         for (plan in plans) {
@@ -70,9 +71,9 @@ class PmSchedulerWorker @AssistedInject constructor(
             val openWos = woRepo.findOpenForPlan(plan.id)
             if (openWos.isNotEmpty()) continue
 
-            // Generate
+            // Generate. The plan's machineId is an mt_asset_list.asset_id and the
+            // machine type is snapshotted on the template, so no legacy machine lookup.
             val template = templateRepo.getTemplateById(plan.templateId) ?: continue
-            val machine = machineRepo.observeAllMachines().first().firstOrNull { it.id == plan.machineId } ?: continue
 
             val woId = "wo-${plan.id}-${now}"
             val taskLogs = template.items.map { item ->
@@ -104,7 +105,7 @@ class PmSchedulerWorker @AssistedInject constructor(
                 machineId = plan.machineId,
                 templateId = template.id,
                 templateName = template.name,
-                machineType = machine.machineType,
+                machineType = template.machineType,
                 estimatedDurationMinutes = template.estimatedDurationMinutes,
                 tradeType = template.defaultTradeType,
                 scheduledDate = nextDue,
@@ -149,15 +150,14 @@ class PmSchedulerWorker @AssistedInject constructor(
 
             woRepo.bumpTier(wo.id, newTier)
 
-            // Notify only when tier increases (not on tier reset to 0).
+            // Notify only when tier increases (not on tier reset to 0). The asset name
+            // is the plan's templateName snapshot (machineId is an asset_id).
             if (newTier > wo.escalationTier) {
-                val machine = machineRepo.observeAllMachines().first()
-                    .firstOrNull { it.id == wo.machineId } ?: continue
                 val daysOverdue = ((nowForTier - wo.scheduledDate)
                     .coerceAtLeast(0L) / DAY_MS)
                 notificationHelper.showPmEscalationNotification(
                     woId = wo.id,
-                    machineName = machine.name,
+                    machineName = wo.templateName,
                     templateName = wo.templateName,
                     tier = newTier,
                     daysOverdue = daysOverdue

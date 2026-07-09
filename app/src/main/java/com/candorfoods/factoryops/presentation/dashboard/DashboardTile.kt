@@ -7,6 +7,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -42,7 +43,7 @@ fun dashboardTilesFor(role: UserRole): List<DashboardTile> = when (role) {
         DashboardTile("Machine List",   Icons.Filled.Build,            DashboardAction.Open(Screen.MachineMaster.route)),
         DashboardTile("Checklist Form", Icons.Filled.Edit,             DashboardAction.Open(Screen.ChecklistHub.route)),
         DashboardTile("Breakdowns",     Icons.Filled.Warning,          DashboardAction.Open(Screen.TechnicianHome.route)),
-        DashboardTile("Transfer",       Icons.AutoMirrored.Filled.Send, DashboardAction.Open(Screen.Transfer.route)),
+        DashboardTile("Transfer",       Icons.AutoMirrored.Filled.Send, DashboardAction.Open(Screen.TransferRecords.route)),
         DashboardTile("Daily Reading",  Icons.Filled.Speed,            DashboardAction.Open(Screen.DailyReading.route)),
         DashboardTile("Reports",        Icons.Filled.DateRange,        DashboardAction.ComingSoon),
     )
@@ -51,7 +52,8 @@ fun dashboardTilesFor(role: UserRole): List<DashboardTile> = when (role) {
         DashboardTile("Machine List",    Icons.Filled.Build,            DashboardAction.Open(Screen.MachineList.route)),
         DashboardTile("PM Manager",      Icons.Filled.List,             DashboardAction.Open(Screen.SupervisorHome.route)),
         DashboardTile("QC Status",       Icons.Filled.CheckCircle,      DashboardAction.Open(Screen.QcHome.route)),
-        DashboardTile("Transfer",        Icons.AutoMirrored.Filled.Send, DashboardAction.Open(Screen.Transfer.route)),
+        DashboardTile("Transfer",        Icons.AutoMirrored.Filled.Send, DashboardAction.Open(Screen.TransferRecords.route)),
+        DashboardTile("Schedule Electric Assets", Icons.Filled.Schedule, DashboardAction.Open(Screen.ScheduleElectricAssets.route)),
         DashboardTile("Checklist Forms", Icons.Filled.Edit,             DashboardAction.ComingSoon),
         DashboardTile("Reports",         Icons.Filled.DateRange,        DashboardAction.ComingSoon),
     )

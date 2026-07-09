@@ -1,5 +1,6 @@
 package com.candorfoods.factoryops.domain.repository
 
+import com.candorfoods.factoryops.domain.model.BreakdownRecord
 import com.candorfoods.factoryops.domain.model.ChecklistRecordDetail
 import com.candorfoods.factoryops.domain.model.ChecklistRecordSummary
 import com.candorfoods.factoryops.domain.model.BreakdownSubmission
@@ -22,4 +23,7 @@ interface ChecklistRepository {
 
     /** Submit a Breakdown Maintenance Record sheet (CFPLA.C4.F.06). Returns the new row ids. */
     suspend fun submitBreakdown(submission: BreakdownSubmission): Result<List<Int>>
+
+    /** List submitted Breakdown F.06 records (newest first). */
+    suspend fun listBreakdowns(): Result<List<BreakdownRecord>>
 }

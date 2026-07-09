@@ -1,10 +1,13 @@
 package com.candorfoods.factoryops.data.remote.api
 
 import com.candorfoods.factoryops.data.remote.dto.MtMachineDto
+import com.candorfoods.factoryops.data.remote.dto.MtMachineUpdateDto
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
+import retrofit2.http.PUT
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface MtMachineApi {
@@ -30,5 +33,17 @@ interface MtMachineApi {
     suspend fun add(
         @Header("Authorization") token: String,
         @Body dto: MtMachineDto,
+    ): MtMachineDto
+
+    /**
+     * Update an existing asset's editable columns in `mt_asset_list`. `asset_id` is
+     * the path key (immutable); the body carries the editable fields. Returns the
+     * updated row (with backend-recomputed `rated_kw`).
+     */
+    @PUT("mt-machines/{asset_id}")
+    suspend fun update(
+        @Header("Authorization") token: String,
+        @Path("asset_id") assetId: String,
+        @Body dto: MtMachineUpdateDto,
     ): MtMachineDto
 }

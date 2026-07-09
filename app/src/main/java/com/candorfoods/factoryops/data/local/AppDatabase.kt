@@ -18,9 +18,9 @@ import com.candorfoods.factoryops.data.local.entity.*
         PmWorkOrderEntity::class,
         PmWoTaskLogEntity::class,
         PmWoSpareEntity::class,
-        BreakdownF06DraftEntity::class
+        RecessStateEntity::class
     ],
-    version = 9,
+    version = 11,
     exportSchema = false
     // v3 → v4 (Phase 2C): adds 6 PM tables and `machineType` column on `machines`.
     // v4 → v5: adds `building` column on `machines` (W-202 / A-185).
@@ -31,6 +31,8 @@ import com.candorfoods.factoryops.data.local.entity.*
     //          register breakdowns can display human name + building without a
     //          legacy `machines`-table row.
     // v8 → v9: adds breakdown_f06_drafts (technician-entered F.06 columns per breakdown).
+    // v9 → v10: adds recess_state (operator-side production pause/resume session state).
+    // v10 → v11: removes breakdown_f06_drafts (F.06 now submits straight to the backend).
     // Destructive migration is acceptable until Phase 3 production seed lands.
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -39,10 +41,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
     abstract fun syncQueueDao(): SyncQueueDao
     abstract fun breakdownFlagDao(): BreakdownFlagDao
-    abstract fun breakdownF06DraftDao(): BreakdownF06DraftDao
     abstract fun pmTemplateDao(): PmTemplateDao
     abstract fun pmPlanDao(): PmPlanDao
     abstract fun pmWorkOrderDao(): PmWorkOrderDao
     abstract fun pmWoTaskLogDao(): PmWoTaskLogDao
     abstract fun pmWoSpareDao(): PmWoSpareDao
+    abstract fun recessStateDao(): RecessStateDao
 }

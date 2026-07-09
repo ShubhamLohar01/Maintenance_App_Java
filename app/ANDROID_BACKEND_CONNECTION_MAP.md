@@ -102,7 +102,7 @@ Status legend: ✅ wired & matches · ⚠️ wired but needs a fix · 🔴 **not
 |---|---|---|---|
 | `POST /preventive-maintenance/breakdowns` | `ChecklistApi.submitBreakdown` / `BreakdownSheetDto` | `doc_no, verified_by, entries[{record_date, location, machine_name, equipment_model_no, problem_in_brief, type_of_maintenance, part_of_machine, temporary_reason, duration_start, duration_end, machine_operator_sign, maintenance_person_sign, qc_clearance_sign}]` → 201 `{ids[]}` | ✅ `record_date` nullable/`ifBlank{null}` is **correct** — the contract says entry fields are lenient and empty `record_date` → NULL. |
 
-### MACHINE TRANSFERS — `doc_machine_transfer` (+ S3 photo)
+### MACHINE TRANSFERS — `mt_machine_transfer` (+ S3 photo)
 | Endpoint | Kotlin | Shape | Wiring |
 |---|---|---|---|
 | `POST /machine-transfers` | — | **multipart/form-data**: `from_warehouse*, to_warehouse*, machine_name*, date?, machine_code?, condition?, reason?, authorised_person?, remarks?, proof_photo?` → 201 `{id, proof_photo_url}` | ❌ **no client code** (see C-3) |
@@ -173,7 +173,7 @@ suspend fun list(@Header("Authorization") token: String): List<MachineTransferLi
 | `mt_breakdown_records` (OPERATOR_FLAG) | should be `BreakdownApi.raiseFlag` + qc* | 🔴 **not wired (C-2)** |
 | `mt_breakdown_records` (F06_RECORD) | `ChecklistApi.submitBreakdown` | ✅ |
 | `doc_preventive_maintenance` | `ChecklistApi.submitChecklist` / `updateChecklist` | ✅ |
-| `doc_machine_transfer` | should be `MachineTransferApi.create` | ❌ **no client (C-3)** |
+| `mt_machine_transfer` | should be `MachineTransferApi.create` | ❌ **no client (C-3)** |
 
 ---
 

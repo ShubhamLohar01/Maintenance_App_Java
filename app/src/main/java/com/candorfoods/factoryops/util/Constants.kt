@@ -6,6 +6,7 @@ object Constants {
     const val KEY_JWT_TOKEN = "jwt_token"
     const val KEY_USER_ID = "user_id"
     const val KEY_PLANT_ID = "plant_id"
+    const val KEY_TOKEN_EXPIRES_AT = "token_expires_at"
 
     // Shift boundaries in IST (seconds from midnight)
     const val SHIFT_A_START_HOUR = 8   // 08:00

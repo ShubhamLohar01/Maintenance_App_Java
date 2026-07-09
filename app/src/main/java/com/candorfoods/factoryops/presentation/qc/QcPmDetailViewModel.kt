@@ -8,7 +8,9 @@ import com.candorfoods.factoryops.domain.model.PmWorkOrder
 import com.candorfoods.factoryops.domain.model.Result
 import com.candorfoods.factoryops.domain.model.User
 import com.candorfoods.factoryops.domain.model.UserRole
-import com.candorfoods.factoryops.domain.repository.MachineRepository
+import com.candorfoods.factoryops.domain.model.placeholderMachine
+import com.candorfoods.factoryops.domain.model.toMachine
+import com.candorfoods.factoryops.domain.repository.MtMachineRepository
 import com.candorfoods.factoryops.domain.repository.PmWorkOrderRepository
 import com.candorfoods.factoryops.domain.usecase.auth.GetCurrentUserUseCase
 import com.candorfoods.factoryops.navigation.Screen
@@ -50,7 +52,7 @@ sealed interface QcPmDetailUiEvent {
 class QcPmDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val pmRepo: PmWorkOrderRepository,
-    private val machineRepository: MachineRepository,
+    private val mtMachineRepo: MtMachineRepository,
     getCurrentUser: GetCurrentUserUseCase
 ) : ViewModel() {
 
@@ -64,6 +66,9 @@ class QcPmDetailViewModel @Inject constructor(
     private val _uiEvent = MutableSharedFlow<QcPmDetailUiEvent>()
     val uiEvent: SharedFlow<QcPmDetailUiEvent> = _uiEvent.asSharedFlow()
 
+    // machineId is an mt_asset_list.asset_id; resolve once (network) then reuse.
+    private var cachedMachine: Machine? = null
+
     init {
         viewModelScope.launch {
             getCurrentUser().collect { user ->
@@ -71,14 +76,17 @@ class QcPmDetailViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            pmRepo.observeById(woId)
-                .flatMapLatest { wo ->
-                    if (wo == null) flowOf(null to null)
-                    else machineRepository.getMachineById(wo.machineId).map { m -> wo to m }
+            pmRepo.observeById(woId).collect { wo ->
+                if (wo == null) {
+                    _uiState.update { it.copy(workOrder = null, machine = null, isLoading = false) }
+                    return@collect
                 }
-                .collect { (wo, machine) ->
-                    _uiState.update { it.copy(workOrder = wo, machine = machine, isLoading = false) }
+                if (cachedMachine == null) {
+                    cachedMachine = (mtMachineRepo.getByAssetId(wo.machineId) as? Result.Success)?.data?.toMachine()
+                        ?: placeholderMachine(wo.machineId, wo.templateName)
                 }
+                _uiState.update { it.copy(workOrder = wo, machine = cachedMachine, isLoading = false) }
+            }
         }
     }
 

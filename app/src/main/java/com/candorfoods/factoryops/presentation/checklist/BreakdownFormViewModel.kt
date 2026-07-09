@@ -1,12 +1,16 @@
 package com.candorfoods.factoryops.presentation.checklist
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.candorfoods.factoryops.domain.model.BreakdownEntrySubmission
 import com.candorfoods.factoryops.domain.model.BreakdownSubmission
 import com.candorfoods.factoryops.domain.model.Result
+import com.candorfoods.factoryops.domain.repository.BreakdownRepository
 import com.candorfoods.factoryops.domain.repository.ChecklistRepository
+import com.candorfoods.factoryops.domain.usecase.auth.GetCurrentUserUseCase
 import com.candorfoods.factoryops.domain.usecase.mtmachine.GetMachineMasterUseCase
+import com.candorfoods.factoryops.navigation.Screen
 import com.candorfoods.factoryops.util.pdf.BreakdownDocData
 import com.candorfoods.factoryops.util.pdf.BreakdownRow
 import com.candorfoods.factoryops.util.pdf.ChecklistPdfRenderer
@@ -14,6 +18,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.File
@@ -68,18 +73,65 @@ data class BreakdownFormState(
 
 @HiltViewModel
 class BreakdownFormViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val checklistRepository: ChecklistRepository,
+    private val breakdownRepository: BreakdownRepository,
     private val getMachineMaster: GetMachineMasterUseCase,
+    private val getCurrentUser: GetCurrentUserUseCase,
     private val pdfRenderer: ChecklistPdfRenderer,
 ) : ViewModel() {
 
+    private val breakdownId: String? = savedStateHandle.get<String>(Screen.BreakdownForm.ARG)
+
     private var seq = 0
-    private fun newEntry() = BreakdownEntryState(key = "bd-${seq++}")
+    /** Technician's warehouse, used to pre-fill the Location of new rows (editable). */
+    private var defaultLocation: String = ""
+    private fun newEntry() = BreakdownEntryState(
+        key = "bd-${seq++}",
+        location = defaultLocation,
+        typeOfMaintenance = "Breakdown",
+    )
 
     private val _state = MutableStateFlow(BreakdownFormState(entries = listOf(newEntry())))
     val state: StateFlow<BreakdownFormState> = _state.asStateFlow()
 
-    init { loadMachines() }
+    init {
+        loadMachines()
+        loadDefaultLocation()
+        if (!breakdownId.isNullOrBlank()) prefillFromBreakdown(breakdownId)
+    }
+
+    /** Load the technician's warehouse and back-fill the Location of any blank rows. */
+    private fun loadDefaultLocation() {
+        viewModelScope.launch {
+            val user = getCurrentUser().firstOrNull() ?: return@launch
+            defaultLocation = warehouseName(user.plantId)
+            _state.update { st ->
+                st.copy(entries = st.entries.map {
+                    if (it.location.isBlank()) it.copy(location = defaultLocation) else it
+                })
+            }
+        }
+    }
+
+    private fun warehouseName(plantId: String?): String = when (plantId?.trim()?.uppercase()) {
+        "W202" -> "W-202"
+        "A185" -> "A-185"
+        else -> plantId.orEmpty()
+    }
+
+    /** Seed the single form row from a QC-approved breakdown (technician then reviews/edits). */
+    private fun prefillFromBreakdown(id: String) {
+        viewModelScope.launch {
+            val flag = breakdownRepository.observeFlagById(id).firstOrNull() ?: return@launch
+            val entry = breakdownFlagToEntry(flag, "bd-${seq++}")
+            _state.update {
+                it.copy(entries = listOf(
+                    entry.copy(typeOfMaintenance = entry.typeOfMaintenance.ifBlank { "Breakdown" })
+                ))
+            }
+        }
+    }
 
     /** Asset names + their asset_id (Sr. No) for the Machine Name picker. Manual
      *  typing still works if this fails, so an error is surfaced softly. */

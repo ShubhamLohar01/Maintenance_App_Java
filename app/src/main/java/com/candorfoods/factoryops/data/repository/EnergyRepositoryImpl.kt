@@ -3,6 +3,7 @@ package com.candorfoods.factoryops.data.repository
 import com.candorfoods.factoryops.data.local.AppDatabase
 import com.candorfoods.factoryops.data.local.AuthPreferences
 import com.candorfoods.factoryops.data.local.entity.ProductionRunEntity
+import com.candorfoods.factoryops.data.local.entity.RecessStateEntity
 import com.candorfoods.factoryops.data.remote.api.EnergyApi
 import com.candorfoods.factoryops.data.remote.dto.RunStartRequestDto
 import com.candorfoods.factoryops.data.remote.dto.RunStopRequestDto
@@ -105,6 +106,93 @@ class EnergyRepositoryImpl @Inject constructor(
             Result.Error(e.message ?: "Failed to stop run", e)
         }
     }
+
+    // ─── Recess (pause/resume) ───────────────────────────────────────────────────
+    // A production "session" is one or more run segments (rows in production_runs).
+    // Recess stops the current segment and banks its active time; Resume opens a new
+    // segment; End stops the segment and clears the session. The recess gap belongs to
+    // no segment, so it is automatically excluded from kWh (each segment's kWh is real).
+
+    override fun observeRecessState(machineId: String): Flow<RecessState?> =
+        db.recessStateDao().observe(machineId).map { it?.toDomain() }
+
+    override suspend fun recessProduction(machineId: String): Result<Unit> {
+        return try {
+            val run = db.productionRunDao().getActiveRunForMachineOnce(machineId)
+                ?: return Result.Error("No active run to pause")
+            val now = System.currentTimeMillis()
+            // Stop the current segment (reuses the offline-safe stop + sync path).
+            val stop = stopProductionRun(run.id, now)
+            if (stop is Result.Error) return Result.Error(stop.message)
+            val segmentMs = (now - run.startedAt).coerceAtLeast(0L)
+            val existing = db.recessStateDao().getOnce(machineId)
+            db.recessStateDao().upsert(
+                RecessStateEntity(
+                    machineId = machineId,
+                    operatorId = authPreferences.getUserId().orEmpty(),
+                    onRecess = true,
+                    accumulatedActiveMs = (existing?.accumulatedActiveMs ?: 0L) + segmentMs,
+                    recessStartedAt = now,
+                    updatedAt = now,
+                )
+            )
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Failed to pause production", e)
+        }
+    }
+
+    override suspend fun resumeProduction(
+        assetId: String, assetName: String, ratedKw: Double?, scheduledEndAt: Long
+    ): Result<Unit> {
+        return try {
+            // Open a new segment first; only flip the session out of recess if it starts.
+            val start = startProductionRun(assetId, assetName, ratedKw, scheduledEndAt)
+            if (start is Result.Error) return Result.Error(start.message)
+            val now = System.currentTimeMillis()
+            val existing = db.recessStateDao().getOnce(assetId)
+            db.recessStateDao().upsert(
+                RecessStateEntity(
+                    machineId = assetId,
+                    operatorId = authPreferences.getUserId().orEmpty(),
+                    onRecess = false,
+                    accumulatedActiveMs = existing?.accumulatedActiveMs ?: 0L,
+                    recessStartedAt = null,
+                    updatedAt = now,
+                )
+            )
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Failed to resume production", e)
+        }
+    }
+
+    override suspend fun endProductionSession(machineId: String): Result<Unit> {
+        return try {
+            val now = System.currentTimeMillis()
+            val run = db.productionRunDao().getActiveRunForMachineOnce(machineId)
+            if (run != null) {
+                val stop = stopProductionRun(run.id, now)
+                if (stop is Result.Error) return Result.Error(stop.message)
+            }
+            db.recessStateDao().deleteForMachine(machineId)
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Failed to stop production", e)
+        }
+    }
+
+    override suspend fun clearRecessSession(machineId: String) {
+        db.recessStateDao().deleteForMachine(machineId)
+    }
+
+    private fun RecessStateEntity.toDomain() = RecessState(
+        machineId = machineId,
+        operatorId = operatorId,
+        onRecess = onRecess,
+        accumulatedActiveMs = accumulatedActiveMs,
+        recessStartedAt = recessStartedAt,
+    )
 
     override fun getTodaysRuns(machineId: String): Flow<List<ProductionRun>> {
         val startOfDay = DateTimeFormatter.startOfDayMillis(System.currentTimeMillis())

@@ -3,26 +3,10 @@ package com.candorfoods.factoryops.data.remote.dto
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-@Serializable
-data class BreakdownFlagRequestDto(
-    @SerialName("machine_id") val machineId: String,
-    @SerialName("operator_id") val operatorId: String,
-    val severity: String,
-    val description: String,
-    @SerialName("before_photo_path") val beforePhotoPath: String? = null,
-    @SerialName("raised_at") val raisedAt: Long
-)
-
-/** Technician submits the completed repair -> POST /breakdowns/{id}/work-done
- * (status -> PENDING_QC, qc_status -> PENDING). */
-@Serializable
-data class BreakdownWorkDoneRequestDto(
-    @SerialName("user_id") val userId: String,
-    @SerialName("user_name") val userName: String,
-    @SerialName("work_done") val workDone: String,
-    @SerialName("after_photo_path") val afterPhotoPath: String? = null,
-    @SerialName("done_at") val doneAt: Long
-)
+// NOTE: POST /breakdowns/flag and POST /breakdowns/{id}/work-done are multipart/form-data
+// now (the operator before-photo / technician after-photo are uploaded to S3 backend-side),
+// so their request bodies are built as multipart parts in BreakdownRepositoryImpl rather
+// than serialized DTOs. See BreakdownApi.raiseFlag / workDone.
 
 @Serializable
 data class BreakdownFlagResponseDto(

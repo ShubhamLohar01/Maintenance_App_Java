@@ -1,6 +1,7 @@
 package com.candorfoods.factoryops.data.remote.mock
 
 import com.candorfoods.factoryops.data.remote.api.ChecklistApi
+import com.candorfoods.factoryops.data.remote.dto.BreakdownRecordDto
 import com.candorfoods.factoryops.data.remote.dto.BreakdownSheetDto
 import com.candorfoods.factoryops.data.remote.dto.BreakdownSubmitResponseDto
 import com.candorfoods.factoryops.data.remote.dto.ChecklistRecordDetailDto
@@ -47,5 +48,10 @@ class MockChecklistApi : ChecklistApi {
     ): BreakdownSubmitResponseDto {
         delay(400)
         return BreakdownSubmitResponseDto(ids = body.entries.map { counter.incrementAndGet() })
+    }
+
+    override suspend fun listBreakdowns(token: String): List<BreakdownRecordDto> {
+        delay(300)
+        return emptyList()
     }
 }

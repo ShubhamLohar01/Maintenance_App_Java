@@ -4,6 +4,7 @@ import com.candorfoods.factoryops.data.local.AuthPreferences
 import com.candorfoods.factoryops.data.remote.api.ChecklistApi
 import com.candorfoods.factoryops.data.remote.dto.toDomain
 import com.candorfoods.factoryops.data.remote.dto.toDto
+import com.candorfoods.factoryops.domain.model.BreakdownRecord
 import com.candorfoods.factoryops.domain.model.BreakdownSubmission
 import com.candorfoods.factoryops.domain.model.ChecklistRecordDetail
 import com.candorfoods.factoryops.domain.model.ChecklistRecordSummary
@@ -39,6 +40,10 @@ class ChecklistRepositoryImpl @Inject constructor(
 
     override suspend fun submitBreakdown(submission: BreakdownSubmission): Result<List<Int>> = call { token ->
         Result.Success(checklistApi.submitBreakdown(token, submission.toDto()).ids)
+    }
+
+    override suspend fun listBreakdowns(): Result<List<BreakdownRecord>> = call { token ->
+        Result.Success(checklistApi.listBreakdowns(token).map { it.toDomain() })
     }
 
     private inline fun <T> call(block: (token: String) -> Result<T>): Result<T> {

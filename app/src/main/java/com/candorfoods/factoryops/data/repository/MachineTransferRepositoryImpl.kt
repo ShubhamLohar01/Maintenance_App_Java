@@ -4,11 +4,13 @@ import android.content.Context
 import android.net.Uri
 import com.candorfoods.factoryops.data.local.AuthPreferences
 import com.candorfoods.factoryops.data.remote.api.MachineTransferApi
+import com.candorfoods.factoryops.data.remote.dto.MachineTransferEditDto
 import com.candorfoods.factoryops.data.remote.dto.MachineTransferListItemDto
 import com.candorfoods.factoryops.domain.model.MachineTransfer
 import com.candorfoods.factoryops.domain.model.NewMachineTransfer
 import com.candorfoods.factoryops.domain.model.Result
 import com.candorfoods.factoryops.domain.repository.MachineTransferRepository
+import com.candorfoods.factoryops.util.ImageCompressor
 import dagger.hilt.android.qualifiers.ApplicationContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
@@ -35,20 +37,31 @@ class MachineTransferRepositoryImpl @Inject constructor(
         return try {
             val token = "Bearer ${authPreferences.getToken().orEmpty()}"
 
-            // Optional proof image -> a "proof_photo" file part. Validate type/size up
-            // front so we fail with a clear message instead of a backend 400.
+            // Optional proof image -> a "proof_photo" file part. Downscale + re-encode to
+            // a small JPEG first so the upload is fast (full-res phone photos are several
+            // MB); fall back to the raw bytes if it can't be decoded.
             val photoPart: MultipartBody.Part? = input.photoUri?.let { uriStr ->
                 val uri = Uri.parse(uriStr)
-                val mime = context.contentResolver.getType(uri) ?: "image/jpeg"
-                if (mime != "image/jpeg" && mime != "image/png") {
-                    return Result.Error("Proof photo must be a JPEG or PNG image.")
+                val compressed = ImageCompressor.compressToJpeg(context, uri)
+                val bytes: ByteArray
+                val mime: String
+                val ext: String
+                if (compressed != null) {
+                    bytes = compressed; mime = "image/jpeg"; ext = "jpg"
+                } else {
+                    // couldn't decode -> send original, but keep the type/size guards
+                    val rawMime = context.contentResolver.getType(uri) ?: "image/jpeg"
+                    if (rawMime != "image/jpeg" && rawMime != "image/png") {
+                        return Result.Error("Proof photo must be a JPEG or PNG image.")
+                    }
+                    bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                        ?: return Result.Error("Couldn't read the selected photo.")
+                    mime = rawMime
+                    ext = if (rawMime == "image/png") "png" else "jpg"
                 }
-                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                    ?: return Result.Error("Couldn't read the selected photo.")
                 if (bytes.size > MAX_PHOTO_BYTES) {
                     return Result.Error("Proof photo must be 10 MB or smaller.")
                 }
-                val ext = if (mime == "image/png") "png" else "jpg"
                 MultipartBody.Part.createFormData(
                     "proof_photo", "proof_photo.$ext", bytes.toRequestBody(mime.toMediaType())
                 )
@@ -59,6 +72,7 @@ class MachineTransferRepositoryImpl @Inject constructor(
                 fromWarehouse = input.fromWarehouse.textPart(),
                 toWarehouse = input.toWarehouse.textPart(),
                 machineName = input.machineName.textPart(),
+                assetId = input.assetId?.textPart(),
                 date = input.date?.textPart(),
                 machineCode = input.machineCode?.textPart(),
                 condition = input.condition?.textPart(),
@@ -92,6 +106,47 @@ class MachineTransferRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun acknowledgeTransfer(id: Int): Result<MachineTransfer> {
+        return try {
+            val token = "Bearer ${authPreferences.getToken().orEmpty()}"
+            Result.Success(api.acknowledge(token, id).toDomain())
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Failed to acknowledge transfer", e)
+        }
+    }
+
+    override suspend fun updateTransfer(id: Int, input: NewMachineTransfer): Result<MachineTransfer> {
+        return try {
+            val token = "Bearer ${authPreferences.getToken().orEmpty()}"
+            val dto = MachineTransferEditDto(
+                fromWarehouse = input.fromWarehouse,
+                toWarehouse = input.toWarehouse,
+                machineName = input.machineName,
+                assetId = input.assetId,
+                date = input.date,
+                machineCode = input.machineCode,
+                condition = input.condition,
+                reason = input.reason,
+                authorisedPerson = input.authorisedPerson,
+                remarks = input.remarks,
+            )
+            Result.Success(api.update(token, id, dto).toDomain())
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Failed to update transfer", e)
+        }
+    }
+
+    override suspend fun deleteTransfer(id: Int): Result<Unit> {
+        return try {
+            val token = "Bearer ${authPreferences.getToken().orEmpty()}"
+            val resp = api.delete(token, id)
+            if (resp.isSuccessful) Result.Success(Unit)
+            else Result.Error("Couldn't delete transfer (HTTP ${resp.code()}).")
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Failed to delete transfer", e)
+        }
+    }
+
     private fun String.textPart(): RequestBody = toRequestBody(TEXT_PLAIN)
 
     private fun MachineTransferListItemDto.toDomain() = MachineTransfer(
@@ -101,8 +156,17 @@ class MachineTransferRepositoryImpl @Inject constructor(
         machineName = machineName,
         date = date,
         condition = condition,
+        machineCode = machineCode,
+        reason = reason,
+        authorisedPerson = authorisedPerson,
+        remarks = remarks,
         createdAt = createdAt,
         proofPhotoUrl = proofPhotoUrl,
+        status = status,
+        acknowledgedBy = acknowledgedBy,
+        acknowledgedAt = acknowledgedAt,
+        canAcknowledge = canAcknowledge,
+        canEdit = canEdit,
     )
 
     companion object {

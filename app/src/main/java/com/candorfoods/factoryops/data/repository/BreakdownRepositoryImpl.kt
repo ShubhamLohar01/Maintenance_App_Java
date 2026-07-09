@@ -7,9 +7,7 @@ import com.candorfoods.factoryops.data.local.entity.SyncQueueEntity
 import com.candorfoods.factoryops.data.remote.api.BreakdownApi
 import com.candorfoods.factoryops.data.remote.api.ChecklistApi
 import com.candorfoods.factoryops.data.remote.dto.BreakdownEntryDto
-import com.candorfoods.factoryops.data.remote.dto.BreakdownFlagRequestDto
 import com.candorfoods.factoryops.data.remote.dto.BreakdownSheetDto
-import com.candorfoods.factoryops.data.remote.dto.BreakdownWorkDoneRequestDto
 import com.candorfoods.factoryops.data.remote.dto.OpenBreakdownDto
 import com.candorfoods.factoryops.data.remote.dto.QcAcknowledgeRequestDto
 import com.candorfoods.factoryops.data.remote.dto.QcDecisionRequestDto
@@ -18,6 +16,11 @@ import com.candorfoods.factoryops.domain.repository.BreakdownRepository
 import com.candorfoods.factoryops.domain.repository.MtMachineRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -46,7 +49,7 @@ class BreakdownRepositoryImpl @Inject constructor(
             // mt_breakdown_records, the live breakdown table). The server id becomes the
             // row's canonical id so QC / detail / cross-device all resolve it. Offline
             // -> fall back to a local UUID and a PENDING sync-queue entry.
-            val serverId = pushFlagToBackend(machineId, operatorId, severity, description, now)
+            val serverId = pushFlagToBackend(machineId, operatorId, severity, description, now, beforePhotoLocalPath)
             val flagId = serverId ?: UUID.randomUUID().toString()
 
             val entity = BreakdownFlagEntity(
@@ -90,22 +93,24 @@ class BreakdownRepositoryImpl @Inject constructor(
     /**
      * Push an operator breakdown to POST /breakdowns/flag (mt_breakdown_records,
      * the live breakdown table) — the live ticket pipeline that the Head/QC views and
-     * the /breakdowns/open read all use. Returns the server flag id on success, or
-     * null on any failure (offline-safe: the caller keeps a local row + PENDING sync).
+     * the /breakdowns/open read all use. Sent as multipart/form-data so the operator's
+     * before-photo is uploaded to S3 (stored in before_photo_url), not just kept on the
+     * device. Returns the server flag id on success, or null on any failure (offline-safe:
+     * the caller keeps a local row + PENDING sync).
      */
     private suspend fun pushFlagToBackend(
-        machineId: String, operatorId: String, severity: Severity, description: String, raisedAt: Long
+        machineId: String, operatorId: String, severity: Severity,
+        description: String, raisedAt: Long, beforePhotoLocalPath: String?
     ): String? = try {
         val token = "Bearer ${authPreferences.getToken().orEmpty()}"
         val resp = breakdownApi.raiseFlag(
             token,
-            BreakdownFlagRequestDto(
-                machineId = machineId,
-                operatorId = operatorId,
-                severity = severity.name,
-                description = description,
-                raisedAt = raisedAt
-            )
+            machineId = machineId.textPart(),
+            operatorId = operatorId.textPart(),
+            severity = severity.name.textPart(),
+            description = description.textPart(),
+            raisedAt = raisedAt.toString().textPart(),
+            beforePhoto = photoPart("before_photo", beforePhotoLocalPath),
         )
         resp.id.ifBlank { null }
     } catch (_: Exception) {
@@ -195,6 +200,23 @@ class BreakdownRepositoryImpl @Inject constructor(
             val now = System.currentTimeMillis()
             val machineId = db.breakdownFlagDao().getFlagByIdOnce(flagId)?.machineId
                 ?: return Result.Error("Flag not found: $flagId")
+
+            // Backend-authoritative (was a swallowed best-effort call): POST the repair
+            // FIRST as multipart so the after-photo is uploaded to S3 and
+            // work_done_des/photo_url are persisted server-side. If this throws (offline,
+            // tunnel cold-start, 4xx) we DON'T advance local state — the failure surfaces
+            // as Result.Error, the ticket stays ACKNOWLEDGED so "Mark Resolved" remains
+            // for a retry, and the work-done data is never silently dropped.
+            breakdownApi.workDone(
+                "Bearer ${authPreferences.getToken().orEmpty()}", flagId,
+                userId = userId.textPart(),
+                userName = userName.textPart(),
+                workDone = partsUsed.textPart(),
+                doneAt = now.toString().textPart(),
+                afterPhoto = photoPart("after_photo", afterPhotoLocalPath),
+            )
+
+            // Server accepted it -> commit local state (SYNCED) and hand the machine to QC.
             db.breakdownFlagDao().resolveFlag(
                 flagId = flagId,
                 userId = userId,
@@ -202,32 +224,15 @@ class BreakdownRepositoryImpl @Inject constructor(
                 resolvedAt = now,
                 partsUsed = partsUsed,
                 afterPhotoPath = afterPhotoLocalPath,
-                syncStatus = SyncStatus.PENDING.name
+                syncStatus = SyncStatus.SYNCED.name
             )
-            // Best-effort push to backend (ACKNOWLEDGED -> PENDING_QC); mark SYNCED on success.
-            runCatching {
-                breakdownApi.workDone(
-                    "Bearer ${authPreferences.getToken().orEmpty()}", flagId,
-                    BreakdownWorkDoneRequestDto(
-                        userId = userId, userName = userName, workDone = partsUsed,
-                        afterPhotoPath = afterPhotoLocalPath, doneAt = now
-                    )
-                )
-                db.breakdownFlagDao().updateSyncStatus(flagId, SyncStatus.SYNCED.name)
-            }
-            // Tech-resolve hands the machine to QC, not back to operator.
             db.machineDao().updateStatus(machineId, MachineStatus.PENDING_QC.name, now)
-            db.syncQueueDao().insert(
-                SyncQueueEntity(
-                    actionType = ActionType.BREAKDOWN_RESOLVE.name,
-                    payloadJson = """{"flag_id":"$flagId","user_id":"$userId"}""",
-                    lastErrorMessage = null,
-                    createdAt = now
-                )
-            )
             Result.Success(Unit)
         } catch (e: Exception) {
-            Result.Error(e.message ?: "Failed to resolve", e)
+            Result.Error(
+                e.message ?: "Couldn't submit the repair to the server. Check your connection and try again.",
+                e
+            )
         }
     }
 
@@ -313,6 +318,17 @@ class BreakdownRepositoryImpl @Inject constructor(
             val now = System.currentTimeMillis()
             val machineId = db.breakdownFlagDao().getFlagByIdOnce(flagId)?.machineId
                 ?: return Result.Error("Ticket not found: $flagId")
+            // Backend-authoritative (was a swallowed best-effort call): persist
+            // qc_status=APPROVED, qc_checked_by, end_time and status=CLOSED server-side
+            // BEFORE committing locally. A failure surfaces as Result.Error instead of
+            // leaving the columns NULL while the app shows "approved".
+            breakdownApi.qcApprove(
+                "Bearer ${authPreferences.getToken().orEmpty()}", flagId,
+                QcDecisionRequestDto(
+                    userId = userId, userName = userName, decidedAt = now,
+                    checklistJson = checklistJson, afterPhotoPath = afterPhotoLocalPath, notes = notes
+                )
+            )
             db.breakdownFlagDao().qcApprove(
                 flagId = flagId,
                 userId = userId,
@@ -321,31 +337,15 @@ class BreakdownRepositoryImpl @Inject constructor(
                 notes = notes,
                 photoPath = afterPhotoLocalPath,
                 checklistJson = checklistJson,
-                syncStatus = SyncStatus.PENDING.name
+                syncStatus = SyncStatus.SYNCED.name
             )
-            // Best-effort push to backend (-> CLOSED); mark SYNCED on success.
-            runCatching {
-                breakdownApi.qcApprove(
-                    "Bearer ${authPreferences.getToken().orEmpty()}", flagId,
-                    QcDecisionRequestDto(
-                        userId = userId, userName = userName, decidedAt = now,
-                        checklistJson = checklistJson, afterPhotoPath = afterPhotoLocalPath, notes = notes
-                    )
-                )
-                db.breakdownFlagDao().updateSyncStatus(flagId, SyncStatus.SYNCED.name)
-            }
             db.machineDao().updateStatus(machineId, MachineStatus.IDLE.name, now)
-            db.syncQueueDao().insert(
-                SyncQueueEntity(
-                    actionType = ActionType.TICKET_QC_APPROVE.name,
-                    payloadJson = """{"flag_id":"$flagId","user_id":"$userId"}""",
-                    lastErrorMessage = null,
-                    createdAt = now
-                )
-            )
             Result.Success(Unit)
         } catch (e: Exception) {
-            Result.Error(e.message ?: "Failed to approve QC", e)
+            Result.Error(
+                e.message ?: "Couldn't submit the QC approval to the server. Check your connection and try again.",
+                e
+            )
         }
     }
 
@@ -357,6 +357,17 @@ class BreakdownRepositoryImpl @Inject constructor(
             val now = System.currentTimeMillis()
             val machineId = db.breakdownFlagDao().getFlagByIdOnce(flagId)?.machineId
                 ?: return Result.Error("Ticket not found: $flagId")
+            // Backend-authoritative (was a swallowed best-effort call): persist
+            // qc_status=REJECTED, qc_checked_by and qc_reject_reason server-side BEFORE
+            // committing locally, so the rejection + reason are never NULL in the DB
+            // while the app shows "disapproved".
+            breakdownApi.qcDisapprove(
+                "Bearer ${authPreferences.getToken().orEmpty()}", flagId,
+                QcDecisionRequestDto(
+                    userId = userId, userName = userName, decidedAt = now,
+                    checklistJson = checklistJson, afterPhotoPath = afterPhotoLocalPath, reason = reason
+                )
+            )
             db.breakdownFlagDao().qcDisapprove(
                 flagId = flagId,
                 userId = userId,
@@ -365,33 +376,17 @@ class BreakdownRepositoryImpl @Inject constructor(
                 reason = reason,
                 photoPath = afterPhotoLocalPath,
                 checklistJson = checklistJson,
-                syncStatus = SyncStatus.PENDING.name
+                syncStatus = SyncStatus.SYNCED.name
             )
-            // Best-effort push to backend (-> REOPENED); mark SYNCED on success.
-            runCatching {
-                breakdownApi.qcDisapprove(
-                    "Bearer ${authPreferences.getToken().orEmpty()}", flagId,
-                    QcDecisionRequestDto(
-                        userId = userId, userName = userName, decidedAt = now,
-                        checklistJson = checklistJson, afterPhotoPath = afterPhotoLocalPath, reason = reason
-                    )
-                )
-                db.breakdownFlagDao().updateSyncStatus(flagId, SyncStatus.SYNCED.name)
-            }
             // Disapprove keeps the machine PENDING_QC so the operator stays blocked
             // and the technician sees a hot ticket again until QC finally approves.
             db.machineDao().updateStatus(machineId, MachineStatus.PENDING_QC.name, now)
-            db.syncQueueDao().insert(
-                SyncQueueEntity(
-                    actionType = ActionType.TICKET_QC_DISAPPROVE.name,
-                    payloadJson = """{"flag_id":"$flagId","user_id":"$userId"}""",
-                    lastErrorMessage = null,
-                    createdAt = now
-                )
-            )
             Result.Success(Unit)
         } catch (e: Exception) {
-            Result.Error(e.message ?: "Failed to disapprove QC", e)
+            Result.Error(
+                e.message ?: "Couldn't submit the QC decision to the server. Check your connection and try again.",
+                e
+            )
         }
     }
 
@@ -473,6 +468,25 @@ class BreakdownRepositoryImpl @Inject constructor(
         db.breakdownFlagDao().deleteSeedFlags()
     }
 
+    // --- multipart helpers (S3 photo upload happens backend-side) ------------------
+
+    private fun String.textPart(): RequestBody = toRequestBody(TEXT_PLAIN)
+
+    /**
+     * Build an optional image file part from a device-local path (the breakdown
+     * photos are captured to app files via BreakdownPhotoStorage, so they're plain
+     * File paths). Returns null when there's no path or the file is missing/empty —
+     * the backend treats a null/absent part as "no photo".
+     */
+    private fun photoPart(formName: String, localPath: String?): MultipartBody.Part? {
+        if (localPath.isNullOrBlank()) return null
+        val file = File(localPath)
+        if (!file.exists() || file.length() == 0L) return null
+        val mime = if (file.extension.equals("png", ignoreCase = true)) "image/png" else "image/jpeg"
+        val body = file.readBytes().toRequestBody(mime.toMediaType())
+        return MultipartBody.Part.createFormData(formName, file.name, body)
+    }
+
     private fun toDomain(e: BreakdownFlagEntity) = BreakdownFlag(
         id = e.id,
         machineId = e.machineId,
@@ -529,4 +543,8 @@ class BreakdownRepositoryImpl @Inject constructor(
             else      -> SyncStatus.PENDING
         }
     )
+
+    private companion object {
+        private val TEXT_PLAIN = "text/plain".toMediaType()
+    }
 }

@@ -1,5 +1,6 @@
 package com.candorfoods.factoryops.data.remote.dto
 
+import com.candorfoods.factoryops.domain.model.BreakdownRecord
 import com.candorfoods.factoryops.domain.model.ChecklistRecordDetail
 import com.candorfoods.factoryops.domain.model.ChecklistRecordItem
 import com.candorfoods.factoryops.domain.model.ChecklistRecordSummary
@@ -160,4 +161,37 @@ fun BreakdownSubmission.toDto() = BreakdownSheetDto(
             qcClearanceSign       = it.qcClearanceSign,
         )
     },
+)
+
+// ─── GET: Breakdown F.06 submitted records ────────────────────────────────────
+
+@Serializable
+data class BreakdownRecordDto(
+    @SerialName("id")                      val id: Int,
+    @SerialName("doc_no")                  val docNo: String = "CFPLA.C4.F.06",
+    @SerialName("record_date")             val recordDate: String = "",
+    @SerialName("location")                val location: String = "",
+    @SerialName("machine_name")            val machineName: String = "",
+    @SerialName("equipment_model_no")      val equipmentModelNo: String = "",
+    @SerialName("problem_in_brief")        val problemInBrief: String = "",
+    @SerialName("type_of_maintenance")     val typeOfMaintenance: String = "",
+    @SerialName("part_of_machine")         val partOfMachine: String = "",
+    @SerialName("temporary_reason")        val temporaryReason: String = "",
+    @SerialName("duration_start")          val durationStart: String = "",
+    @SerialName("duration_end")            val durationEnd: String = "",
+    @SerialName("machine_operator_sign")   val machineOperatorSign: String = "",
+    @SerialName("maintenance_person_sign") val maintenancePersonSign: String = "",
+    @SerialName("qc_clearance_sign")       val qcClearanceSign: String = "",
+    @SerialName("verified_by")             val verifiedBy: String = "",
+    @SerialName("created_at")              val createdAt: String = "",
+)
+
+fun BreakdownRecordDto.toDomain() = BreakdownRecord(
+    id = id, docNo = docNo, recordDate = recordDate, location = location,
+    machineName = machineName, equipmentModelNo = equipmentModelNo,
+    problemInBrief = problemInBrief, typeOfMaintenance = typeOfMaintenance,
+    partOfMachine = partOfMachine, temporaryReason = temporaryReason,
+    durationStart = durationStart, durationEnd = durationEnd,
+    machineOperatorSign = machineOperatorSign, maintenancePersonSign = maintenancePersonSign,
+    qcClearanceSign = qcClearanceSign, verifiedBy = verifiedBy, createdAt = createdAt,
 )
