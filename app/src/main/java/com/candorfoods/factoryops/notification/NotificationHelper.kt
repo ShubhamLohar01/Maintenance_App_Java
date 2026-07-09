@@ -5,24 +5,40 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import androidx.core.app.NotificationCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.candorfoods.factoryops.MainActivity
+import com.candorfoods.factoryops.R
+import com.candorfoods.factoryops.data.local.AuthPreferences
+import com.candorfoods.factoryops.data.local.LanguagePreferences
+import com.candorfoods.factoryops.domain.model.AppLanguage
 import com.candorfoods.factoryops.domain.model.Reminder
 import com.candorfoods.factoryops.domain.model.ReminderCategory
 import com.candorfoods.factoryops.domain.model.notificationId
 import com.candorfoods.factoryops.util.Constants
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class NotificationHelper @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val authPreferences: AuthPreferences,
+    private val languagePreferences: LanguagePreferences,
 ) {
     private val notificationManager =
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+    /** A context localized to the signed-in user's language (English if nobody is signed in). */
+    private fun localized(): Context {
+        val userId = authPreferences.getUserId()
+        val lang = if (userId != null) languagePreferences.languageForUser(userId) else AppLanguage.DEFAULT
+        val config = Configuration(context.resources.configuration).apply { setLocale(Locale(lang.tag)) }
+        return context.createConfigurationContext(config)
+    }
 
     init {
         createChannels()
@@ -76,10 +92,11 @@ class NotificationHelper @Inject constructor(
             context, machineId.hashCode(), intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+        val strings = localized()
         val notification = NotificationCompat.Builder(context, Constants.NOTIFICATION_CHANNEL_FLAGS)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
-            .setContentTitle("Missed Stop — $machineName")
-            .setContentText("You forgot to stop $machineName. Tap to confirm stop time.")
+            .setContentTitle(strings.getString(R.string.notification_missed_stop_title, machineName))
+            .setContentText(strings.getString(R.string.notification_missed_stop_body, machineName))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
@@ -103,7 +120,7 @@ class NotificationHelper @Inject constructor(
         )
         val notification = NotificationCompat.Builder(context, Constants.NOTIFICATION_CHANNEL_BREAKDOWN)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
-            .setContentTitle("$severity breakdown — $machineName")
+            .setContentTitle(localized().getString(R.string.notification_breakdown_title, severity, machineName))
             .setContentText(descriptionPreview.take(80))
             .setStyle(NotificationCompat.BigTextStyle().bigText(descriptionPreview))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
