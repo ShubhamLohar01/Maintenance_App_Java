@@ -2,65 +2,19 @@ package com.candorfoods.factoryops.data.remote.dto
 
 import com.candorfoods.factoryops.domain.model.BreakdownFlag
 import com.candorfoods.factoryops.domain.model.BreakdownStatus
-import com.candorfoods.factoryops.domain.model.FloorReadingHistoryEntry
-import com.candorfoods.factoryops.domain.model.MachineKwhHistoryEntry
 import com.candorfoods.factoryops.domain.model.QcStatus
 import com.candorfoods.factoryops.domain.model.Severity
 import com.candorfoods.factoryops.domain.model.SyncStatus
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-/** One row of GET /machines/daily-kwh/history (mt_machine_daily_kwh). */
-@Serializable
-data class MachineKwhHistoryDto(
-    @SerialName("machine_id") val machineId: String,
-    @SerialName("machine_name") val machineName: String = "",
-    val building: String = "",
-    val floor: String = "",
-    @SerialName("reading_date") val readingDate: String,
-    @SerialName("daily_kwh") val dailyKwh: Double = 0.0,
-    val source: String = "",
-    @SerialName("started_at") val startedAt: Long? = null,
-    @SerialName("ended_at") val endedAt: Long? = null,
-    val status: String? = null,
-    @SerialName("operator_name") val operatorName: String? = null,
-)
-
-fun MachineKwhHistoryDto.toDomain() = MachineKwhHistoryEntry(
-    machineId = machineId,
-    machineName = machineName,
-    building = building,
-    floor = floor,
-    readingDate = readingDate,
-    dailyKwh = dailyKwh,
-    source = source,
-    startedAt = startedAt,
-    endedAt = endedAt,
-    status = status,
-    operatorName = operatorName,
-)
-
-/** One row of GET /floor-readings/history (mt_floor_utility_readings). */
-@Serializable
-data class FloorReadingHistoryDto(
-    val building: String,
-    val floor: String,
-    @SerialName("reading_date") val readingDate: String,
-    @SerialName("system_reading") val systemReading: Double = 0.0,
-    @SerialName("meter_reading") val meterReading: Double? = null,
-)
-
-fun FloorReadingHistoryDto.toDomain() = FloorReadingHistoryEntry(
-    building = building,
-    floor = floor,
-    readingDate = readingDate,
-    systemReadingKwh = systemReading,
-    meterReading = meterReading,
-)
-
 /**
  * One row of GET /breakdowns/history or GET /qc/history (mt_breakdown_records), richer than
  * [OpenBreakdownDto] — it carries the resolved/QC-decided fields open breakdowns don't have yet.
+ *
+ * Machine-reading and floor-reading history reuse the existing `ReportsApi`/`ReportsRepository`
+ * (see `data/remote/api/ReportsApi.kt`) instead of a parallel DTO here — that pipeline already
+ * covers `mt_machine_daily_kwh`/`mt_floor_utility_readings` history generically.
  */
 @Serializable
 data class BreakdownHistoryDto(
