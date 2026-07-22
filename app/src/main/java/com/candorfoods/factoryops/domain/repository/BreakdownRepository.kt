@@ -85,4 +85,19 @@ interface BreakdownRepository {
 
     /** Remove leftover mock seed breakdown flags from earlier USE_MOCK_API runs (no-op in mock mode). */
     suspend fun purgeMockSeedFlags()
+
+    /** GET /breakdowns/history — every breakdown in range regardless of status (Head Reports). */
+    suspend fun breakdownHistory(
+        from: String,
+        to: String,
+        plantId: String = "both",
+        status: String? = null,
+    ): Result<List<BreakdownFlag>>
+
+    /** GET /qc/history — every breakdown with a QC decision in range (Head Reports). */
+    suspend fun qcActivityHistory(
+        from: String,
+        to: String,
+        plantId: String = "both",
+    ): Result<List<BreakdownFlag>>
 }

@@ -2,6 +2,7 @@ package com.candorfoods.factoryops.data.remote.mock
 
 import com.candorfoods.factoryops.data.remote.api.BreakdownApi
 import com.candorfoods.factoryops.data.remote.dto.BreakdownFlagResponseDto
+import com.candorfoods.factoryops.data.remote.dto.BreakdownHistoryDto
 import com.candorfoods.factoryops.data.remote.dto.OpenBreakdownDto
 import com.candorfoods.factoryops.data.remote.dto.QcAcknowledgeRequestDto
 import com.candorfoods.factoryops.data.remote.dto.QcDecisionRequestDto
@@ -95,5 +96,26 @@ class MockBreakdownApi : BreakdownApi {
             qcStatus = "REJECTED",
             syncStatus = "SYNCED"
         )
+    }
+
+    override suspend fun breakdownHistory(
+        token: String,
+        from: String,
+        to: String,
+        plantId: String,
+        status: String?,
+    ): List<BreakdownHistoryDto> {
+        delay(200)
+        return emptyList()
+    }
+
+    override suspend fun qcActivityHistory(
+        token: String,
+        from: String,
+        to: String,
+        plantId: String,
+    ): List<BreakdownHistoryDto> {
+        delay(200)
+        return emptyList()
     }
 }

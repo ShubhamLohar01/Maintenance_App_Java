@@ -11,6 +11,7 @@ import com.candorfoods.factoryops.data.remote.dto.BreakdownSheetDto
 import com.candorfoods.factoryops.data.remote.dto.OpenBreakdownDto
 import com.candorfoods.factoryops.data.remote.dto.QcAcknowledgeRequestDto
 import com.candorfoods.factoryops.data.remote.dto.QcDecisionRequestDto
+import com.candorfoods.factoryops.data.remote.dto.toDomain
 import com.candorfoods.factoryops.domain.model.*
 import com.candorfoods.factoryops.domain.repository.BreakdownRepository
 import com.candorfoods.factoryops.domain.repository.MtMachineRepository
@@ -466,6 +467,33 @@ class BreakdownRepositoryImpl @Inject constructor(
         // to seed in either mode. Always purge any leftover "seed-flag-*" rows from earlier mock runs
         // so breakdowns/QC reflect the real backend table.
         db.breakdownFlagDao().deleteSeedFlags()
+    }
+
+    override suspend fun breakdownHistory(
+        from: String,
+        to: String,
+        plantId: String,
+        status: String?,
+    ): Result<List<BreakdownFlag>> {
+        return try {
+            val token = "Bearer ${authPreferences.getToken().orEmpty()}"
+            Result.Success(breakdownApi.breakdownHistory(token, from, to, plantId, status).map { it.toDomain() })
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Failed to load breakdown history", e)
+        }
+    }
+
+    override suspend fun qcActivityHistory(
+        from: String,
+        to: String,
+        plantId: String,
+    ): Result<List<BreakdownFlag>> {
+        return try {
+            val token = "Bearer ${authPreferences.getToken().orEmpty()}"
+            Result.Success(breakdownApi.qcActivityHistory(token, from, to, plantId).map { it.toDomain() })
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Failed to load QC activity history", e)
+        }
     }
 
     // --- multipart helpers (S3 photo upload happens backend-side) ------------------

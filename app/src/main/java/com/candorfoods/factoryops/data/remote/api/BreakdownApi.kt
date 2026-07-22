@@ -1,6 +1,7 @@
 package com.candorfoods.factoryops.data.remote.api
 
 import com.candorfoods.factoryops.data.remote.dto.BreakdownFlagResponseDto
+import com.candorfoods.factoryops.data.remote.dto.BreakdownHistoryDto
 import com.candorfoods.factoryops.data.remote.dto.OpenBreakdownDto
 import com.candorfoods.factoryops.data.remote.dto.QcAcknowledgeRequestDto
 import com.candorfoods.factoryops.data.remote.dto.QcDecisionRequestDto
@@ -80,4 +81,23 @@ interface BreakdownApi {
         @Path("id") flagId: String,
         @Body request: QcDecisionRequestDto
     ): QcUpdateResponseDto
+
+    /** Head Reports — every breakdown (open + closed) in range. status: OPEN/CLOSED/null=all. */
+    @GET("breakdowns/history")
+    suspend fun breakdownHistory(
+        @Header("Authorization") token: String,
+        @Query("from") from: String,
+        @Query("to") to: String,
+        @Query("plant_id") plantId: String = "both",
+        @Query("status") status: String? = null,
+    ): List<BreakdownHistoryDto>
+
+    /** Head Reports — every breakdown with a QC decision in range (latest decision only). */
+    @GET("qc/history")
+    suspend fun qcActivityHistory(
+        @Header("Authorization") token: String,
+        @Query("from") from: String,
+        @Query("to") to: String,
+        @Query("plant_id") plantId: String = "both",
+    ): List<BreakdownHistoryDto>
 }
