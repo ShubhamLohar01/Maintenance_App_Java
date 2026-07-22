@@ -10,6 +10,33 @@
 
 ---
 
+## REVISION (mid-execution, after Task 2) — reuse the concurrently-built Supervisor Reports pipeline
+
+While executing this plan, a concurrent session finished a separate "Supervisor Reports" feature that already fully covers Machine Readings + Floor Readings history, generically (no role coupling):
+
+- `data/remote/api/ReportsApi.kt` — `GET reports/machines` / `GET reports/floor-readings`, `plant`/`from`/`to` query params (`plant` nullable = both plants).
+- `domain/repository/ReportsRepository.kt` / `data/repository/ReportsRepositoryImpl.kt` — `machinesReading(plant, from, to): Result<List<MachineReadingRow>>`, `floorReadingsReport(plant, from, to): Result<List<FloorReadingReportRow>>`. Already wired into Hilt (`NetworkModule.kt`/`RepositoryModule.kt`).
+- `domain/model/reports/ReportRows.kt` — `MachineReadingRow`, `FloorReadingReportRow` domain models, functionally equivalent to what Task 1 originally built.
+- `presentation/reports/FloorReadingsReportScreen.kt` + `FloorReadingsReportViewModel.kt` — a complete, **role-agnostic** screen (only takes `onBack: () -> Unit` + Hilt viewmodel, no Supervisor-specific logic) using the existing `PlantFilterChips` (`presentation/utilities/UtilityComponents.kt:50-61`, nullable `String?` = "A-185"/"W-202"/null-for-all) + `DateField` components.
+- `presentation/reports/ReportsHubScreen.kt` — Supervisor's own hub (Machines Reading / Floor Readings), separate from the `HeadReportsScreen` this plan builds.
+- No `MachinesReadingScreen`/`ViewModel` exists yet — that piece is still missing and this plan now builds it (revised Task 7), placed in the **same shared `presentation/reports/` package** for consistency, not under `presentation/head/`.
+
+**What changed as a result:**
+- Task 1's `MachineKwhHistoryEntry`/`FloorReadingHistoryEntry` and Task 2's `MachineKwhHistoryDto`/`FloorReadingHistoryDto` (+their tests) were **deleted/trimmed** — superseded by `MachineReadingRow`/`FloorReadingReportRow` and `ReportsDtos.kt`. `BreakdownHistoryDto` (Task 2) is kept — no overlap, still needed for Breakdown/QC history.
+- **Task 3 (MachineKwhHistoryRepository) is dropped entirely** — reuse `ReportsRepository.machinesReading()`.
+- **Task 4 (extend FloorReadingApi) is dropped entirely** — reuse `ReportsRepository.floorReadingsReport()`; `FloorReadingApi`/`FloorReadingRepository` are not touched by this plan at all.
+- **Task 6 (shared filter components) is replaced**: reuse the existing `PlantFilterChips` + `DateField` (`presentation/utilities/UtilityComponents.kt`) instead of building a parallel `BuildingFilterChips`/`DateRangeRow`. No machine/floor entity dropdown is needed after all — the existing `ReportsApi` has no `machine_id`/`floor` filter param, so the Head Machine/Floor Readings screens filter by plant + date range only (same shape as the existing Floor Readings screen), not by individual machine/floor. `GetMachineMasterUseCase` is **not** used by this plan anymore.
+- **Task 7 (Machine Reading History screen) is revised**: build the missing `MachinesReadingScreen`/`MachinesReadingViewModel` in `presentation/reports/` (mirroring `FloorReadingsReportScreen`/`ViewModel` exactly), consuming `ReportsRepository.machinesReading()` + `MachineReadingRow`. Filters: `PlantFilterChips` + `DateField` range only.
+- **Task 8 (Floor Reading History screen) is dropped entirely** — reuse the existing `FloorReadingsReportScreen`/`FloorReadingsReportViewModel` verbatim; Head's hub just adds a new navigation route pointing at it.
+- **Task 5, 9, 10 (Breakdown History + QC Activity History: repository extension + both screens) are unchanged** — no overlap with the concurrent work.
+- **Task 11 (hub + nav)** now routes: Machine Readings → new shared `MachinesReadingScreen`; Floor Readings → existing `FloorReadingsReportScreen`; Breakdown History / QC Activity History → this plan's own new screens under `presentation/head/reports/`.
+- **Task 12 (building-code mismatch)** is refocused: `PlantFilterChips` uses the **hyphenated** form (`"A-185"`/`"W-202"`/`null`-for-all), while `BreakdownApi`/`AssetScheduleApi` use the **short** form (`"W202"`/`"A185"`/`"both"`). Since Breakdown/QC History screens (Tasks 9–10) now also use `PlantFilterChips` for UI consistency across the whole Reports area, their ViewModels must convert hyphenated → short form before calling `BreakdownRepository.breakdownHistory()`/`qcActivityHistory()`. This conversion (not the original entity-filter-hyphen concern) is now Task 12's actual scope.
+- **Task 13 (backend handoff prompt)** drops Endpoints 1 and 2 (Machine/Floor reading history) — those already exist via the concurrent session's own backend work. Only Endpoints 3 and 4 (Breakdown History, QC Activity History) are handed off.
+
+The original Task 1–13 text below is left as originally written for historical reference; follow the REVISION notes above wherever they override a task's original file list/approach. Tasks 5, 9, 10, 12 (as refocused), and 13 (as trimmed) are the ones still executed close to their original text; Tasks 3, 4, 6, 8 are skipped; Task 7 is rebuilt against the shared `ReportsRepository` instead of a new one.
+
+---
+
 ## Context for the implementing engineer
 
 - Repo root (git) is `d:\Maintenance module\FactoryOps\`; the Gradle/Android module is the `app\` subdirectory. All paths below are relative to `app\` unless stated otherwise.
