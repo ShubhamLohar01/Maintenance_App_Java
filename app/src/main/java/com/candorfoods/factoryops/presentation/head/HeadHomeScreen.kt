@@ -80,7 +80,7 @@ fun HeadHomeScreen(
             item { SectionCard(Icons.Filled.Build, "Transfer Records", "Machine transfers between warehouses", soon = true, onClick = onTransfers) }
 
             item { GroupHeader("Analytics") }
-            item { SectionCard(Icons.Filled.DateRange, "Reports", "Power consumption per warehouse", soon = true, onClick = onReports) }
+            item { SectionCard(Icons.Filled.DateRange, "Reports", "Machine, floor, breakdown & QC history", onClick = onReports) }
 
             item { GroupHeader("Administration") }
             item { SectionCard(Icons.Filled.Person, "Manage Users", "Add, edit or remove app users", onClick = onManageUsers) }
