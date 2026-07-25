@@ -26,6 +26,8 @@ import com.candorfoods.factoryops.presentation.head.HeadQcScreen
 import com.candorfoods.factoryops.presentation.head.reports.BreakdownHistoryScreen
 import com.candorfoods.factoryops.presentation.head.reports.HeadReportsScreen
 import com.candorfoods.factoryops.presentation.head.reports.QcActivityHistoryScreen
+import com.candorfoods.factoryops.presentation.reports.FloorReadingsReportScreen
+import com.candorfoods.factoryops.presentation.reports.MachinesReadingScreen
 import com.candorfoods.factoryops.presentation.dashboard.ComingSoonScreen
 import com.candorfoods.factoryops.presentation.dashboard.DashboardScreen
 import com.candorfoods.factoryops.presentation.history.HistoryScreen
