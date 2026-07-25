@@ -49,6 +49,14 @@ sealed class Screen(val route: String) {
     object HeadBreakdowns       : Screen("head/breakdowns")
     object HeadQc               : Screen("head/qc")
     object HeadChecklistRecords : Screen("head/checklist-records") // read-only filled checklists
+
+    // ─── Head Reports (history) ──────────────────────────────────────────────
+    object HeadReports              : Screen("head/reports")
+    object HeadReportsMachine       : Screen("head/reports/machine-readings")
+    object HeadReportsFloor         : Screen("head/reports/floor-readings")
+    object HeadReportsBreakdowns    : Screen("head/reports/breakdowns")
+    object HeadReportsQcActivity    : Screen("head/reports/qc-activity")
+
     object ManageUsers          : Screen("manage_users")           // head/admin user directory
 
     /** Role launcher grid (technician / supervisor / head). */

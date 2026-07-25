@@ -23,6 +23,9 @@ import com.candorfoods.factoryops.presentation.checklist.PreventiveListScreen
 import com.candorfoods.factoryops.presentation.head.HeadBreakdownsScreen
 import com.candorfoods.factoryops.presentation.head.HeadHomeScreen
 import com.candorfoods.factoryops.presentation.head.HeadQcScreen
+import com.candorfoods.factoryops.presentation.head.reports.BreakdownHistoryScreen
+import com.candorfoods.factoryops.presentation.head.reports.HeadReportsScreen
+import com.candorfoods.factoryops.presentation.head.reports.QcActivityHistoryScreen
 import com.candorfoods.factoryops.presentation.dashboard.ComingSoonScreen
 import com.candorfoods.factoryops.presentation.dashboard.DashboardScreen
 import com.candorfoods.factoryops.presentation.history.HistoryScreen
@@ -370,7 +373,7 @@ fun AppNavGraph() {
                 onBreakdowns      = { navController.navigate(Screen.HeadBreakdowns.route) },
                 onQc              = { navController.navigate(Screen.HeadQc.route) },
                 onChecklistRecords = { navController.navigate(Screen.HeadChecklistRecords.route) },
-                onReports         = { navController.navigate(Screen.ComingSoon.createRoute("Reports")) },
+                onReports         = { navController.navigate(Screen.HeadReports.route) },
                 onTransfers       = { navController.navigate(Screen.ComingSoon.createRoute("Transfer records")) },
                 onSettings        = { navController.navigate(Screen.Settings.route) },
                 onManageUsers     = { navController.navigate(Screen.ManageUsers.route) },
@@ -390,6 +393,29 @@ fun AppNavGraph() {
                 onFinal    = { id -> navController.navigate(Screen.PreventiveDetail.createRoute(id)) },
                 readOnly   = true,
             )
+        }
+
+        // ─── Head Reports (history) ────────────────────────────────────────
+        composable(Screen.HeadReports.route) {
+            HeadReportsScreen(
+                onBack               = { navController.popBackStack() },
+                onMachineReadings    = { navController.navigate(Screen.HeadReportsMachine.route) },
+                onFloorReadings      = { navController.navigate(Screen.HeadReportsFloor.route) },
+                onBreakdownHistory   = { navController.navigate(Screen.HeadReportsBreakdowns.route) },
+                onQcActivityHistory  = { navController.navigate(Screen.HeadReportsQcActivity.route) },
+            )
+        }
+        composable(Screen.HeadReportsMachine.route) {
+            MachinesReadingScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Screen.HeadReportsFloor.route) {
+            FloorReadingsReportScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Screen.HeadReportsBreakdowns.route) {
+            BreakdownHistoryScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Screen.HeadReportsQcActivity.route) {
+            QcActivityHistoryScreen(onBack = { navController.popBackStack() })
         }
 
         composable(Screen.ManageUsers.route) {
