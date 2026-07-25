@@ -107,11 +107,23 @@ class BreakdownHistoryViewModelTest {
     }
 
     @Test
-    fun `setStatus updates state and triggers reload`() = runTest {
+    fun `setStatus updates state and sends the status to the repository`() = runTest {
         viewModel.setStatus("OPEN")
 
         assertEquals("OPEN", viewModel.uiState.value.status)
-        coVerify(atLeast = 2) { repo.breakdownHistory(any(), any(), any(), any()) } // init + setStatus
+        coVerify { repo.breakdownHistory(any(), any(), any(), "OPEN") }
+    }
+
+    @Test
+    fun `load defaults null dates to a 30-day window and writes them back into state`() = runTest {
+        val today = java.time.LocalDate.now().toString()
+        val defaultFrom = java.time.LocalDate.now().minusDays(30).toString()
+
+        viewModel.load()
+
+        coVerify { repo.breakdownHistory(defaultFrom, today, any(), any()) }
+        assertEquals(defaultFrom, viewModel.uiState.value.from)
+        assertEquals(today, viewModel.uiState.value.to)
     }
 
     @Test

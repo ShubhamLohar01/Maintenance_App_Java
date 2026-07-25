@@ -56,18 +56,17 @@ class BreakdownHistoryViewModel @Inject constructor(
     fun load() {
         viewModelScope.launch {
             val s = _uiState.value
-            _uiState.update { it.copy(isLoading = true, error = null) }
             val from = s.from ?: LocalDate.now().minusDays(30).toString()
             val to = s.to ?: LocalDate.now().toString()
-            when (val r = repository.breakdownHistory(from, to, s.plant.toPlantId(), s.status)) {
+            // Write the resolved (non-null) dates back into state immediately so the
+            // Screen always displays exactly what was queried — a single source of
+            // truth instead of the Screen re-deriving its own "default to 30 days" copy.
+            _uiState.update { it.copy(isLoading = true, error = null, from = from, to = to) }
+            when (val r = repository.breakdownHistory(from, to, s.plant.toBackendPlantId(), s.status)) {
                 is Result.Success -> _uiState.update { it.copy(isLoading = false, rows = r.data) }
                 is Result.Error -> _uiState.update { it.copy(isLoading = false, error = r.message) }
                 Result.Loading -> Unit
             }
         }
     }
-
-    /** Converts the UI's hyphenated plant form ("A-185"/"W-202") to the repository's
-     * short form ("A185"/"W202"); null (All) maps to "both". */
-    private fun String?.toPlantId(): String = if (this == null) "both" else replace("-", "")
 }

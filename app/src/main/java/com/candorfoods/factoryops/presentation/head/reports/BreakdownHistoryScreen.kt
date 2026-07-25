@@ -46,10 +46,12 @@ fun BreakdownHistoryScreen(
     viewModel: BreakdownHistoryViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val today = remember { LocalDate.now().toString() }
-    val defaultFrom = remember { LocalDate.now().minusDays(30).toString() }
-    val from = state.from ?: defaultFrom
-    val to = state.to ?: today
+    // The ViewModel resolves null dates to its 30-day default and writes them back into
+    // state as soon as load() starts, so state.from/state.to are the source of truth
+    // for what's actually being queried. These remember{} values are only a first-frame
+    // placeholder before that initial load() completes.
+    val from = state.from ?: remember { LocalDate.now().minusDays(30).toString() }
+    val to = state.to ?: remember { LocalDate.now().toString() }
 
     Scaffold(
         topBar = {
