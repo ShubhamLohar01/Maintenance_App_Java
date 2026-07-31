@@ -120,8 +120,9 @@ POST /mt-machines** until `IT_TECHNICIAN` is added to that set. Reads
 immediately.
 
 Per project workflow the backend is not edited from this repo — this ships as a
-copy-paste handoff prompt for the backend team. Until it lands, the browse half of
-the feature is fully usable and the add attempt surfaces the backend's
+copy-paste handoff prompt in `app/docs/backend/it-assets-api-requirements.md`,
+alongside the existing `*-api-requirements.md` prompts. Until it lands, the browse
+half of the feature is fully usable and the add attempt surfaces the backend's
 "Not allowed to add assets" message inside the sheet.
 
 ## Error handling
@@ -135,9 +136,28 @@ the feature is fully usable and the add attempt surfaces the backend's
 
 ## Verification
 
-This repo has no JVM test harness for presentation classes, and per project
-workflow APKs are not built here. Verification is a manual pass in Android Studio
-by the user:
+### Automated
+
+The module has a JUnit 5 + MockK + `kotlinx-coroutines-test` unit test source set
+(`app/src/test`, 35 tests including ViewModel tests such as
+`BreakdownListViewModelTest`). Every piece of logic in this feature is covered
+there — role parsing, category matching, tile config, count derivation, list
+filtering, and add success/failure — run with:
+
+```
+./gradlew :app:testDebugUnitTest
+```
+
+Compose composables have no test coverage in this repo, so the screens themselves
+are verified by the manual pass below.
+
+To make role parsing testable, the `when (role.trim().uppercase())` block currently
+inlined in `AuthRepositoryImpl`'s private `UserEntity.toDomain()` is extracted to a
+top-level pure function `parseUserRole(raw: String): UserRole` in the same file.
+`toDomain()` calls it; behaviour for every existing role is unchanged and is locked
+down by tests.
+
+### Manual (Android Studio, by the user)
 
 1. Log in as an `it_technician` user → lands on the IT home with the single
    "IT Assets" tile (not the operator home).
