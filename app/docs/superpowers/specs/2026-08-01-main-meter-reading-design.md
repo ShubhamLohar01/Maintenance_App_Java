@@ -19,6 +19,14 @@ KVAH, the consumption across each, and the power factor.
 | KVAH consumption | derived — `final_kvah - initial_kvah` |
 | Power factor | **entered**, defaulting to 0.98 |
 
+## Table name
+
+`mt_w202_meterreading`, not a `doc_*` name. The `doc_*` tables are formats that
+exist at every plant and are told apart by their `warehouse` column; this one is
+W202's own meter, so the name says so. It still keeps the `warehouse` column —
+the generic service's plant scoping, the admin checks, and the carry-forward
+lookup all key off it, and none of them would work on a table without it.
+
 ## Two differences from the solar sheet
 
 Everything else — the generic `/api/docs/{form_type}` endpoint, the
@@ -62,7 +70,7 @@ stays duplicatable.
 
 Backend:
 
-- `database_migrations/create_main_meter_reading.sql` — new
+- `database_migrations/create_mt_w202_meterreading.sql` — new
 - `app/config/doc_registry.py` — `"main-meter-reading"` entry added
 
 Frontend:
