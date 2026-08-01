@@ -148,6 +148,29 @@ EXISTS` before `CREATE TRIGGER`), so it is safe to re-run.
 
 Requires Postgres 11+ for `EXECUTE FUNCTION`.
 
+## Files
+
+Backend (`E:\QC\complaint-module\backend`):
+
+- `database_migrations/create_solar_reading.sql` — new
+- `app/config/doc_registry.py` — `"solar-reading"` entry added
+
+Frontend (`E:\QC\complaint-module\frontend`):
+
+- `src/components/forms/SolarEnergyReadingForm.tsx` — new
+- `src/app/documentations/solar-reading/{page,create/page,[id]/page,[id]/edit/page}.tsx` — new,
+  each wrapped in `<DocWarehouseGate>` the way the A185-only forms are
+- `src/config/doc-forms.ts` — `DOC_FORMS` entry + `DUPLICATABLE_SLUGS`
+- `src/app/documentations/page.tsx` — grid card, `warehouses: ['W202']`
+
+The form shows consumption and power factor live as the readings are typed, but
+sends none of the three — the payload carries only the four meter readings, so
+the stored numbers are always the trigger's. It refuses to save a final reading
+below the initial one, which the CHECK constraint would reject anyway; catching
+it client-side costs a round trip instead of a 500.
+
+`npx tsc --noEmit` passes.
+
 ## Testing
 
 1. Run the migration; confirm the table and trigger exist.
