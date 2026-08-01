@@ -45,7 +45,7 @@ special is `"warehouses": ["W202"]`, which the existing router already honours:
 
 ```python
 "solar-reading": {
-    "table": "doc_solar_reading",
+    "table": "mt_w202solar_reading",
     "label": "Solar Energy Reading",
     "date_column": "reading_date",
     "doc_no": "CFPLA.C4.F.__",   # fill in the controlled document number
@@ -64,6 +64,15 @@ outside W202 (the backend does the real enforcement):
 ```ts
 "solar-reading": { formType: "solar-reading", routeSlug: "solar-reading", label: "Solar Energy Reading", docNo: "CFPLA.C4.F.__", dateField: "reading_date", listColumns: ["reading_date", "kwh_consumption", "kvah_consumption", "power_factor", "status"], warehouses: ["W202"] },
 ```
+
+## Table name
+
+`mt_w202solar_reading`, not a `doc_*` name — matching its sibling
+`mt_w202_meterreading`. The `doc_*` tables are formats that exist at every plant
+and are told apart by their `warehouse` column; these two are W202's own meters,
+so the names say so. Both still keep the `warehouse` column, because the generic
+service's plant scoping and its admin delete / date-edit checks key off it and
+silently stop working without it.
 
 ## Why the derived columns are a trigger, not `GENERATED`
 
@@ -142,7 +151,7 @@ DESC), `GET /api/docs/solar-reading/{id}` (includes `_prev_id` / `_next_id`),
 
 ## Migration
 
-`backend/database_migrations/create_solar_reading.sql` — written, idempotent
+`backend/database_migrations/create_mt_w202solar_reading.sql` — written, idempotent
 (`CREATE TABLE IF NOT EXISTS`, `CREATE OR REPLACE FUNCTION`, `DROP TRIGGER IF
 EXISTS` before `CREATE TRIGGER`), so it is safe to re-run.
 
@@ -152,7 +161,7 @@ Requires Postgres 11+ for `EXECUTE FUNCTION`.
 
 Backend (`E:\QC\complaint-module\backend`):
 
-- `database_migrations/create_solar_reading.sql` — new
+- `database_migrations/create_mt_w202solar_reading.sql` — new
 - `app/config/doc_registry.py` — `"solar-reading"` entry added
 
 Frontend (`E:\QC\complaint-module\frontend`):
