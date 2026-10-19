@@ -7,8 +7,17 @@ import java.io.File
 
 object BreakdownPhotoStorage {
 
+    private const val DIR_BEFORE = "breakdown_before"
     private const val DIR_AFTER = "breakdown_after"
     private const val DIR_QC    = "breakdown_qc"
+
+    /**
+     * The operator's photo of the fault, captured while raising the flag. Keyed on
+     * the machine rather than a ticket id because at this point the ticket does not
+     * exist yet — the photo is taken before the flag is submitted.
+     */
+    fun createBeforePhotoFile(context: Context, machineId: String): File =
+        createPhotoFile(context, DIR_BEFORE, machineId)
 
     fun createAfterPhotoFile(context: Context, ticketId: String): File =
         createPhotoFile(context, DIR_AFTER, ticketId)

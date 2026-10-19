@@ -14,16 +14,20 @@ import javax.inject.Inject
 class FcmService : FirebaseMessagingService() {
 
     @Inject lateinit var reminderDispatcher: ReminderDispatcher
+    @Inject lateinit var tokenRegistrar: FcmTokenRegistrar
 
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
         val reminder = NotificationEnvelope.parse(message.data) ?: return
-        reminderDispatcher.dispatch(listOf(reminder))
+        // Incremental: a push carries only THIS reminder, not the full desired set — use
+        // deliver() so it doesn't cancel the phone's other active reminders.
+        reminderDispatcher.deliver(listOf(reminder))
     }
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        // Contract for Phase 3 backend: POST /devices/token { userId, token, platform:"android" }.
-        // No-op while NOTIFICATIONS_SOURCE = LOCAL_POLL and the endpoint does not exist yet.
+        // FCM rotated this device's token — re-register it so the backend keeps pushing
+        // to the right address (POST /devices/token). No-op if signed out.
+        tokenRegistrar.register(token)
     }
 }

@@ -139,7 +139,7 @@ fun TechnicianPmDetailScreen(
                     )
                     if (wo.taskLogs.isNotEmpty()) {
                         Text(
-                            "${wo.taskLogs.size} checklist items · ~${wo.taskLogs.count { it.requiresPhoto }} require photos",
+                            "${wo.taskLogs.size} checklist items",
                             style = MaterialTheme.typography.bodySmall,
                             color = FactoryTheme.colors.onSurfaceMuted
                         )

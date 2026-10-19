@@ -21,6 +21,7 @@
     <string name="transfer_form_warehouse_from">से</string>
     <string name="transfer_form_switch_warehouses">से और तक बदलें</string>
     <string name="transfer_form_warehouse_to">तक</string>
+    <string name="transfer_form_same_warehouse_error">\"से\" और \"तक\" गोदाम एक ही नहीं हो सकते।</string>
     <string name="transfer_form_machine_name_label">मशीन का नाम * — खोजें या टाइप करें</string>
     <string name="transfer_form_take_photo">फोटो लें (कैमरा)</string>
     <string name="transfer_form_choose_gallery">गैलरी से चुनें</string>

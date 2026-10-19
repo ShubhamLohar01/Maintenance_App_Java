@@ -25,6 +25,7 @@ data class MtMachineDto(
     @SerialName("model_no")     val modelNo: String? = null,
     @SerialName("serial_no")    val serialNo: String? = null,
     @SerialName("remarks")      val remarks: String? = null,
+    @SerialName("schedule_locked") val scheduleLocked: Boolean = false,
 )
 
 fun MtMachineDto.toDomain(): MtMachine = MtMachine(
@@ -42,6 +43,7 @@ fun MtMachineDto.toDomain(): MtMachine = MtMachine(
     modelNo      = modelNo,
     serialNo     = serialNo,
     remarks      = remarks,
+    scheduleLocked = scheduleLocked,
 )
 
 /**

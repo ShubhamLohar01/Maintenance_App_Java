@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.candorfoods.factoryops.domain.model.PmWoStatus
+import com.candorfoods.factoryops.presentation.common.RequestNotificationPermission
 import com.candorfoods.factoryops.presentation.common.components.FactoryCard
 import com.candorfoods.factoryops.presentation.common.theme.FactoryTheme
 import com.candorfoods.factoryops.util.DateTimeFormatter
@@ -56,6 +57,9 @@ fun SupervisorHomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+
+    // Prompt for the Android 13+ notification permission so escalations reach the supervisor.
+    RequestNotificationPermission()
 
     Scaffold(
         topBar = {
@@ -92,6 +96,7 @@ fun SupervisorHomeScreen(
                 SupervisorTab("Plan",       uiState.plans.size,            selectedTab == 0) { selectedTab = 0 }
                 SupervisorTab("Active WOs", uiState.workOrders.size,       selectedTab == 1) { selectedTab = 1 }
                 SupervisorTab("Approvals",  uiState.pendingApprovals.size, selectedTab == 2) { selectedTab = 2 }
+                SupervisorTab("History",    uiState.history.size,          selectedTab == 3) { selectedTab = 3 }
             }
 
             if (uiState.isLoading) {
@@ -102,6 +107,7 @@ fun SupervisorHomeScreen(
                 0 -> PlansList(uiState.plans, onEditPlan)
                 1 -> WorkOrdersList(uiState.workOrders)
                 2 -> PendingApprovalsList(uiState.pendingApprovals, onReviewPm)
+                3 -> HistoryList(uiState.history)
             }
         }
     }
@@ -141,6 +147,62 @@ private fun PendingApprovalsList(
                         "Submitted by ${row.wo.assignedTechnicianName} $submittedRel · ${row.wo.taskLogs.size} items",
                         style = MaterialTheme.typography.bodySmall
                     )
+                }
+            }
+        }
+    }
+}
+
+/** Completed PM work orders (status = CLOSED in mt_pm_work_order), newest first. */
+@Composable
+private fun HistoryList(rows: List<SupervisorWoRow>) {
+    if (rows.isEmpty()) {
+        EmptyState("No completed PM tasks yet. QC-approved work orders show up here.")
+        return
+    }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(rows, key = { it.wo.id }) { row ->
+            FactoryCard(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            row.machineName,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            "COMPLETED",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = FactoryTheme.colors.statusRunning,
+                        )
+                    }
+                    Text(
+                        "${row.machineCode} · ${row.wo.templateName}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = FactoryTheme.colors.onSurfaceMuted
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        buildString {
+                            append("Done by ${row.wo.assignedTechnicianName ?: "technician"}")
+                            row.wo.supervisorApprovedByName?.let { append(" · approved by $it") }
+                            row.wo.qcAcknowledgedByName?.let { append(" · QC $it") }
+                        },
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    row.wo.closedAt?.let {
+                        Text(
+                            "Closed ${DateTimeFormatter.formatDateTime(it)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = FactoryTheme.colors.onSurfaceMuted
+                        )
+                    }
                 }
             }
         }

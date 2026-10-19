@@ -1,21 +1,27 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "candorfoods-factoryops",
-    "storage_bucket": "candorfoods-factoryops.appspot.com"
+    "project_number": "1062411494053",
+    "project_id": "factoryops-f08d9",
+    "storage_bucket": "factoryops-f08d9.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
+        "mobilesdk_app_id": "1:1062411494053:android:e48382e1fccd13ba18e34c",
         "android_client_info": {
           "package_name": "in.candorfoods.factoryops"
         }
       },
       "oauth_client": [],
-      "api_key": [{ "current_key": "REPLACE_WITH_REAL_KEY" }],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAY4dFhlQKvm5GoQaqoswkdGQdEVjj8yrg"
+        }
+      ],
       "services": {
-        "appinvite_service": { "other_platform_oauth_client": [] }
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
       }
     }
   ],

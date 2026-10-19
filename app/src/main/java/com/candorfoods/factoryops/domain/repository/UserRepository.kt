@@ -5,9 +5,9 @@ import com.candorfoods.factoryops.domain.model.UserSummary
 
 /**
  * Directory of app users, used to populate pickers (e.g. "assign this PM plan to
- * a technician"). The maintenance app has no users-list endpoint yet — only
- * /auth/login — so the roster is seeded on-device for now. Swap the impl for a
- * backend `GET /users?role=` call when the PM backend lands (Phase 3).
+ * a technician"). Backed by the backend's real mt_users table via
+ * `GET /users?role=` — the returned ids are what get stored in a PM plan's
+ * assigned_technician_id.
  */
 interface UserRepository {
 

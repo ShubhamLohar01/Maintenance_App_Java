@@ -164,6 +164,12 @@ private fun SubmissionCard(wo: PmWorkOrder) {
             Text("Performed by ${wo.assignedTechnicianName}" +
                 (wo.submittedAt?.let { " · submitted ${DateTimeFormatter.formatRelative(it)}" } ?: ""),
                 style = MaterialTheme.typography.bodySmall)
+            wo.overallResult?.takeIf { it.isNotBlank() }?.let { result ->
+                val color = if (result.equals("PASS", true)) FactoryTheme.colors.statusRunning
+                            else FactoryTheme.colors.statusStopped
+                Text("Machine result: ${result.uppercase()}",
+                    color = color, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+            }
             wo.supervisorApprovedByName?.let { sup ->
                 Text("Approved by $sup" +
                     (wo.supervisorApprovedAt?.let { " · ${DateTimeFormatter.formatRelative(it)}" } ?: ""),
@@ -181,33 +187,8 @@ private fun ItemRowCard(idx: Int, log: com.candorfoods.factoryops.domain.model.P
                 Text("$idx. ${log.title}", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
                 StatusPill(log.status)
             }
-            if (log.requiresMeasurement) {
-                val unit = log.measurementUnit?.let { " $it" }.orEmpty()
-                val rangeStr = when {
-                    log.measurementMin != null && log.measurementMax != null ->
-                        " (acceptable ${log.measurementMin}–${log.measurementMax}$unit)"
-                    else -> ""
-                }
-                val parsedOk = log.measurementValue?.let { v ->
-                    log.measurementMin?.let { v >= it } != false
-                        && log.measurementMax?.let { v <= it } != false
-                } ?: false
-                val color = if (parsedOk) FactoryTheme.colors.statusRunning else FactoryTheme.colors.statusStopped
-                Text("Measured: ${log.measurementValue ?: "—"}$unit$rangeStr",
-                    color = color, style = MaterialTheme.typography.bodyMedium)
-            }
-            if (log.requiresPhoto && log.photoLocalPath != null) {
-                AsyncImage(
-                    model = File(log.photoLocalPath),
-                    contentDescription = "Photo",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp)
-                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
-                )
-            }
             if (!log.notes.isNullOrBlank()) {
-                Text("Notes: ${log.notes}", style = MaterialTheme.typography.bodySmall)
+                Text("Remarks: ${log.notes}", style = MaterialTheme.typography.bodySmall)
             }
         }
     }
@@ -242,8 +223,8 @@ private fun FinalNotesCard(notes: String) {
 @Composable
 private fun StatusPill(status: PmTaskLogStatus) {
     val (label, color) = when (status) {
-        PmTaskLogStatus.PASS -> "PASS" to FactoryTheme.colors.statusRunning
-        PmTaskLogStatus.FAIL -> "FAIL" to FactoryTheme.colors.statusStopped
+        PmTaskLogStatus.PASS -> "GOOD" to FactoryTheme.colors.statusRunning
+        PmTaskLogStatus.FAIL -> "NOT GOOD" to FactoryTheme.colors.statusStopped
         PmTaskLogStatus.NOT_APPLICABLE -> "N/A" to FactoryTheme.colors.onSurfaceMuted
         PmTaskLogStatus.PENDING -> "PENDING" to FactoryTheme.colors.statusFlagged
     }
@@ -266,7 +247,20 @@ private fun QcActionSection(
 ) {
     when (wo.status) {
         PmWoStatus.PENDING_QC -> {
-            when {
+            if (!uiState.isQcRole) {
+                // View-only for non-QC roles (Supervisor / Head): QC status, no actions.
+                Card(colors = CardDefaults.cardColors(containerColor = LightAmberBg)) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Awaiting QC verification",
+                            fontWeight = FontWeight.SemiBold, color = DarkAmberText)
+                        wo.qcAcknowledgedByName?.let {
+                            Text("Picked up by QC: $it",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = DarkAmberText.copy(alpha = 0.8f))
+                        }
+                    }
+                }
+            } else when {
                 wo.qcAcknowledgedBy == null -> {
                     Button(
                         onClick = onAcknowledge,

@@ -60,6 +60,13 @@ data class OpenBreakdownDto(
     val description: String = "",
     val status: String,
     @SerialName("reported_at") val reportedAt: Long? = null,
+    /** Acknowledging technician, populated once status=ACKNOWLEDGED. Required so the
+     *  technician's "My Active" list resolves on ANY device, not just the one that
+     *  performed the acknowledge. `acknowledgedBy` = the user id the app matches
+     *  against the logged-in user; `acknowledgedByName` = display name. Null while OPEN. */
+    @SerialName("acknowledged_by") val acknowledgedBy: String? = null,
+    @SerialName("acknowledged_by_name") val acknowledgedByName: String? = null,
+    @SerialName("acknowledged_at") val acknowledgedAt: Long? = null,
     val building: String? = null,
     /** Populated by the server when this row is currently OPEN because QC
      *  disapproved a prior repair attempt. Null otherwise. */

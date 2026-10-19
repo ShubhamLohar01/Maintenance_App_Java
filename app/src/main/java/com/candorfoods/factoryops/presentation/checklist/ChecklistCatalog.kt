@@ -1,10 +1,13 @@
 package com.candorfoods.factoryops.presentation.checklist
 
 /**
- * Preventive Maintenance Checklist catalog, transcribed verbatim from the two
- * controlled SOP forms:
- *   - MONTHLY   → CFPLA.C4.F.50a
- *   - QUARTERLY → CFPLA.C4.F.50b
+ * Preventive Maintenance Checklist catalog, transcribed verbatim from the controlled
+ * SOP forms of both plants:
+ *   - W-202: MONTHLY → CFPLA.C4.F.50a, QUARTERLY → CFPLA.C4.F.50b (two documents)
+ *   - A-185: A185_QUARTERLY + A185_MONTHLY → CFPLB.C4.F.41 (one document, two blocks)
+ *
+ * A technician only ever sees their own plant's forms — see [ChecklistType.forPlant],
+ * driven by the signed-in user's plantId.
  *
  * Structure mirrors the paper form: Section (location) → Equipment (Sr. No) →
  * Checkpoints. Each checkpoint becomes one checkbox + remarks row in the UI.
@@ -12,9 +15,63 @@ package com.candorfoods.factoryops.presentation.checklist
  * To fix or extend a form, edit the list below — the screen and ViewModel iterate
  * this catalog dynamically, so no other code changes.
  */
-enum class ChecklistType(val docNo: String, val label: String) {
-    MONTHLY("CFPLA.C4.F.50a", "Monthly"),
-    QUARTERLY("CFPLA.C4.F.50b", "Quarterly"),
+enum class ChecklistType(val docNo: String, val label: String, val plant: String) {
+    MONTHLY("CFPLA.C4.F.50a", "Monthly", plant = "W202"),
+    QUARTERLY("CFPLA.C4.F.50b", "Quarterly", plant = "W202"),
+    // A-185's Quarterly and Monthly blocks live in ONE controlled document (F.41), so both
+    // carry the same docNo; the enum name is what tells two records apart on read-back.
+    A185_QUARTERLY("CFPLB.C4.F.41", "Quarterly", plant = "A185"),
+    A185_MONTHLY("CFPLB.C4.F.41", "Monthly", plant = "A185"),
+    ;
+
+    companion object {
+        /** The default plant for a user whose plantId is missing or unrecognised. */
+        const val DEFAULT_PLANT = "W202"
+
+        /**
+         * Normalise a User.plantId to a [plant] value.
+         *
+         * `mt_users.location` — which is what plantId carries — is descriptive free text:
+         * "A-185-Koparkhairne", "185-Koparkhairnae", "W202", "W-202-Koparkhairne". So match
+         * the way the backend's `building_for()` does: strip to alphanumerics, then accept
+         * the plant code OR just its number appearing anywhere. Anything unrecognised falls
+         * back to [DEFAULT_PLANT] rather than leaving a technician with no forms.
+         */
+        fun plantOf(plantId: String?): String {
+            val n = plantId.orEmpty().uppercase().replace(NON_ALNUM, "")
+            if (n.isEmpty()) return DEFAULT_PLANT
+            for (plant in entries.map { it.plant }.distinct()) {
+                val digits = plant.filter(Char::isDigit)
+                if (n.contains(plant) || (digits.isNotEmpty() && n.contains(digits))) return plant
+            }
+            return DEFAULT_PLANT
+        }
+
+        private val NON_ALNUM = Regex("[^A-Z0-9]")
+
+        /** The forms one plant's technician fills. Never empty — falls back to W202. */
+        fun forPlant(plantId: String?): List<ChecklistType> {
+            val plant = plantOf(plantId)
+            return entries.filter { it.plant == plant }
+        }
+
+        /**
+         * The plant that owns a stored checklist record, from its form type (preferred —
+         * it names the exact form) or its document number.
+         *
+         * Anything unrecognised is attributed to [DEFAULT_PLANT]: every record predating
+         * the A-185 forms is W-202's, including the auto-generated ones the PM sync
+         * writes, so this keeps them visible to the technicians they belong to.
+         */
+        fun plantOfRecord(formType: String?, docNo: String?): String {
+            entries.firstOrNull { it.name.equals(formType?.trim(), ignoreCase = true) }
+                ?.let { return it.plant }
+            val doc = docNo?.trim()
+            entries.firstOrNull { it.docNo.equals(doc, ignoreCase = true) }
+                ?.let { return it.plant }
+            return DEFAULT_PLANT
+        }
+    }
 }
 
 data class ChecklistEquipment(
@@ -38,11 +95,13 @@ private fun section(name: String, vararg equipment: ChecklistEquipment) =
 object ChecklistCatalog {
 
     fun forType(type: ChecklistType): List<ChecklistSection> = when (type) {
-        ChecklistType.MONTHLY   -> MONTHLY
-        ChecklistType.QUARTERLY -> QUARTERLY
+        ChecklistType.MONTHLY        -> MONTHLY
+        ChecklistType.QUARTERLY      -> QUARTERLY
+        ChecklistType.A185_QUARTERLY -> A185_QUARTERLY
+        ChecklistType.A185_MONTHLY   -> A185_MONTHLY
     }
 
-    /** Footer signatory + remarks rows shared by both forms. */
+    /** The "Hygiene clearance / After Maintenance" block every form repeats per machine. */
     val afterMaintenanceChecks = listOf(
         "Cleanliness of machine/ Tools box",
         "All tools are in tool box",
@@ -174,9 +233,8 @@ object ChecklistCatalog {
             eq(68, "Purifier Water Cooler"),
             eq(69, "VRV System"),
         ),
-        section("After Maintenance",
-            eq(70, "After Maintenance", *afterMaintenanceChecks.toTypedArray()),
-        ),
+        // After-Maintenance checks are no longer a standalone end block — they're appended
+        // per machine at build time (see afterMaintenanceChecks + ChecklistViewModel.buildRows).
     )
 
     // ─────────────────────────── 50b — QUARTERLY ─────────────────────────────
@@ -247,8 +305,330 @@ object ChecklistCatalog {
         section("Miscallenous",
             eq(40, "Air Condition", "Compress Air", "Filter"),
         ),
-        section("After Maintenance",
-            eq(41, "After Maintenance", *afterMaintenanceChecks.toTypedArray()),
+        // After-Maintenance checks now append per machine (see buildRows), not as an end block.
+    )
+
+    // ══════════════════════ A-185 — CFPLB.C4.F.41 ═══════════════════════════
+    // One controlled document covering both blocks; the app splits it so a monthly
+    // round doesn't scroll past 160 quarterly items. Sr numbers are verbatim, which is
+    // why 41, 88 and 129 are absent and "Lab AC" carries none at all — the paper form
+    // has those gaps. "AC$" on 133 is the source's own typo, kept as-is.
+
+    // ───────────────────── F.41 — QUARTERLY (Sr 1-163) ──────────────────────
+    private val A185_QUARTERLY: List<ChecklistSection> = listOf(
+        section("Ground floor",
+            eq(1, "Inspection Feeder", "tightness of foundation bolts", "Electric connections"),
+            eq(2, "Weighing Belt", "belt condition", "tightness of foundation bolts",
+               "Clean load cells externally", "Electric connections", "oiling / greasing"),
+            eq(3, "Bucket Elevator", "belt condition", "oiling / greasing",
+               "Check tightness of foundation bolts"),
+        ),
+        section("Mezzanine floor",
+            eq(4, "Auto L-sealer (shrink wrapper)", "Lubrication"),
+            eq(5, "Bi Directional Conveyor A", "oiling / greasing",
+               "Check motor cable connector"),
+            eq(6, "Bi Directional Conveyor B", "Check belt integrity", "oiling / greasing",
+               "Check motor cable connector"),
+            eq(7, "Dryer Forward Conveyor", "Check belt integrity", "oiling / greasing",
+               "Check motor cable connector"),
+            eq(8, "Dryer Reverse Conveyor", "Check belt integrity", "oiling / greasing",
+               "Check motor cable connector"),
+            eq(9, "Dryer circ. blower Side A", "Check foundation bolts for tightness",
+               "Check for vibration, attend if any", "Check motor cable connector"),
+            eq(10, "Dryer circ. blower Side B", "Check Cleaning of filter and internal parts",
+               "Check motor cable connector"),
+            eq(11, "Dryer Burner 1", "Check flame sensing", "Check holding down bolts",
+               "Check elect. connections"),
+            eq(12, "Dryer Burner 2", "Check flame sensing", "Check holding down bolts",
+               "Check elect. connections"),
+            eq(13, "Dryer Belt", "Check belt integrity", "oiling / greasing",
+               "Check belt drive chain lubrication", "Check motor cable connector"),
+            eq(14, "Dryer Exhaust Fan A", "Check foundation bolts for tightness",
+               "Check for vibration, attend if any", "Check motor cable connector"),
+            eq(15, "Dryer Exhaust Fan B", "Check foundation bolts for tightness",
+               "Check for vibration, attend if any", "Check motor cable connector"),
+            eq(16, "Conveyor with Diverter", "Motor check", "Check Lubrication"),
+            eq(17, "Diverter Chute B", "Lubrication"),
+            eq(18, "Return Line Conveyor", "Check conveyor integrity", "oiling / greasing",
+               "Check motor connections"),
+            eq(19, "Retention Tumbler", "Check conveyor", "oiling / greasing",
+               "Check motor connections"),
+            eq(20, "Salinity Centrifugal Pump", "Check pump and motor", "oiling / greasing",
+               "Check foundation bolts", "Check elect. Connections"),
+            eq(21, "Slurry Peristaltic Pump", "Check pump and motor", "oiling / greasing",
+               "Check foundation bolts", "Check elect. Connections"),
+            eq(22, "Salinity Centrifugal Pump", "Check pump and motor", "Check lubrication",
+               "Check foundation bolts", "Check elect. Connections"),
+            eq(23, "Slurry Peristaltic Pump", "Check pump and motor", "oiling / greasing",
+               "Check foundation bolts", "Check elect. Connections"),
+            eq(24, "Salinity Peristaltic Pump", "Check pump and motor", "oiling / greasing",
+               "Check foundation bolts", "Check elect. Connections"),
+            eq(25, "Make up Centrifugal Pump (dispensing", "Check pump and motor",
+               "oiling / greasing", "Check foundation bolts", "Check elect. Connections"),
+            eq(26, "Salinity Agitator A", "Check agitator fasteners", "oiling / greasing",
+               "Check salinity sensor"),
+            eq(27, "Salinity Agitator B", "Check agitator fasteners", "Check motor lubrication",
+               "Check salinity sensor"),
+            eq(28, "Salinity tank A Heater", "Element heater check", "Sealing base check",
+               "Transformer check"),
+            eq(29, "Salinity tank B Heater", "Element heater check", "Sealing base check",
+               "Transformer check"),
+            eq(30, "Diverter Chute C, Dewatering", "Lubrication"),
+            eq(31, "Transfer Conveyor", "Check motor connections", "oiling / greasing",
+               "Check conveyor Integrity"),
+            eq(32, "Diverter Chute D", "Lubrication"),
+            eq(33, "Ribbon Blender", "Check motor connections", "oiling / greasing",
+               "Check fasteners", "Check cover Sensor interlock", "oiling / greasing"),
+            eq(34, "Screw Conveyor", "Check motor connections",
+               "Check clearance between screw and housing", "oiling / greasing",
+               "Check fasteners"),
+            eq(35, "Feeding Hopper Vibrator (Powder)", "Check vibrator elect connections",
+               "Check fasteners"),
+            eq(36, "Feeding Hopper Vibrator A (Peanut)", "Check vibrator elect connections",
+               "Check fasteners"),
+            eq(37, "Cable Vey", "Check drive motor connections", "Check air pressure",
+               "Check smooth movements of conveyor discs.", "Check gates"),
+            eq(38, "Syrup Peristaltic Pump", "Check pump piping for leakage",
+               "Check motor connections", "oiling / greasing"),
+            eq(39, "Syrup Makeup Centrifugal Pump", "Check pump piping for leakage",
+               "Check motor connections", "oiling / greasing"),
+            eq(40, "Syrup Tank 1 Agita. Motor", "Check motor connections", "oiling / greasing"),
+            eq(42, "Syrup Tank 2 Agita. Motor", "Check motor connections", "oiling / greasing"),
+            eq(43, "Syrup Tank 1 Heater", "Cooler check", "Motor check",
+               "Temperature meter check"),
+            eq(44, "Extruder, Main Motor", "Check V belts", "oiling / greasing",
+               "Check oil sealing", "Check motor bearing lubrication", "Check foundation bolts"),
+            eq(45, "Extruder Cutter", "Check motor connection", "Check fasteners"),
+            eq(46, "Extruder Vibrator Feeder", "Check elect. Connections",
+               "Check vibration, material flow"),
+            eq(47, "Extruder Agitator", "Check elect connections", "oiling / greasing",
+               "Check agitator blades, fasteners"),
+            eq(48, "Extruder Hopper Screw Feeder", "Check elect connections",
+               "oiling / greasing", "Check Screw"),
+            eq(49, "Extruder Heater", "Check heater connections",
+               "Check temperature indication"),
+            eq(50, "L Conveyor", "Check motor connections", "oiling / greasing",
+               "Check conveyor"),
+            eq(51, "LIW Hopper- Vibrator Peanut", "Check load cell cleanliness",
+               "Check elect connections"),
+            eq(52, "Pan Coater-1 Tumbler", "Check motor connection", "Check drive lubrication"),
+            eq(53, "Pan Coater-1 Conveyor", "Check motor connections", "oiling / greasing",
+               "Check conveyor"),
+            eq(54, "Pan Coater-1 Powder Hopper Vibratory Feeder ( Cab Levy G1)",
+               "Check vibrator elect connections", "Check fasteners"),
+            eq(55, "Pan Coater-1 Powder Vibrator", "Check vibrator elect connections",
+               "Check fasteners"),
+            eq(56, "RO water purifier 2000ltr/hr", "Tank integrity", "Filter", "motor"),
+            eq(57, "Pan Coater-1 Syrup A", "Check elect connections", "Motor check",
+               "Sensor check", "oiling / greasing", "Conveyor belt check-up and clean"),
+            eq(58, "Pan Coater-1 Syrup B", "Check elect connections", "Motor check",
+               "Sensor check", "oiling / greasing"),
+            eq(59, "LIW Hopper- Vibrator Peanut, Pan coater 2", "Check motor connection",
+               "Check drive lubrication"),
+            eq(60, "Pan Coater-2 Conveyor", "oiling / greasing", "Check motor connections",
+               "Check conveyor"),
+            eq(61, "Pan Coater-2 Powder Hopper Vibratory Feeder (Cablevey G4)",
+               "Check vibrator elect connections", "Check fasteners"),
+            eq(62, "Pan Coater-2 Powder Vibrator", "Check vibrator elect connections",
+               "Check fasteners"),
+            eq(63, "Pan Coater-2 Syrup A", "Check elect connections", "Motor check",
+               "Sensor check", "oiling / greasing", "Conveyor belt check-up and clean"),
+            eq(64, "Pan Coater-2 Syrup B", "Check elect connections", "Motor check",
+               "Sensor check", "oiling / greasing", "Conveyor belt check-up and clean"),
+            eq(65, "LIW Hopper - 3 Vibrator Peanut", "Check load cell cleanliness",
+               "Check elect connections"),
+            eq(66, "HMC", "Check motor connection", "oiling / greasing"),
+            eq(67, "Pan coater -3 Conveyor", "oiling / greasing", "Check motor connections",
+               "Check conveyor"),
+            eq(68, "Pan coater -3 Powder Vibrator", "Check vibrator elect connections",
+               "Check fasteners"),
+            eq(69, "Pan coater -3 Syrup A", "Check elect connections", "Motor check",
+               "Sensor check", "oiling / greasing", "Conveyor belt check-up and clean"),
+            eq(70, "Pan coater -3 Syrup B", "Check elect connections", "Motor check",
+               "Sensor check", "oiling / greasing", "Conveyor belt check-up and clean"),
+            eq(71, "Main Transfer Conveyor", "oiling / greasing", "Check motor connections",
+               "Check conveyor"),
+            eq(72, "Buffer Shifter", "Heater check", "Motor check", "Temperature meter check",
+               "Temperature meter check"),
+            eq(73, "Inclined Conveyor A", "oiling / greasing", "Check motor connections",
+               "Check conveyor"),
+            eq(74, "Puffer Drum", "Check drum drive motor foundation bolts",
+               "Check motor electrical connections", "Check sprocket and chain lubrication"),
+            eq(75, "Puffer Blower", "Check motor foundation bolts", "Check blower impeller"),
+            eq(76, "Puffer Vibratory Feeder", "Check vibrator elect connections",
+               "Check fasteners"),
+            eq(77, "Puffer Burner", "Check gas piping for leaks", "Check flame sensor function"),
+            eq(78, "Cooling Tumbler", "Check motor connection", "Check motor lubrication",
+               "Check motor foundation bolts"),
+            eq(79, "Cooling Tumbler Blower 1", "Check motor foundation bolts",
+               "Check belt tension", "Check blower impeller", "Check impeller locking, key",
+               "Check motor connections"),
+            eq(80, "Cooling Tumbler Blower 2", "Check motor foundation bolts",
+               "Check belt tension", "Check blower impeller", "Check impeller locking, key",
+               "Check motor connections"),
+            eq(81, "Inclined Conveyor B", "oiling / greasing", "Check motor connections",
+               "Check conveyor"),
+            eq(82, "Feeding Hopper Vibrator, A", "Check vibrator elect connections",
+               "Check fasteners"),
+            eq(83, "Feeding Hopper Vibrator B", "Check vibrator elect connections",
+               "Check fasteners"),
+            eq(84, "Nested Feeder 1", "Check vibrator elect connections", "Check fasteners"),
+            eq(85, "Nested Feeder 2", "Check vibrator elect connections", "Check fasteners"),
+            eq(86, "Nested Feeder 3", "Check vibrator elect connections", "Check fasteners"),
+            eq(87, "Kettle 1- Centrifugal Pump", "Check motor connections", "Motor check",
+               "Check pump"),
+            eq(89, "Kettle 2- Centrifugal Pump", "Check motor connections", "Motor check",
+               "Check pump"),
+            eq(90, "Kettle -1 agitator", "Check motor connections", "Motor check",
+               "Check agitator blades"),
+            eq(91, "Kettle- 2 Agitator", "Check motor connections", "Motor check",
+               "Check agitator blades"),
+            eq(92, "Kettler-1 Heater", "Check connections", "Check working", "Check sensor"),
+            eq(93, "Kettler-2 Heater", "Check connections", "Check working", "Check sensor"),
+            eq(94, "Peristaltic Pump", "Check motor connections", "Motor check",
+               "Check pump condition"),
+            eq(95, "DFH Screw", "Check motor connections", "Motor check",
+               "Check screw condition"),
+            eq(96, "DFH Agitator", "Check motor connections", "Motor check",
+               "Check agitator blades"),
+            eq(97, "DFH Scarf Feeder", "Check Cleaning", "Check vibrator elect connections",
+               "Check fasteners"),
+            eq(98, "Seasoning Drum", "Check motor foundation bolts", "oiling / greasing",
+               "Check motor connections", "Check cleaning"),
+            eq(99, "Retention Conveyor", "Check motor connections", "Check motor lubrication",
+               "Check conveyor"),
+            eq(100, "Dryer Spreader Belt", "Motor check", "conveyor belt integrity",
+               "Check spreader fasteners", "oiling / greasing"),
+            eq(101, "New Vibrator", "Check elect connections", "Check vibrations"),
+            eq(102, "Destoner with Blower", "Check motor", "oiling / greasing",
+               "Check elect connections", "Check foundation bolts"),
+            eq(103, "Z Conveyor for Destoner", "Tank check", "Filter check", "Motor check"),
+        ),
+        section("Packing area",
+            eq(104, "FFS Machine", "Check sensor", "Motor check", "Check heaters",
+               "Check belts", "oiling / greasing"),
+            eq(105, "FFS Machine", "Check sensor", "Motor check", "Check heaters",
+               "Check belts", "oiling / greasing"),
+            eq(106, "Roll Rewinding Machine", "Check sensor", "Motor check",
+               "oiling / greasing"),
+            eq(107, "Conveyorized Metal Detector", "Motor check", "Check elect connections",
+               "Check conveyor Belt", "Check metal detection", "oiling / greasing"),
+            eq(108, "Pet Sealing Machine", "Motor check", "Check elect connections",
+               "Check sealing heaters", "Check heater condition", "Check conveyor Belt",
+               "oiling / greasing"),
+            eq(109, "Continuous Band Sealer Machine 1", "Motor check",
+               "Check elect connections", "Check sealing heaters", "Check heater condition",
+               "conveyor belt integrity", "oiling / greasing"),
+            eq(110, "Flow Wrap Machine, Tunnel", "Motor check", "Check elect connections",
+               "Check sealing heaters", "Check heater condition", "Check Fan",
+               "conveyor Belt integrity", "oiling / greasing"),
+            eq(111, "Pakona PFS", "Motor check", "Check elect connections",
+               "conveyor belt integrity", "oiling / greasing", "Check vacuum"),
+            eq(112, "UPS 300 KVS", "OEM service checks"),
+            eq(113, "Underground Tank Water 15000 Ltrs", "Check filling pipe line condition",
+               "Check level switch"),
+            eq(114, "Underground Water Tank Pump", "Pump, Motor check", "Check connections",
+               "Check level sw operation", "Check level sw operation"),
+            eq(115, "MIDC Water Overhead Tank 6000 Ltrs", "Piping check"),
+            eq(116, "MIDC Water Overhead Tank 6000 Ltrs", "Piping check"),
+            eq(117, "water Filtration Plant", "Check piping and vessels for leak",
+               "oiling / greasing", "Check elect. connection"),
+            eq(118, "Filtered Water Tank 10000 Ltrs", "Piping check"),
+            eq(119, "RO filter and Pump", "Piping leak check", "Filter check",
+               "Pump, Motor lubrication check"),
+            eq(120, "Reach Truck", "OEM service checks", "Battery, check"),
+            eq(121, "CCP Blender 1", "Check fasteners", "Check chain, bearing lubrication",
+               "Motor check", "Check elect. Connections"),
+            eq(122, "CCP continuous band sealer", "Motor check", "Check elect connections",
+               "Check sealing heaters", "Check heater condition", "Check conveyor belt",
+               "oiling / greasing"),
+            eq(123, "Blender 2", "Check fasteners", "Check chain, bearing lubrication",
+               "Motor check", "Check elect. Connections"),
+            eq(124, "CCP continuous band sealer", "Motor check", "Check elect connections",
+               "Check sealing heaters", "Check heater condition", "conveyor belt integrity",
+               "oiling / greasing"),
+            eq(125, "Vibrative", "Check fasteners", "Check spring condition",
+               "Check motor connections", "oiling / greasing", "Check sieving screens"),
+            eq(126, "Continuous Band Sealer", "Motor check", "Line check", "Valve check",
+               "Compressor check"),
+            eq(127, "Foot Sealer", "Check elect connections", "Check heater"),
+            eq(128, "UPS Room AC 1, 2", "Clean condenser", "Check elect connections",
+               "Clean air filter", "Check drain line"),
+            eq(null, "Lab AC", "Clean condenser", "Check elect connections", "Clean air filter",
+               "Check drain line"),
+            eq(130, "CCP Blender1 Room AC1, AC2", "Clean condenser", "Check elect connections",
+               "Clean air filter", "Check drain line"),
+            eq(131, "Blender 2 Room AC1, AC2", "Clean condenser", "Check elect connections",
+               "Clean air filter", "Check drain line"),
+            eq(132, "Server Room AC", "Clean condenser", "Check elect connections",
+               "Clean air filter", "Check drain line"),
+            eq(133, "Cold Room AC1, AC2, AC3, AC\$", "Clean condenser",
+               "Check elect connections", "Clean air filter", "Check drain line"),
+            eq(134, "CEO Office AC", "Clean condenser", "Check elect connections",
+               "Clean air filter", "Check drain line"),
+            eq(135, "Conference Room AC", "Clean condenser", "Check elect connections",
+               "Clean air filter", "Check drain line"),
+            eq(136, "Creshe AC", "Clean condenser", "Check elect connections",
+               "Clean air filter", "Check drain line"),
+            eq(137, "Water Cooler", "Motor check", "Line check", "Valve check"),
+            eq(138, "Air Compressor", "Tank check", "Check filter", "oiling / greasing",
+               "Check elect connections", "Motor check"),
+            eq(139, "Air Dryer", "Tank check", "Check filter", "oiling / greasing",
+               "Check elect connections", "Check drain trap", "Check dew point"),
+            eq(140, "Air Compressor", "oiling / greasing", "Check filter", "Motor check"),
+            eq(141, "Air Dryer", "oiling / greasing", "Check elect connections",
+               "Check drain trap"),
+            eq(142, "Nitrogen Plant", "Motor check", "Line check"),
+            eq(143, "Dock", "Motor connections check", "oiling / greasing"),
+            eq(144, "Fire Water Pump 1", "Motor check", "Line check", "Valve check",
+               "Check foundation bolts", "Check coupling"),
+            eq(145, "Fire Water Pump 2", "Motor check", "Line check", "Valve check",
+               "Check foundation bolts", "Check coupling"),
+            eq(146, "Fire Alarm Panel", "Check alarm", "Check elect. Connections"),
+            eq(147, "Videojet printer", "Check conveyor", "Check printer"),
+            eq(148, "Reach Truck", "Carry preventive checks by OEM", "Check battery charger"),
+            eq(149, "Battery operated Pellet TrucK", "Check battery charge",
+               "Check Lifting Mechanism"),
+            eq(150, "Control Panel 1 (A)", "Clean AC filter", "Check UPS connections",
+               "Check Earthing"),
+            eq(151, "Control Panel 2 (B)", "Clean AC filter", "Check UPS connections",
+               "Check Earthing"),
+            eq(152, "Fire extinguishers ABC, CO2", "Check Gas pressure", "Check validity"),
+            eq(153, "Fire Water Pump Panel", "Check alarm is working", "Check connections"),
+            eq(154, "Air Receiver (2 M3)", "Check foundation bolts tightness",
+               "Check for safety valve leakage"),
+            eq(155, "Nitrogen Receiver ( 2 M3)", "Check foundation bolts tightness",
+               "Check for safety valve leakage"),
+            eq(156, "HT Transformer ( 630 KVA)", "Check Earthings", "Clean externally",
+               "Check oil level"),
+            eq(157, "Metering Kiosk", "Check Earthing", "Clean externally"),
+            eq(158, "RMU, HT Breaker", "Check Earthing", "Clean Externally"),
+            eq(159, "LT Panel", "Check Earthing", "Check tightness of internal connections"),
+            eq(160, "Utility Panel", "Check Earthing",
+               "Check tightness of internal connections"),
+            eq(161, "Emergency Panel", "Check Earthing",
+               "Check tightness of internal connections"),
+            eq(162, "Emergency Panel", "Check Earthing", "Check functioning of cooling fans",
+               "Check tightness of internal connections"),
+            eq(163, "Hydraulic press machine", "oiling / greasing", "Pressure gause"),
+        ),
+    )
+
+    // ───────────────────── F.41 — MONTHLY (Sr 164-172) ──────────────────────
+    private val A185_MONTHLY: List<ChecklistSection> = listOf(
+        section("Monthly",
+            eq(164, "Air curtain", "Check Door position", "check elect connection",
+               "Check limit switch and on-off operation."),
+        ),
+        section("Miscellaneous",
+            eq(165, "Windows and mesh"),
+            eq(166, "Doors and gaps"),
+            eq(167, "Pestoflash Machines"),
+            eq(168, "Drainage and mesh coverings"),
+            eq(169, "gaskets (for all machines )"),
+            eq(170, "Lids of all equipments (acrylic or plastics)"),
+            eq(171, "Purifier Water Cooler"),
+            eq(172, "VRV System"),
         ),
     )
 }

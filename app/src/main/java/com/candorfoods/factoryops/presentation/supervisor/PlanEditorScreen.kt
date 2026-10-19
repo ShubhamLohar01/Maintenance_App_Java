@@ -33,7 +33,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -115,7 +114,10 @@ fun PlanEditorScreen(
                     MachineSearchPicker(
                         assets = uiState.assets,
                         selectedId = uiState.selectedAssetId,
-                        onSelect = viewModel::onAssetSelected
+                        onSelect = viewModel::onAssetSelected,
+                        isLoading = uiState.isLoadingAssets,
+                        errorMessage = uiState.assetsError,
+                        onRetry = viewModel::retryLoadAssets
                     )
 
                     OutlinedTextField(
@@ -148,6 +150,22 @@ fun PlanEditorScreen(
                         },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = uiState.firstDueDate,
+                        onValueChange = viewModel::onFirstDueDateChange,
+                        label = { Text("First due date (YYYY-MM-DD) — optional") },
+                        singleLine = true,
+                        isError = !uiState.firstDueDateValid,
+                        supportingText = {
+                            Text(
+                                if (!uiState.firstDueDateValid) "Format: YYYY-MM-DD, e.g. 2026-07-20"
+                                else "Blank = due ${uiState.triggerInterval.ifBlank { "…" }} days from today. " +
+                                    "The technician's task appears 7 days before the due date."
+                            )
+                        },
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -211,7 +229,10 @@ fun PlanEditorScreen(
 private fun MachineSearchPicker(
     assets: List<MtMachine>,
     selectedId: String?,
-    onSelect: (String) -> Unit
+    onSelect: (String) -> Unit,
+    isLoading: Boolean,
+    errorMessage: String?,
+    onRetry: () -> Unit
 ) {
     val selectedName = remember(selectedId, assets) {
         assets.firstOrNull { it.assetId == selectedId }?.assetName ?: ""
@@ -228,6 +249,14 @@ private fun MachineSearchPicker(
         }
     }
 
+    // Distinguish "still loading / load failed" from a genuine "no match" so a cold
+    // backend never reads as an empty asset register.
+    val support: (@Composable () -> Unit)? = when {
+        isLoading            -> ({ Text("Loading machines…") })
+        errorMessage != null -> ({ Text("Couldn't load machines. Tap the field and hit Retry.") })
+        else                 -> null
+    }
+
     ExposedDropdownMenuBox(
         expanded = expanded,
         onExpandedChange = { expanded = it },
@@ -239,6 +268,8 @@ private fun MachineSearchPicker(
             label = { Text("Machine") },
             placeholder = { Text("Search assets by name or id…") },
             singleLine = true,
+            isError = errorMessage != null,
+            supportingText = support,
             trailingIcon = {
                 ExposedDropdownMenuDefaults.TrailingIcon(
                     expanded = expanded,
@@ -250,14 +281,22 @@ private fun MachineSearchPicker(
                 .menuAnchor(MenuAnchorType.PrimaryEditable)
         )
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            if (filtered.isEmpty()) {
-                DropdownMenuItem(
+            when {
+                isLoading -> DropdownMenuItem(
+                    text = { Text("Loading machines…") },
+                    onClick = {},
+                    enabled = false
+                )
+                errorMessage != null -> DropdownMenuItem(
+                    text = { Text("⟳  Retry loading machines") },
+                    onClick = { onRetry() } // keep open; list refreshes in place
+                )
+                filtered.isEmpty() -> DropdownMenuItem(
                     text = { Text("No assets match \"${query.trim()}\"") },
                     onClick = {},
                     enabled = false
                 )
-            } else {
-                filtered.forEach { a ->
+                else -> filtered.forEach { a ->
                     DropdownMenuItem(
                         text = { Text("${a.assetName} — ${a.assetId} · ${a.building}") },
                         onClick = {
@@ -384,67 +423,10 @@ private fun ItemEditorCard(
             OutlinedTextField(
                 value = item.description,
                 onValueChange = { v -> onChange { it.copy(description = v) } },
-                label = { Text("Instructions") },
+                label = { Text("Remarks") },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 2
             )
-
-            OutlinedTextField(
-                value = item.expectedResult,
-                onValueChange = { v -> onChange { it.copy(expectedResult = v) } },
-                label = { Text("Expected result") },
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 1
-            )
-
-            HorizontalDivider()
-
-            ToggleRow(
-                label = "Photo required",
-                checked = item.requiresPhoto,
-                onChange = { v -> onChange { it.copy(requiresPhoto = v) } }
-            )
-            ToggleRow(
-                label = "Measurement required",
-                checked = item.requiresMeasurement,
-                onChange = { v -> onChange { it.copy(requiresMeasurement = v) } }
-            )
-
-            if (item.requiresMeasurement) {
-                OutlinedTextField(
-                    value = item.measurementUnit,
-                    onValueChange = { v -> onChange { it.copy(measurementUnit = v) } },
-                    label = { Text("Unit (e.g. mm, °C, bar)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = item.measurementMin,
-                        onValueChange = { v -> onChange { it.copy(measurementMin = v) } },
-                        label = { Text("Min") },
-                        modifier = Modifier.weight(1f),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true
-                    )
-                    OutlinedTextField(
-                        value = item.measurementMax,
-                        onValueChange = { v -> onChange { it.copy(measurementMax = v) } },
-                        label = { Text("Max") },
-                        modifier = Modifier.weight(1f),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true
-                    )
-                }
-            }
         }
-    }
-}
-
-@Composable
-private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-        Switch(checked = checked, onCheckedChange = onChange)
     }
 }

@@ -11,11 +11,13 @@ import com.candorfoods.factoryops.domain.model.ChecklistSubmission
 import com.candorfoods.factoryops.domain.model.CheckpointStatus
 import com.candorfoods.factoryops.domain.model.Result
 import com.candorfoods.factoryops.domain.repository.ChecklistRepository
+import com.candorfoods.factoryops.domain.usecase.auth.GetCurrentUserUseCase
 import com.candorfoods.factoryops.navigation.Screen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -26,7 +28,13 @@ data class ChecklistRow(
     val section: String,
     val equipment: String,
     val srNo: Int?,
+    /** The date this equipment was checked. On quarterly forms this is the FROM of
+     *  its range; on monthly forms it is the single date and [equipmentDateTo] is
+     *  left blank. Kept under the original name so every existing reader — the PDF,
+     *  the detail screen, the backend's equipment_date — is unaffected. */
     val equipmentDate: String,
+    /** Quarterly only: the TO of this equipment's range. Blank on monthly forms. */
+    val equipmentDateTo: String = "",
     val checkpoint: String,
     val checked: Boolean = false,
     val remarks: String = "",
@@ -48,6 +56,8 @@ data class ChecklistRow(
 
 data class ChecklistUiState(
     val type: ChecklistType = ChecklistType.MONTHLY,
+    /** The forms this technician's plant uses — the only types they can switch between. */
+    val availableTypes: List<ChecklistType> = listOf(ChecklistType.MONTHLY, ChecklistType.QUARTERLY),
     val doneBy: String = "",
     val checkedBy: String = "",
     val verifiedBy: String = "",
@@ -64,11 +74,49 @@ data class ChecklistUiState(
     val filledRows: Int get() = rows.count { it.isFilled }
     val allFilled: Boolean get() = rows.isNotEmpty() && filledRows == totalRows
 
-    val equipmentDates: Map<String, String>
-        get() = rows.associate { it.equipmentKey to it.equipmentDate }
-    val totalEquipment: Int get() = equipmentDates.size
-    val datedEquipment: Int get() = equipmentDates.count { it.value.matches(DATE_REGEX) }
+    /**
+     * Quarterly sheets date each machine over a range, so every equipment carries a
+     * Date From and a Date To. Monthly sheets keep the single date they always had.
+     */
+    val needsEquipmentRange: Boolean
+        get() = type == ChecklistType.QUARTERLY || type == ChecklistType.A185_QUARTERLY
+
+    /** One entry per equipment: its (from, to) as currently typed. */
+    val equipmentRanges: Map<String, Pair<String, String>>
+        get() = rows.associate { it.equipmentKey to (it.equipmentDate to it.equipmentDateTo) }
+
+    val totalEquipment: Int get() = equipmentRanges.size
+
+    /**
+     * Equipment whose dating is complete and consistent.
+     *
+     * Monthly: the single date is well-formed. Quarterly: both ends are well-formed
+     * and to >= from. Compared as strings — ISO yyyy-MM-dd sorts lexicographically
+     * the same way it sorts chronologically, and both sides already match DATE_REGEX.
+     */
+    val datedEquipment: Int
+        get() = equipmentRanges.count { (_, r) -> rangeOk(r.first, r.second) }
+
     val allEquipmentDated: Boolean get() = totalEquipment > 0 && datedEquipment == totalEquipment
+
+    private fun rangeOk(from: String, to: String): Boolean =
+        if (needsEquipmentRange) from.matches(DATE_REGEX) && to.matches(DATE_REGEX) && to >= from
+        else from.matches(DATE_REGEX)
+
+    /**
+     * Complaint about one equipment's dates, or null while it is merely incomplete.
+     *
+     * Half-typed is not an error — the user is still working. Only a malformed value
+     * or a genuinely inverted range earns red text.
+     */
+    fun equipmentDateError(from: String, to: String): String? = when {
+        from.isNotBlank() && !from.matches(DATE_REGEX) -> "Format: YYYY-MM-DD, e.g. 2026-07-01"
+        !needsEquipmentRange -> null
+        to.isNotBlank() && !to.matches(DATE_REGEX) -> "Format: YYYY-MM-DD, e.g. 2026-09-30"
+        from.isBlank() || to.isBlank() -> null            // incomplete, not wrong
+        to < from -> "Date To must be on or after Date From"
+        else -> null
+    }
 
     private val signOffComplete: Boolean
         get() = doneBy.isNotBlank() && checkedBy.isNotBlank() && verifiedBy.isNotBlank()
@@ -81,7 +129,12 @@ data class ChecklistUiState(
     private val busy: Boolean get() = isSubmitting || isLoadingDraft
 
     val canSaveDraft: Boolean get() = !busy && anyEntered
-    val canSubmit: Boolean get() = !busy && allFilled && allEquipmentDated && signOffComplete
+
+    // allEquipmentDated already demands a complete, ordered range per machine on
+    // quarterly forms. The server deliberately does not enforce presence (old builds
+    // send neither date), so this gate is what actually makes it mandatory.
+    val canSubmit: Boolean
+        get() = !busy && allFilled && allEquipmentDated && signOffComplete
 
     companion object {
         val DATE_REGEX = Regex("""^\d{4}-\d{2}-\d{2}$""")
@@ -92,9 +145,11 @@ data class ChecklistUiState(
 class ChecklistViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val checklistRepository: ChecklistRepository,
+    getCurrentUser: GetCurrentUserUseCase,
 ) : ViewModel() {
 
-    // Per-type row state, so toggling Monthly/Quarterly never loses entries.
+    // Per-type row state, so toggling Monthly/Quarterly never loses entries. Built for
+    // every type: a draft of another plant's form still has somewhere to merge into.
     private val rowsByType: MutableMap<ChecklistType, List<ChecklistRow>> =
         ChecklistType.entries.associateWith { buildRows(it) }.toMutableMap()
 
@@ -104,8 +159,20 @@ class ChecklistViewModel @Inject constructor(
     val uiState: StateFlow<ChecklistUiState> = _uiState.asStateFlow()
 
     init {
+        // Opening a draft first: loadDraft flips isLoadingDraft synchronously, which is the
+        // flag the plant resolver below reads to leave the draft's own type alone.
         val draftId = savedStateHandle.get<String>(Screen.PreventiveForm.ARG)?.toIntOrNull()
         if (draftId != null) loadDraft(draftId)
+
+        // The technician's own plant picks the form set — there is no plant switcher.
+        viewModelScope.launch {
+            val types = ChecklistType.forPlant(getCurrentUser().firstOrNull()?.plantId)
+            _uiState.update { state ->
+                val openingDraft = state.isLoadingDraft || state.draftId != null
+                val type = if (openingDraft) state.type else types.first()
+                state.copy(availableTypes = types, type = type, rows = rowsByType.getValue(type))
+            }
+        }
     }
 
     fun onTypeChange(type: ChecklistType) =
@@ -119,12 +186,19 @@ class ChecklistViewModel @Inject constructor(
     fun onRowCheckedChange(index: Int, checked: Boolean) = mutateRow(index) { it.copy(checked = checked) }
     fun onRowRemarksChange(index: Int, remarks: String)  = mutateRow(index) { it.copy(remarks = remarks) }
 
-    /** Updates the date for every checkpoint row of one equipment. */
-    fun onEquipmentDateChange(equipmentKey: String, date: String) {
+    /** Updates the start date on every checkpoint row of one equipment. */
+    fun onEquipmentDateChange(equipmentKey: String, date: String) =
+        mutateEquipment(equipmentKey) { it.copy(equipmentDate = date) }
+
+    /** Updates the end date on every checkpoint row of one equipment (quarterly only). */
+    fun onEquipmentDateToChange(equipmentKey: String, date: String) =
+        mutateEquipment(equipmentKey) { it.copy(equipmentDateTo = date) }
+
+    /** Dates are per EQUIPMENT, but stored on each of its checkpoint rows, so a change
+     *  has to fan out across every row sharing the key. */
+    private fun mutateEquipment(equipmentKey: String, transform: (ChecklistRow) -> ChecklistRow) {
         _uiState.update { state ->
-            val updated = state.rows.map {
-                if (it.equipmentKey == equipmentKey) it.copy(equipmentDate = date) else it
-            }
+            val updated = state.rows.map { if (it.equipmentKey == equipmentKey) transform(it) else it }
             rowsByType[state.type] = updated
             state.copy(rows = updated, submitError = null)
         }
@@ -177,6 +251,8 @@ class ChecklistViewModel @Inject constructor(
         val recordDate = state.rows.map { it.equipmentDate }
             .filter { it.matches(ChecklistUiState.DATE_REGEX) }
             .minOrNull() ?: LocalDate.now().toString()
+        // No document-level period is sent: the backend derives the sheet's span from
+        // the per-machine dates below (see _period in api/preventive_maintenance.py).
         return ChecklistSubmission(
             formType      = state.type.name,
             docNo         = state.type.docNo,
@@ -192,6 +268,9 @@ class ChecklistViewModel @Inject constructor(
                     equipment     = it.equipment,
                     srNo          = it.srNo,
                     equipmentDate = it.equipmentDate,
+                    // A machine serviced within one day carries the same date at both
+                    // ends, which is what monthly forms always produce.
+                    equipmentDateTo = it.equipmentDateTo.ifBlank { it.equipmentDate },
                     checkpoint    = it.checkpoint,
                     status        = it.status,
                     remarks       = it.remarks.trim(),
@@ -213,12 +292,15 @@ class ChecklistViewModel @Inject constructor(
                         val saved = savedByKey[rowKey(row.section, row.srNo, row.equipment, row.checkpoint)]
                             ?: return@map row
                         row.copy(
-                            checked       = saved.status.equals("OK", true),
-                            remarks       = saved.remarks,
-                            equipmentDate = saved.equipmentDate.ifBlank { row.equipmentDate },
+                            checked         = saved.status.equals("OK", true),
+                            remarks         = saved.remarks,
+                            equipmentDate   = saved.equipmentDate.ifBlank { row.equipmentDate },
+                            equipmentDateTo = saved.equipmentDateTo.ifBlank { row.equipmentDateTo },
                         )
                     }
                     rowsByType[type] = merged
+                    // The record-level range is derived on submit, so nothing to restore
+                    // here — the per-equipment dates above are the source of truth.
                     _uiState.update {
                         it.copy(
                             type = type, rows = merged, draftId = id, isLoadingDraft = false,
@@ -245,7 +327,8 @@ class ChecklistViewModel @Inject constructor(
                 if (eqp.checkpoints.isEmpty()) {
                     listOf(ChecklistRow(section.name, eqp.name, eqp.srNo, equipmentDate = today, checkpoint = ""))
                 } else {
-                    eqp.checkpoints.map { cp ->
+                    // Real machines: maintenance checkpoints + the 4 After-Maintenance checks.
+                    (eqp.checkpoints + ChecklistCatalog.afterMaintenanceChecks).map { cp ->
                         ChecklistRow(section.name, eqp.name, eqp.srNo, equipmentDate = today, checkpoint = cp)
                     }
                 }

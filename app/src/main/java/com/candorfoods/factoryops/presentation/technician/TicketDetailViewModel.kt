@@ -11,6 +11,11 @@ import com.candorfoods.factoryops.domain.repository.BreakdownRepository
 import com.candorfoods.factoryops.domain.repository.MachineRepository
 import com.candorfoods.factoryops.domain.usecase.auth.GetCurrentUserUseCase
 import com.candorfoods.factoryops.domain.usecase.breakdown.AcknowledgeBreakdownUseCase
+import com.candorfoods.factoryops.domain.model.BreakdownSpare
+import com.candorfoods.factoryops.domain.model.spareparts.MAX_WO_SPARES
+import com.candorfoods.factoryops.domain.model.spareparts.SparePartPick
+import com.candorfoods.factoryops.domain.model.spareparts.SparePartPickerCatalog
+import com.candorfoods.factoryops.domain.repository.SparePartsRepository
 import com.candorfoods.factoryops.domain.usecase.breakdown.ResolveBreakdownUseCase
 import com.candorfoods.factoryops.navigation.Screen
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,8 +33,16 @@ data class TicketDetailUiState(
     val error: String? = null,
     val showResolveSheet: Boolean = false,
     val partsUsedDraft: String = "",
-    val afterPhotoDraft: String? = null
-)
+    val afterPhotoDraft: String? = null,
+    /** Spares picked for this repair, not yet posted. */
+    val spares: List<BreakdownSpare> = emptyList(),
+    /** Warehouse-scoped stock for the picker; loaded when the sheet opens. */
+    val sparePicker: SparePartPickerCatalog = SparePartPickerCatalog(),
+    val isLoadingPicker: Boolean = false,
+) {
+    /** The server rejects an eleventh spare, so the Add button stops at ten. */
+    val canAddSpare: Boolean get() = spares.size < MAX_WO_SPARES
+}
 
 sealed interface TicketDetailUiEvent {
     data class ShowSnackbar(val message: String) : TicketDetailUiEvent
@@ -45,6 +58,7 @@ class TicketDetailViewModel @Inject constructor(
     machineRepository: MachineRepository,
     private val acknowledge: AcknowledgeBreakdownUseCase,
     private val resolve: ResolveBreakdownUseCase,
+    private val sparePartsRepository: SparePartsRepository,
     getCurrentUser: GetCurrentUserUseCase
 ) : ViewModel() {
 
@@ -65,6 +79,11 @@ class TicketDetailViewModel @Inject constructor(
         // The ticket may have been raised on another device (or opened before the
         // list synced), so it may not be in Room yet. Pull open breakdowns first; the
         // observer below then emits it. Best-effort — offline keeps whatever is local.
+        viewModelScope.launch {
+            breakdownRepository.observeSpares(ticketId).collect { spares ->
+                _uiState.update { it.copy(spares = spares) }
+            }
+        }
         viewModelScope.launch {
             breakdownRepository.refreshOpenFlags("both")
             if (_uiState.value.flag == null) _uiState.update { it.copy(isLoading = false) }
@@ -106,7 +125,34 @@ class TicketDetailViewModel @Inject constructor(
     }
 
     fun onOpenResolveSheet() = _uiState.update {
+        // The spares list is deliberately NOT cleared: a technician who opened the
+        // sheet, picked parts and backed out to check something should find them
+        // still there. resolveFlag() clears them once the server has taken them.
         it.copy(showResolveSheet = true, partsUsedDraft = "", afterPhotoDraft = null, error = null)
+    }
+
+    /**
+     * Pickable stock for this ticket's machine. Loaded when the picker opens rather
+     * than with the ticket, so a repair that consumes nothing costs no round trip.
+     */
+    fun refreshSparePicker() {
+        val assetId = _uiState.value.flag?.machineId
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingPicker = true) }
+            val catalog = sparePartsRepository.picker(assetId)
+            _uiState.update { it.copy(sparePicker = catalog, isLoadingPicker = false) }
+        }
+    }
+
+    fun onAddSpare(pick: SparePartPick, quantity: Double, notes: String?) {
+        viewModelScope.launch {
+            val r = breakdownRepository.logSpare(ticketId, pick, quantity, notes)
+            if (r is Result.Error) _uiEvent.emit(TicketDetailUiEvent.ShowSnackbar(r.message))
+        }
+    }
+
+    fun onDeleteSpare(spare: BreakdownSpare) {
+        viewModelScope.launch { breakdownRepository.deleteSpare(spare.id) }
     }
     fun onDismissResolveSheet() = _uiState.update { it.copy(showResolveSheet = false) }
     fun onPartsUsedChanged(v: String) = _uiState.update { it.copy(partsUsedDraft = v, error = null) }

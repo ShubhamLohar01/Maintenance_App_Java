@@ -19,6 +19,7 @@ import com.candorfoods.factoryops.domain.repository.PmTemplateRepository
 import com.candorfoods.factoryops.domain.repository.UserRepository
 import com.candorfoods.factoryops.domain.usecase.auth.GetCurrentUserUseCase
 import com.candorfoods.factoryops.navigation.Screen
+import com.candorfoods.factoryops.util.DateTimeFormatter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,20 +29,16 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.UUID
 import javax.inject.Inject
 
-/** One editable checklist step of a plan. */
+/** One editable checklist step of a plan: a title + a "Remarks" line (description). */
 data class ItemDraft(
     val id: String,
     val title: String = "",
-    val description: String = "",
-    val expectedResult: String = "",
-    val requiresPhoto: Boolean = false,
-    val requiresMeasurement: Boolean = false,
-    val measurementUnit: String = "",
-    val measurementMin: String = "",
-    val measurementMax: String = ""
+    val description: String = ""
 )
 
 /**
@@ -58,22 +55,30 @@ data class PlanEditorUiState(
     val isEditMode: Boolean = false,
     val planId: String? = null,
     val assets: List<MtMachine> = emptyList(),
+    val isLoadingAssets: Boolean = false,
+    val assetsError: String? = null,
     val selectedAssetId: String? = null,
     val description: String = "",
     val technicians: List<UserSummary> = emptyList(),
     val assignedTechnicianId: String? = null,
     val triggerType: PmTriggerType = PmTriggerType.TIME,
     val triggerInterval: String = "30",
+    /** Optional YYYY-MM-DD. Blank = first task due `interval` days after creation. */
+    val firstDueDate: String = "",
     val items: List<ItemDraft> = listOf(ItemDraft(id = "draft-${UUID.randomUUID()}")),
     val error: String? = null
 ) {
     val selectedAssetName: String
         get() = assets.firstOrNull { it.assetId == selectedAssetId }?.assetName.orEmpty()
 
+    val firstDueDateValid: Boolean
+        get() = firstDueDate.isBlank() || runCatching { LocalDate.parse(firstDueDate) }.isSuccess
+
     val canSave: Boolean
         get() = selectedAssetId != null
             && !assignedTechnicianId.isNullOrBlank()
             && (triggerInterval.toIntOrNull() ?: 0) > 0
+            && firstDueDateValid
             && items.isNotEmpty()
             && items.all { it.title.isNotBlank() }
 }
@@ -107,17 +112,15 @@ class PlanEditorViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            val assets = (mtMachineRepo.list() as? Result.Success)?.data.orEmpty()
-                .sortedBy { it.assetName.lowercase() }
             val technicians = userRepo.getUsersByRole(UserRole.TECHNICIAN)
             _uiState.update {
                 it.copy(
-                    assets = assets,
                     technicians = technicians,
                     // Sensible default so the field isn't empty; supervisor can change it.
                     assignedTechnicianId = it.assignedTechnicianId ?: technicians.firstOrNull()?.id
                 )
             }
+            loadAssets()
 
             val rawId: String? = savedStateHandle[Screen.SupervisorPlanEditor.ARG]
             val planId = rawId?.takeIf { it.isNotBlank() }
@@ -126,6 +129,33 @@ class PlanEditorViewModel @Inject constructor(
             } else {
                 _uiState.update { it.copy(isLoading = false) }
             }
+        }
+    }
+
+    /** Retry the asset-register load after a failure (e.g. the backend was cold). */
+    fun retryLoadAssets() {
+        viewModelScope.launch { loadAssets() }
+    }
+
+    /**
+     * Load the machine picker's asset register. A cold backend can time out the first
+     * call, so we surface the failure (assetsError) + allow retry instead of silently
+     * leaving an empty list that reads as "No assets match".
+     */
+    private suspend fun loadAssets() {
+        _uiState.update { it.copy(isLoadingAssets = true, assetsError = null) }
+        when (val r = mtMachineRepo.list()) {
+            is Result.Success -> _uiState.update {
+                it.copy(
+                    assets = r.data.sortedBy { a -> a.assetName.lowercase() },
+                    isLoadingAssets = false,
+                    assetsError = null,
+                )
+            }
+            is Result.Error -> _uiState.update {
+                it.copy(isLoadingAssets = false, assetsError = r.message)
+            }
+            Result.Loading -> Unit
         }
     }
 
@@ -151,17 +181,13 @@ class PlanEditorViewModel @Inject constructor(
                 assignedTechnicianId = plan.assignedTechnicianId,
                 triggerType = plan.triggerType,
                 triggerInterval = plan.triggerInterval.toString(),
+                // The first cycle hasn't run yet — surface its (editable) due date.
+                firstDueDate = if (plan.lastCompletedAt == null) DateTimeFormatter.isoDate(plan.nextDueAt) else "",
                 items = template?.items?.map { item ->
                     ItemDraft(
                         id = item.id,
                         title = item.title,
-                        description = item.description,
-                        expectedResult = item.expectedResult,
-                        requiresPhoto = item.requiresPhoto,
-                        requiresMeasurement = item.requiresMeasurement,
-                        measurementUnit = item.measurementUnit.orEmpty(),
-                        measurementMin = item.measurementMin?.toString().orEmpty(),
-                        measurementMax = item.measurementMax?.toString().orEmpty()
+                        description = item.description
                     )
                 }?.ifEmpty { listOf(ItemDraft(id = "draft-${UUID.randomUUID()}")) }
                     ?: listOf(ItemDraft(id = "draft-${UUID.randomUUID()}"))
@@ -174,6 +200,8 @@ class PlanEditorViewModel @Inject constructor(
     fun onTechnicianSelected(id: String) = _uiState.update { it.copy(assignedTechnicianId = id) }
     fun onTriggerTypeChange(t: PmTriggerType) = _uiState.update { it.copy(triggerType = t) }
     fun onIntervalChange(v: String) = _uiState.update { it.copy(triggerInterval = v.filter { c -> c.isDigit() }) }
+    fun onFirstDueDateChange(v: String) =
+        _uiState.update { it.copy(firstDueDate = v.filter { c -> c.isDigit() || c == '-' }) }
 
     fun onItemChange(index: Int, transform: (ItemDraft) -> ItemDraft) {
         _uiState.update { state ->
@@ -261,13 +289,7 @@ class PlanEditorViewModel @Inject constructor(
                     templateId = tmplId,
                     orderIndex = idx,
                     title = draft.title.trim(),
-                    description = draft.description.trim(),
-                    expectedResult = draft.expectedResult.trim(),
-                    requiresPhoto = draft.requiresPhoto,
-                    requiresMeasurement = draft.requiresMeasurement,
-                    measurementUnit = draft.measurementUnit.takeIf { it.isNotBlank() },
-                    measurementMin = draft.measurementMin.toDoubleOrNull(),
-                    measurementMax = draft.measurementMax.toDoubleOrNull()
+                    description = draft.description.trim()
                 )
             }
 
@@ -289,7 +311,7 @@ class PlanEditorViewModel @Inject constructor(
                 triggerInterval = interval,
                 lastCompletedAt = loadedLastCompletedAt,
                 lastCompletedAtHours = loadedLastCompletedAtHours,
-                nextDueAt = computeNextDue(now, interval),
+                nextDueAt = computeNextDue(now, interval, state.firstDueDate),
                 assignedTechnicianId = state.assignedTechnicianId!!,
                 isActive = true,
                 createdAt = loadedPlanCreatedAt ?: now
@@ -308,10 +330,21 @@ class PlanEditorViewModel @Inject constructor(
         }
     }
 
-    /** Next-due anchored on last completion when present, else now. */
-    private fun computeNextDue(now: Long, intervalDays: Int): Long {
-        val base = loadedLastCompletedAt ?: now
-        return base + intervalDays * DAY_MS
+    /**
+     * Next-due for the plan being saved. Once a cycle has completed, it's anchored on
+     * that completion (+interval). Before the first completion the supervisor may pick an
+     * explicit first due date — that wins; blank falls back to now + interval. The backend
+     * generator honours the stored next_due_at until the first completion, so this value
+     * decides when the FIRST work order appears (7-day lead before it).
+     */
+    private fun computeNextDue(now: Long, intervalDays: Int, firstDueDate: String): Long {
+        loadedLastCompletedAt?.let { return it + intervalDays * DAY_MS }
+        firstDueDate.takeIf { it.isNotBlank() }?.let { raw ->
+            runCatching {
+                return LocalDate.parse(raw).atStartOfDay(ZoneId.of("Asia/Kolkata")).toInstant().toEpochMilli()
+            }
+        }
+        return now + intervalDays * DAY_MS
     }
 
     companion object {

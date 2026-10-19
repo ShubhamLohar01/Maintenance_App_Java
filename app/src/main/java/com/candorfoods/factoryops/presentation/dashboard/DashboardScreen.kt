@@ -33,6 +33,7 @@ fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel(),
 ) {
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
+    val badgeCounts by viewModel.badgeCounts.collectAsStateWithLifecycle()
     val tiles = remember(role) { dashboardTilesFor(role) }
 
     Scaffold(
@@ -69,6 +70,7 @@ fun DashboardScreen(
                 DashboardTileCard(
                     label = tile.label,
                     icon = tile.icon,
+                    badgeCount = tile.badge?.let { badgeCounts[it] } ?: 0,
                     onClick = {
                         when (val action = tile.action) {
                             is DashboardAction.Open       -> onOpen(action.route)
@@ -85,29 +87,47 @@ fun DashboardScreen(
 private fun DashboardTileCard(
     label: String,
     icon: ImageVector,
+    badgeCount: Int,
     onClick: () -> Unit,
 ) {
-    FactoryCard(
-        modifier = Modifier.aspectRatio(1f),
-        onClick = onClick,
-    ) {
-        Column(
+    Box(modifier = Modifier.aspectRatio(1f)) {
+        FactoryCard(
             modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
+            onClick = onClick,
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(40.dp),
-            )
-            Spacer(Modifier.height(Spacing.md))
-            Text(
-                label,
-                style = MaterialTheme.typography.titleMedium,
-                textAlign = TextAlign.Center,
-            )
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(40.dp),
+                )
+                Spacer(Modifier.height(Spacing.md))
+                Text(
+                    label,
+                    style = MaterialTheme.typography.titleMedium,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+        // Red notification-count badge, top-right corner of the tile.
+        if (badgeCount > 0) {
+            Badge(
+                containerColor = MaterialTheme.colorScheme.error,
+                contentColor = MaterialTheme.colorScheme.onError,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 10.dp, end = 10.dp),
+            ) {
+                Text(
+                    if (badgeCount > 99) "99+" else badgeCount.toString(),
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
         }
     }
 }

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.candorfoods.factoryops.domain.model.ActiveRun
 import com.candorfoods.factoryops.domain.model.MtMachine
 import com.candorfoods.factoryops.domain.model.Result
+import com.candorfoods.factoryops.domain.model.isHiddenFromOperator
 import com.candorfoods.factoryops.domain.model.User
 import com.candorfoods.factoryops.domain.model.UserRole
 import com.candorfoods.factoryops.domain.repository.BreakdownRepository
@@ -56,6 +57,7 @@ data class MachineListUiState(
     val searchQuery: String = "",
     val selectedCategory: String? = null,
     val selectedBuilding: String? = null,        // null = Both (show all warehouses)
+    val selectedFloor: String? = null,           // null = all floors / sub-locations
     val statusFilter: MachineStatusFilter = MachineStatusFilter.ALL,
     val pendingSyncCount: Int = 0,
     val isSyncing: Boolean = false,
@@ -64,6 +66,14 @@ data class MachineListUiState(
     val addError: String? = null,
 ) {
     val isOperator: Boolean get() = currentUser?.role == UserRole.OPERATOR
+
+    /**
+     * Assets visible to the current user. Operators don't see electric/furniture/lab
+     * assets (no production or maintenance use); every other role sees the full
+     * register. All list/filter/count derivations below run off this.
+     */
+    private val visibleAssets: List<MtMachine>
+        get() = if (isOperator) assets.filterNot { it.isHiddenFromOperator() } else assets
     /** Supervisor / Head / Technician / Admin may add a machine to the register. */
     val canAddMachine: Boolean
         get() = currentUser?.role == UserRole.SUPERVISOR ||
@@ -82,19 +92,33 @@ data class MachineListUiState(
     }
 
     val categories: List<String>
-        get() = assets.map { it.category }.filter { it.isNotBlank() }.distinct().sorted()
+        get() = visibleAssets.map { it.category }.filter { it.isNotBlank() }.distinct().sorted()
+
+    /** building -> distinct floors/sub-locations already present in the register.
+     *  Feeds the add-machine sheet so Floor is picked from what exists (typos don't
+     *  mint phantom floors), while still allowing a genuinely new value. */
+    val subLocationsByBuilding: Map<String, List<String>>
+        get() = visibleAssets.groupBy { it.building }.mapValues { (_, list) ->
+            list.map { it.subLocation }.filter { it.isNotBlank() }.distinct().sorted()
+        }
 
     /** Distinct warehouses present in the data — drives the warehouse switch. Operators
      *  physically work across both buildings, so the switch is offered to every role. */
     val buildings: List<String>
-        get() = assets.map { it.building }.filter { it.isNotBlank() }.distinct().sorted()
+        get() = visibleAssets.map { it.building }.filter { it.isNotBlank() }.distinct().sorted()
+
+    /** Floor dropdown options — distinct sub-locations, scoped to the selected warehouse. */
+    val floors: List<String>
+        get() = visibleAssets
+            .filter { selectedBuilding == null || it.building.equals(selectedBuilding, true) }
+            .map { it.subLocation }.filter { it.isNotBlank() }.distinct().sorted()
 
     /** Filtered (search + category + status) and ordered (status group, then name). */
     val items: List<MachineListItem>
         get() {
             val runs = runByAsset
             val q = searchQuery.trim()
-            return assets
+            return visibleAssets
                 .asSequence()
                 .map { asset ->
                     val run = runs[asset.assetId]
@@ -108,13 +132,14 @@ data class MachineListUiState(
                 }
                 .filter { selectedCategory == null || it.asset.category.equals(selectedCategory, true) }
                 .filter { selectedBuilding == null || it.asset.building.equals(selectedBuilding, true) }
+                .filter { selectedFloor == null || it.asset.subLocation.equals(selectedFloor, true) }
                 .filter { statusFilter.matches(it.status) }
                 .sortedWith(compareBy({ it.status.order }, { it.asset.assetName.lowercase() }))
                 .toList()
         }
 
     fun countOf(status: MachineLiveStatus): Int =
-        assets.count { statusOf(it.assetId) == status }
+        visibleAssets.count { statusOf(it.assetId) == status }
 }
 
 @HiltViewModel
@@ -158,7 +183,9 @@ class MachineListViewModel @Inject constructor(
 
     fun onSearchChange(q: String)               = _uiState.update { it.copy(searchQuery = q) }
     fun onCategorySelected(c: String?)          = _uiState.update { it.copy(selectedCategory = c) }
-    fun onBuildingSelected(b: String?)          = _uiState.update { it.copy(selectedBuilding = b) }
+    // Switching warehouse resets the floor filter (floors are per-building).
+    fun onBuildingSelected(b: String?)          = _uiState.update { it.copy(selectedBuilding = b, selectedFloor = null) }
+    fun onFloorSelected(f: String?)             = _uiState.update { it.copy(selectedFloor = f) }
     fun onStatusFilterChange(f: MachineStatusFilter) = _uiState.update { it.copy(statusFilter = f) }
 
     fun onAddMachineClicked() = _uiState.update { it.copy(showAddSheet = true, addError = null) }

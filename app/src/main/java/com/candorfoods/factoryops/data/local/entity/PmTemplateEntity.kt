@@ -24,12 +24,6 @@ data class PmTemplateItemEntity(
     val templateId: String,
     val orderIndex: Int,
     val title: String,
-    val description: String,
-    val expectedResult: String,
-    val requiresPhoto: Boolean,
-    val requiresMeasurement: Boolean,
-    val measurementUnit: String?,
-    val measurementMin: Double?,
-    val measurementMax: Double?,
+    val description: String,   // "Remarks" (supervisor guidance)
     val syncStatus: String
 )

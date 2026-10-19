@@ -18,7 +18,7 @@ data class ChecklistSubmissionDto(
     @SerialName("form_type")      val formType: String,        // "MONTHLY" | "QUARTERLY"
     @SerialName("doc_no")         val docNo: String,           // "CFPLA.C4.F.50a" | "...50b"
     @SerialName("status")         val status: String,          // "DRAFT" | "SUBMITTED"
-    @SerialName("checklist_date") val checklistDate: String,   // "yyyy-MM-dd"
+    @SerialName("checklist_date") val checklistDate: String,   // "yyyy-MM-dd" - signed on
     @SerialName("done_by")        val doneBy: String,
     @SerialName("checked_by")     val checkedBy: String,
     @SerialName("verified_by")    val verifiedBy: String,
@@ -31,7 +31,12 @@ data class ChecklistItemDto(
     @SerialName("section")        val section: String,
     @SerialName("equipment")      val equipment: String,
     @SerialName("sr_no")          val srNo: Int? = null,
-    @SerialName("equipment_date") val equipmentDate: String = "",  // ISO yyyy-MM-dd
+    // This machine's maintenance period, ISO yyyy-MM-dd - the exact keys stored in the
+    // backend's `rows` JSONB item. A machine serviced within one day carries the same
+    // date at both ends. Defaulted so records written before the range existed still
+    // deserialise; the backend fills both from the old single `equipment_date` on read.
+    @SerialName("from_date") val equipmentDateFrom: String = "",
+    @SerialName("to_date")   val equipmentDateTo: String = "",
     @SerialName("checkpoint")     val checkpoint: String,
     @SerialName("status")         val status: String,   // "OK" | "NOT_OK"
     @SerialName("remarks")        val remarks: String,
@@ -51,8 +56,16 @@ data class ChecklistRecordSummaryDto(
     @SerialName("status")         val status: String = "SUBMITTED",
     @SerialName("doc_no")         val docNo: String = "",
     @SerialName("checklist_date") val checklistDate: String = "",
+    // Defaulted: rows written before the range existed omit these, and an older
+    // backend does not send them at all.
+    @SerialName("checklist_date_from") val checklistDateFrom: String = "",
+    @SerialName("checklist_date_to")   val checklistDateTo: String = "",
     @SerialName("done_by")        val doneBy: String = "",
     @SerialName("created_at")     val createdAt: String = "",
+    // Defaulted: an older backend does not send these, and the card then hides
+    // the progress line rather than claiming 0 / 0.
+    @SerialName("filled_count")   val filledCount: Int = 0,
+    @SerialName("total_count")    val totalCount: Int = 0,
 )
 
 @Serializable
@@ -62,6 +75,8 @@ data class ChecklistRecordDetailDto(
     @SerialName("status")         val status: String = "SUBMITTED",
     @SerialName("doc_no")         val docNo: String = "",
     @SerialName("checklist_date") val checklistDate: String = "",
+    @SerialName("checklist_date_from") val checklistDateFrom: String = "",
+    @SerialName("checklist_date_to")   val checklistDateTo: String = "",
     @SerialName("done_by")        val doneBy: String = "",
     @SerialName("checked_by")     val checkedBy: String = "",
     @SerialName("verified_by")    val verifiedBy: String = "",
@@ -70,19 +85,31 @@ data class ChecklistRecordDetailDto(
     @SerialName("items")          val items: List<ChecklistItemDto> = emptyList(),
 )
 
+// ifBlank fallbacks, not bare assignment: a record written before the range existed  // (or served by an older backend) carries only checklistDate, and a blank range would
+// render as an empty "Period: —" on the detail screen and the PDF.
+
+
+
 fun ChecklistRecordSummaryDto.toDomain() = ChecklistRecordSummary(
     id = id, formType = formType, status = status, docNo = docNo,
-    checklistDate = checklistDate, doneBy = doneBy, createdAt = createdAt,
+    checklistDate = checklistDate,
+    checklistDateFrom = checklistDateFrom.ifBlank { checklistDate },
+    checklistDateTo = checklistDateTo.ifBlank { checklistDateFrom.ifBlank { checklistDate } },
+    doneBy = doneBy, createdAt = createdAt,
+    filledCount = filledCount, totalCount = totalCount,
 )
 
 fun ChecklistRecordDetailDto.toDomain() = ChecklistRecordDetail(
     id = id, formType = formType, status = status, docNo = docNo, checklistDate = checklistDate,
+    checklistDateFrom = checklistDateFrom.ifBlank { checklistDate },
+    checklistDateTo = checklistDateTo.ifBlank { checklistDateFrom.ifBlank { checklistDate } },
     doneBy = doneBy, checkedBy = checkedBy, verifiedBy = verifiedBy,
     remarks = remarks, createdAt = createdAt,
     items = items.map {
         ChecklistRecordItem(
             section = it.section, equipment = it.equipment, srNo = it.srNo,
-            equipmentDate = it.equipmentDate,
+            equipmentDate = it.equipmentDateFrom,
+            equipmentDateTo = it.equipmentDateTo,
             checkpoint = it.checkpoint, status = it.status, remarks = it.remarks,
         )
     },
@@ -102,7 +129,10 @@ fun ChecklistSubmission.toDto() = ChecklistSubmissionDto(
             section       = it.section,
             equipment     = it.equipment,
             srNo          = it.srNo,
-            equipmentDate = it.equipmentDate,
+            // domain ChecklistItemSubmission.equipmentDate is this machine's START;
+            // it serialises as the wire key `from_date`.
+            equipmentDateFrom = it.equipmentDate,
+            equipmentDateTo   = it.equipmentDateTo,
             checkpoint    = it.checkpoint,
             status        = it.status.name,
             remarks       = it.remarks,

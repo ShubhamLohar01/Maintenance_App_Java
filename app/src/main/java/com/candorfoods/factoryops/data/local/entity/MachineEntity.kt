@@ -9,7 +9,7 @@ data class MachineEntity(
     val code: String,
     val name: String,
     val location: String,
-    val building: String = "W-202",
+    val building: String = "W202",
     val plantId: String,
     val machineType: String,
     val category: String? = null,

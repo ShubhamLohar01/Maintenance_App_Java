@@ -12,7 +12,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.*
@@ -27,8 +29,12 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.candorfoods.factoryops.domain.model.BreakdownSpare
 import com.candorfoods.factoryops.domain.model.BreakdownStatus
 import com.candorfoods.factoryops.domain.model.Severity
+import com.candorfoods.factoryops.domain.model.spareparts.MAX_WO_SPARES
+import com.candorfoods.factoryops.domain.model.spareparts.SparePartPick
+import com.candorfoods.factoryops.domain.model.spareparts.SparePartPickerCatalog
 import com.candorfoods.factoryops.presentation.common.components.FactoryCard
 import com.candorfoods.factoryops.presentation.common.components.LoadingOverlay
 import com.candorfoods.factoryops.presentation.common.components.PrimaryButton
@@ -36,6 +42,7 @@ import com.candorfoods.factoryops.presentation.common.components.PrimaryButtonSi
 import com.candorfoods.factoryops.presentation.common.components.PrimaryButtonStyle
 import com.candorfoods.factoryops.presentation.common.theme.FactoryTheme
 import com.candorfoods.factoryops.presentation.common.theme.TouchTarget
+import com.candorfoods.factoryops.presentation.spareparts.components.SparePartPickerSheet
 import com.candorfoods.factoryops.util.BreakdownPhotoStorage
 import com.candorfoods.factoryops.util.DateTimeFormatter
 import java.io.File
@@ -97,6 +104,7 @@ fun TicketDetailScreen(
                         .fillMaxSize()
                         .padding(padding)
                         .verticalScroll(rememberScrollState())
+                        .imePadding()
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
@@ -273,10 +281,17 @@ fun TicketDetailScreen(
                 ticketId = uiState.flag!!.id,
                 partsUsed = uiState.partsUsedDraft,
                 afterPhotoPath = uiState.afterPhotoDraft,
+                spares = uiState.spares,
+                sparePicker = uiState.sparePicker,
+                isLoadingPicker = uiState.isLoadingPicker,
+                canAddSpare = uiState.canAddSpare,
                 isSubmitting = uiState.isSubmitting,
                 error = uiState.error,
                 onPartsUsedChanged = viewModel::onPartsUsedChanged,
                 onAfterPhotoCaptured = viewModel::onAfterPhotoCaptured,
+                onOpenSparePicker = viewModel::refreshSparePicker,
+                onAddSpare = viewModel::onAddSpare,
+                onDeleteSpare = viewModel::onDeleteSpare,
                 onSubmit = viewModel::onResolve,
                 onDismiss = viewModel::onDismissResolveSheet
             )
@@ -290,15 +305,23 @@ private fun ResolveSheet(
     ticketId: String,
     partsUsed: String,
     afterPhotoPath: String?,
+    spares: List<BreakdownSpare>,
+    sparePicker: SparePartPickerCatalog,
+    isLoadingPicker: Boolean,
+    canAddSpare: Boolean,
     isSubmitting: Boolean,
     error: String?,
     onPartsUsedChanged: (String) -> Unit,
     onAfterPhotoCaptured: (String?) -> Unit,
+    onOpenSparePicker: () -> Unit,
+    onAddSpare: (SparePartPick, Double, String?) -> Unit,
+    onDeleteSpare: (BreakdownSpare) -> Unit,
     onSubmit: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
     var pendingFile by remember { mutableStateOf<File?>(null) }
+    var showSparePicker by remember { mutableStateOf(false) }
 
     val cameraLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture()
@@ -346,10 +369,62 @@ private fun ResolveSheet(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
 
+            // Spares first, then the description. The two are different things: the
+            // picks below move stock, the text box only records what was done.
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Spares used", fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.weight(1f))
+                        IconButton(
+                            enabled = canAddSpare,
+                            onClick = {
+                                onOpenSparePicker()
+                                showSparePicker = true
+                            },
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = "Add spare")
+                        }
+                    }
+                    if (!canAddSpare) {
+                        Text(
+                            "Limit of $MAX_WO_SPARES spare parts reached.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        )
+                    }
+                    if (spares.isEmpty()) {
+                        Text(
+                            "None logged. Add any part you took from stock.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        )
+                    } else {
+                        spares.forEach { spare ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(spare.spareName, fontWeight = FontWeight.SemiBold)
+                                    Text(
+                                        listOfNotNull(
+                                            "${spare.quantityUsed} ${spare.unit}".trim(),
+                                            spare.machineName?.takeIf { it.isNotBlank() },
+                                        ).joinToString("  -  "),
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                }
+                                IconButton(onClick = { onDeleteSpare(spare) }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Remove")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             OutlinedTextField(
                 value = partsUsed,
                 onValueChange = onPartsUsedChanged,
-                label = { Text("Parts used / work done") },
+                label = { Text("Work done") },
                 placeholder = { Text("e.g. replaced V-belt, cleaned filter, tightened mounts") },
                 minLines = 4,
                 modifier = Modifier.fillMaxWidth(),
@@ -402,6 +477,18 @@ private fun ResolveSheet(
 
             Spacer(Modifier.height(16.dp))
         }
+    }
+
+    if (showSparePicker) {
+        SparePartPickerSheet(
+            catalog = sparePicker,
+            isLoading = isLoadingPicker,
+            onConfirm = { pick, qty, notes ->
+                onAddSpare(pick, qty, notes)
+                showSparePicker = false
+            },
+            onDismiss = { showSparePicker = false },
+        )
     }
 }
 

@@ -1,0 +1,1657 @@
+[
+ {
+  "kind": "section",
+  "name": "Ground floor",
+  "page": 1
+ },
+ {
+  "kind": "equipment",
+  "name": "Inspection Feeder",
+  "page": 1,
+  "checkpoints": [
+   "tightness of foundation bolts",
+   "Electric connections"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Weighing Belt",
+  "page": 1,
+  "checkpoints": [
+   "belt condition",
+   "tightness of foundation bolts",
+   "Clean load cells externally",
+   "Electric connections",
+   "oiling / greasing"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Bucket Elevator",
+  "page": 1,
+  "checkpoints": [
+   "belt condition",
+   "oiling / greasing",
+   "Check tightness of foundation bolts"
+  ]
+ },
+ {
+  "kind": "section",
+  "name": "Mezzanine floor",
+  "page": 1
+ },
+ {
+  "kind": "equipment",
+  "name": "Auto L-sealer (shrink wrapper)",
+  "page": 1,
+  "checkpoints": [
+   "Lubrication"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Bi Directional Conveyor A",
+  "page": 1,
+  "checkpoints": [
+   "oiling / greasing",
+   "Check motor cable connector"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Bi Directional Conveyor B",
+  "page": 2,
+  "checkpoints": [
+   "Check belt integrity",
+   "oiling / greasing",
+   "Check motor cable connector"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Dryer Forward Conveyor",
+  "page": 2,
+  "checkpoints": [
+   "Check belt integrity",
+   "oiling / greasing",
+   "Check motor cable connector"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Dryer Reverse Conveyor",
+  "page": 2,
+  "checkpoints": [
+   "Check belt integrity",
+   "oiling / greasing",
+   "Check motor cable connector"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Dryer circ. blower Side A",
+  "page": 2,
+  "checkpoints": [
+   "Check foundation bolts for tightness",
+   "Check for vibration, attend if any",
+   "Check motor cable connector"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Dryer circ. blower Side B",
+  "page": 2,
+  "checkpoints": [
+   "Check Cleaning of filter and internal parts",
+   "Check motor cable connector"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Dryer Burner 1",
+  "page": 2,
+  "checkpoints": [
+   "Check flame sensing",
+   "Check holding down bolts",
+   "Check elect. connections"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Dryer Burner 2",
+  "page": 3,
+  "checkpoints": [
+   "Check flame sensing",
+   "Check holding down bolts",
+   "Check elect. connections"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Dryer Belt",
+  "page": 3,
+  "checkpoints": [
+   "Check belt integrity",
+   "oiling / greasing",
+   "Check belt drive chain lubrication",
+   "Check motor cable connector"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Dryer Exhaust Fan A",
+  "page": 3,
+  "checkpoints": [
+   "Check foundation bolts for tightness",
+   "Check for vibration, attend if any",
+   "Check motor cable connector"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Dryer Exhaust Fan B",
+  "page": 3,
+  "checkpoints": [
+   "Check foundation bolts for tightness",
+   "Check for vibration, attend if any",
+   "Check motor cable connector"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Conveyor with Diverter",
+  "page": 3,
+  "checkpoints": [
+   "Motor check",
+   "Check Lubrication"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Diverter Chute B",
+  "page": 3,
+  "checkpoints": [
+   "Lubrication"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Return Line Conveyor",
+  "page": 3,
+  "checkpoints": [
+   "Check conveyor integrity",
+   "oiling / greasing",
+   "Check motor connections"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Retention Tumbler",
+  "page": 4,
+  "checkpoints": [
+   "Check conveyor",
+   "oiling / greasing",
+   "Check motor connections"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Salinity Centrifugal Pump",
+  "page": 4,
+  "checkpoints": [
+   "Check pump and motor",
+   "oiling / greasing",
+   "Check foundation bolts",
+   "Check elect. Connections"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Slurry Peristaltic Pump",
+  "page": 4,
+  "checkpoints": [
+   "Check pump and motor",
+   "oiling / greasing",
+   "Check foundation bolts",
+   "Check elect. Connections"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Salinity Centrifugal Pump",
+  "page": 4,
+  "checkpoints": [
+   "Check pump and motor",
+   "Check lubrication",
+   "Check foundation bolts",
+   "Check elect. Connections"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Slurry Peristaltic Pump",
+  "page": 4,
+  "checkpoints": [
+   "Check pump and motor",
+   "oiling / greasing",
+   "Check foundation bolts",
+   "Check elect. Connections"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Salinity Peristaltic Pump",
+  "page": 5,
+  "checkpoints": [
+   "Check pump and motor",
+   "oiling / greasing",
+   "Check foundation bolts",
+   "Check elect. Connections"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Make up Centrifugal Pump (dispensing",
+  "page": 5,
+  "checkpoints": [
+   "Check pump and motor",
+   "oiling / greasing",
+   "Check foundation bolts",
+   "Check elect. Connections"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Salinity Agitator A",
+  "page": 5,
+  "checkpoints": [
+   "Check agitator fasteners",
+   "oiling / greasing",
+   "Check salinity sensor"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Salinity Agitator B",
+  "page": 5,
+  "checkpoints": [
+   "Check agitator fasteners",
+   "Check motor lubrication",
+   "Check salinity sensor"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Salinity tank A Heater",
+  "page": 5,
+  "checkpoints": [
+   "Element heater check",
+   "Sealing base check",
+   "Transformer check"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Salinity tank B Heater",
+  "page": 6,
+  "checkpoints": [
+   "Element heater check",
+   "Sealing base check",
+   "Transformer check"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Diverter Chute C, Dewatering",
+  "page": 6,
+  "checkpoints": [
+   "Lubrication"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Transfer Conveyor",
+  "page": 6,
+  "checkpoints": [
+   "Check motor connections",
+   "oiling / greasing",
+   "Check conveyor Integrity"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Diverter Chute D",
+  "page": 6,
+  "checkpoints": [
+   "Lubrication"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Ribbon Blender",
+  "page": 6,
+  "checkpoints": [
+   "Check motor connections",
+   "oiling / greasing",
+   "Check fasteners",
+   "Check cover Sensor interlock",
+   "oiling / greasing"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Screw Conveyor",
+  "page": 6,
+  "checkpoints": [
+   "Check motor connections",
+   "Check clearance between screw and housing",
+   "oiling / greasing",
+   "Check fasteners"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Feeding Hopper Vibrator (Powder)",
+  "page": 7,
+  "checkpoints": [
+   "Check vibrator elect connections",
+   "Check fasteners"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Feeding Hopper Vibrator A (Peanut)",
+  "page": 7,
+  "checkpoints": [
+   "Check vibrator elect connections",
+   "Check fasteners"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Cable Vey",
+  "page": 7,
+  "checkpoints": [
+   "Check drive motor connections",
+   "Check air pressure",
+   "Check smooth movements of conveyor discs.",
+   "Check gates"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Syrup Peristaltic Pump",
+  "page": 7,
+  "checkpoints": [
+   "Check pump piping for leakage",
+   "Check motor connections",
+   "oiling / greasing"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Syrup Makeup Centrifugal Pump",
+  "page": 7,
+  "checkpoints": [
+   "Check pump piping for leakage",
+   "Check motor connections",
+   "oiling / greasing"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Syrup Tank 1 Agita. Motor",
+  "page": 7,
+  "checkpoints": [
+   "Check motor connections",
+   "oiling / greasing"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Syrup Tank 2 Agita. Motor",
+  "page": 8,
+  "checkpoints": [
+   "Check motor connections",
+   "oiling / greasing"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Syrup Tank 1 Heater",
+  "page": 8,
+  "checkpoints": [
+   "Cooler check",
+   "Motor check",
+   "Temperature meter check"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Extruder, Main Motor",
+  "page": 8,
+  "checkpoints": [
+   "Check V belts",
+   "oiling / greasing",
+   "Check oil sealing",
+   "Check motor bearing lubrication",
+   "Check foundation bolts"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Extruder Cutter",
+  "page": 8,
+  "checkpoints": [
+   "Check motor connection",
+   "Check fasteners"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Extruder Vibrator Feeder",
+  "page": 8,
+  "checkpoints": [
+   "Check elect. Connections",
+   "Check vibration, material flow"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Extruder Agitator",
+  "page": 8,
+  "checkpoints": [
+   "Check elect connections",
+   "oiling / greasing",
+   "Check agitator blades, fasteners"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Extruder Hopper Screw Feeder",
+  "page": 9,
+  "checkpoints": [
+   "Check elect connections",
+   "oiling / greasing",
+   "Check Screw"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Extruder Heater",
+  "page": 9,
+  "checkpoints": [
+   "Check heater connections",
+   "Check temperature indication"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "L Conveyor",
+  "page": 9,
+  "checkpoints": [
+   "Check motor connections",
+   "oiling / greasing",
+   "Check conveyor"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "LIW Hopper- Vibrator Peanut",
+  "page": 9,
+  "checkpoints": [
+   "Check load cell cleanliness",
+   "Check elect connections"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Pan Coater-1 Tumbler",
+  "page": 9,
+  "checkpoints": [
+   "Check motor connection",
+   "Check drive lubrication"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Pan Coater-1 Conveyor",
+  "page": 9,
+  "checkpoints": [
+   "Check motor connections",
+   "oiling / greasing",
+   "Check conveyor"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Pan Coater-1 Powder Hopper Vibratory Feeder ( Cab Levy G1)",
+  "page": 9,
+  "checkpoints": [
+   "Check vibrator elect connections",
+   "Check fasteners"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Pan Coater-1 Powder Vibrator",
+  "page": 10,
+  "checkpoints": [
+   "Check vibrator elect connections",
+   "Check fasteners"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "RO water purifier 2000ltr/hr",
+  "page": 10,
+  "checkpoints": [
+   "Tank integrity",
+   "Filter",
+   "motor"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Pan Coater-1 Syrup A",
+  "page": 10,
+  "checkpoints": [
+   "Check elect connections",
+   "Motor check",
+   "Sensor check",
+   "oiling / greasing",
+   "Conveyor belt check-up and clean"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Pan Coater-1 Syrup B",
+  "page": 10,
+  "checkpoints": [
+   "Check elect connections",
+   "Motor check",
+   "Sensor check",
+   "oiling / greasing"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "LIW Hopper- Vibrator Peanut, Pan coater 2",
+  "page": 10,
+  "checkpoints": [
+   "Check motor connection",
+   "Check drive lubrication"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Pan Coater-2 Conveyor",
+  "page": 10,
+  "checkpoints": [
+   "oiling / greasing",
+   "Check motor connections",
+   "Check conveyor"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Pan Coater-2 Powder Hopper Vibratory Feeder (Cablevey G4)",
+  "page": 11,
+  "checkpoints": [
+   "Check vibrator elect connections",
+   "Check fasteners"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Pan Coater-2 Powder Vibrator",
+  "page": 11,
+  "checkpoints": [
+   "Check vibrator elect connections",
+   "Check fasteners"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Pan Coater-2 Syrup A",
+  "page": 11,
+  "checkpoints": [
+   "Check elect connections",
+   "Motor check",
+   "Sensor check",
+   "oiling / greasing",
+   "Conveyor belt check-up and clean"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Pan Coater-2 Syrup B",
+  "page": 11,
+  "checkpoints": [
+   "Check elect connections",
+   "Motor check",
+   "Sensor check",
+   "oiling / greasing",
+   "Conveyor belt check-up and clean"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "LIW Hopper - 3 Vibrator Peanut",
+  "page": 11,
+  "checkpoints": [
+   "Check load cell cleanliness",
+   "Check elect connections"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "HMC",
+  "page": 12,
+  "checkpoints": [
+   "Check motor connection",
+   "oiling / greasing"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Pan coater -3 Conveyor",
+  "page": 12,
+  "checkpoints": [
+   "oiling / greasing",
+   "Check motor connections",
+   "Check conveyor"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Pan coater -3 Powder Vibrator",
+  "page": 12,
+  "checkpoints": [
+   "Check vibrator elect connections",
+   "Check fasteners"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Pan coater -3 Syrup A",
+  "page": 12,
+  "checkpoints": [
+   "Check elect connections",
+   "Motor check",
+   "Sensor check",
+   "oiling / greasing",
+   "Conveyor belt check-up and clean"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Pan coater -3 Syrup B",
+  "page": 12,
+  "checkpoints": [
+   "Check elect connections",
+   "Motor check",
+   "Sensor check",
+   "oiling / greasing",
+   "Conveyor belt check-up and clean"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Main Transfer Conveyor",
+  "page": 13,
+  "checkpoints": [
+   "oiling / greasing",
+   "Check motor connections",
+   "Check conveyor"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Buffer Shifter",
+  "page": 13,
+  "checkpoints": [
+   "Heater check",
+   "Motor check",
+   "Temperature meter check",
+   "Temperature meter check"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Inclined Conveyor A",
+  "page": 13,
+  "checkpoints": [
+   "oiling / greasing",
+   "Check motor connections",
+   "Check conveyor"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Puffer Drum",
+  "page": 13,
+  "checkpoints": [
+   "Check drum drive motor foundation bolts",
+   "Check motor electrical connections",
+   "Check sprocket and chain lubrication"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Puffer Blower",
+  "page": 13,
+  "checkpoints": [
+   "Check motor foundation bolts",
+   "Check blower impeller"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Puffer Vibratory Feeder",
+  "page": 13,
+  "checkpoints": [
+   "Check vibrator elect connections",
+   "Check fasteners"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Puffer Burner",
+  "page": 14,
+  "checkpoints": [
+   "Check gas piping for leaks",
+   "Check flame sensor function"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Cooling Tumbler",
+  "page": 14,
+  "checkpoints": [
+   "Check motor connection",
+   "Check motor lubrication",
+   "Check motor foundation bolts"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Cooling Tumbler Blower 1",
+  "page": 14,
+  "checkpoints": [
+   "Check motor foundation bolts",
+   "Check belt tension",
+   "Check blower impeller",
+   "Check impeller locking, key",
+   "Check motor connections"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Cooling Tumbler Blower 2",
+  "page": 14,
+  "checkpoints": [
+   "Check motor foundation bolts",
+   "Check belt tension",
+   "Check blower impeller",
+   "Check impeller locking, key",
+   "Check motor connections"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Inclined Conveyor B",
+  "page": 14,
+  "checkpoints": [
+   "oiling / greasing",
+   "Check motor connections",
+   "Check conveyor"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Feeding Hopper Vibrator, A",
+  "page": 15,
+  "checkpoints": [
+   "Check vibrator elect connections",
+   "Check fasteners"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Feeding Hopper Vibrator B",
+  "page": 15,
+  "checkpoints": [
+   "Check vibrator elect connections",
+   "Check fasteners"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Nested Feeder 1",
+  "page": 15,
+  "checkpoints": [
+   "Check vibrator elect connections",
+   "Check fasteners"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Nested Feeder 2",
+  "page": 15,
+  "checkpoints": [
+   "Check vibrator elect connections",
+   "Check fasteners"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Nested Feeder 3",
+  "page": 15,
+  "checkpoints": [
+   "Check vibrator elect connections",
+   "Check fasteners"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Kettle 1- Centrifugal Pump",
+  "page": 15,
+  "checkpoints": [
+   "Check motor connections",
+   "Motor check",
+   "Check pump"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Kettle 2- Centrifugal Pump",
+  "page": 15,
+  "checkpoints": [
+   "Check motor connections",
+   "Motor check",
+   "Check pump"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Kettle -1 agitator",
+  "page": 16,
+  "checkpoints": [
+   "Check motor connections",
+   "Motor check",
+   "Check agitator blades"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Kettle- 2 Agitator",
+  "page": 16,
+  "checkpoints": [
+   "Check motor connections",
+   "Motor check",
+   "Check agitator blades"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Kettler-1 Heater",
+  "page": 16,
+  "checkpoints": [
+   "Check connections",
+   "Check working",
+   "Check sensor"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Kettler-2 Heater",
+  "page": 16,
+  "checkpoints": [
+   "Check connections",
+   "Check working",
+   "Check sensor"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Peristaltic Pump",
+  "page": 16,
+  "checkpoints": [
+   "Check motor connections",
+   "Motor check",
+   "Check pump condition"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "DFH Screw",
+  "page": 16,
+  "checkpoints": [
+   "Check motor connections",
+   "Motor check",
+   "Check screw condition"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "DFH Agitator",
+  "page": 17,
+  "checkpoints": [
+   "Check motor connections",
+   "Motor check",
+   "Check agitator blades"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "DFH Scarf Feeder",
+  "page": 17,
+  "checkpoints": [
+   "Check Cleaning",
+   "Check vibrator elect connections",
+   "Check fasteners"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Seasoning Drum",
+  "page": 17,
+  "checkpoints": [
+   "Check motor foundation bolts",
+   "oiling / greasing",
+   "Check motor connections",
+   "Check cleaning"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Retention Conveyor",
+  "page": 17,
+  "checkpoints": [
+   "Check motor connections",
+   "Check motor lubrication",
+   "Check conveyor"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Dryer Spreader Belt",
+  "page": 17,
+  "checkpoints": [
+   "Motor check",
+   "conveyor belt integrity",
+   "Check spreader fasteners",
+   "oiling / greasing"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "New Vibrator",
+  "page": 18,
+  "checkpoints": [
+   "Check elect connections",
+   "Check vibrations"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Destoner with Blower",
+  "page": 18,
+  "checkpoints": [
+   "Check motor",
+   "oiling / greasing",
+   "Check elect connections",
+   "Check foundation bolts"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Z Conveyor for Destoner",
+  "page": 18,
+  "checkpoints": [
+   "Tank check",
+   "Filter check",
+   "Motor check"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "FFS Machine",
+  "page": 18,
+  "checkpoints": [
+   "Check sensor",
+   "Motor check",
+   "Check heaters",
+   "Check belts",
+   "oiling / greasing"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "FFS Machine",
+  "page": 18,
+  "checkpoints": [
+   "Check sensor",
+   "Motor check",
+   "Check heaters",
+   "Check belts",
+   "oiling / greasing"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Roll Rewinding Machine",
+  "page": 19,
+  "checkpoints": [
+   "Check sensor",
+   "Motor check",
+   "oiling / greasing"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Conveyorized Metal Detector",
+  "page": 19,
+  "checkpoints": [
+   "Motor check",
+   "Check elect connections",
+   "Check conveyor Belt",
+   "Check metal detection",
+   "oiling / greasing"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Pet Sealing Machine",
+  "page": 19,
+  "checkpoints": [
+   "Motor check",
+   "Check elect connections",
+   "Check sealing heaters",
+   "Check heater condition",
+   "Check conveyor Belt",
+   "oiling / greasing"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Continuous Band Sealer Machine 1",
+  "page": 19,
+  "checkpoints": [
+   "Motor check",
+   "Check elect connections",
+   "Check sealing heaters",
+   "Check heater condition",
+   "conveyor belt integrity",
+   "oiling / greasing"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Flow Wrap Machine, Tunnel",
+  "page": 20,
+  "checkpoints": [
+   "Motor check",
+   "Check elect connections",
+   "Check sealing heaters",
+   "Check heater condition",
+   "Check Fan",
+   "conveyor Belt integrity",
+   "oiling / greasing"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Pakona PFS",
+  "page": 20,
+  "checkpoints": [
+   "Motor check",
+   "Check elect connections",
+   "conveyor belt integrity",
+   "oiling / greasing",
+   "Check vacuum"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "UPS 300 KVS",
+  "page": 20,
+  "checkpoints": [
+   "OEM service checks"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Underground Tank Water 15000",
+  "page": 20,
+  "checkpoints": []
+ },
+ {
+  "kind": "equipment",
+  "name": "Ltrs",
+  "page": 21,
+  "checkpoints": [
+   "Check filling pipe line condition",
+   "Check level switch"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Underground Water Tank Pump",
+  "page": 21,
+  "checkpoints": [
+   "Pump, Motor check",
+   "Check connections",
+   "Check level sw operation",
+   "Check level sw operation"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "MIDC Water Overhead Tank 6000 Ltrs",
+  "page": 21,
+  "checkpoints": [
+   "Piping check"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "MIDC Water Overhead Tank 6000 Ltrs",
+  "page": 21,
+  "checkpoints": [
+   "Piping check"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "water Filtration Plant",
+  "page": 21,
+  "checkpoints": [
+   "Check piping and vessels for leak",
+   "oiling / greasing",
+   "Check elect. connection"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Filtered Water Tank 10000 Ltrs",
+  "page": 21,
+  "checkpoints": [
+   "Piping check"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "RO filter and Pump",
+  "page": 21,
+  "checkpoints": [
+   "Piping leak check",
+   "Filter check",
+   "Pump, Motor lubrication check"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Reach Truck",
+  "page": 22,
+  "checkpoints": [
+   "OEM service checks",
+   "Battery, check"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "CCP Blender 1",
+  "page": 22,
+  "checkpoints": [
+   "Check fasteners",
+   "Check chain, bearing lubrication",
+   "Motor check",
+   "Check elect. Connections"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "CCP continuous band sealer",
+  "page": 22,
+  "checkpoints": [
+   "Motor check",
+   "Check elect connections",
+   "Check sealing heaters",
+   "Check heater condition",
+   "Check conveyor belt",
+   "oiling / greasing"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Blender 2",
+  "page": 22,
+  "checkpoints": [
+   "Check fasteners",
+   "Check chain, bearing lubrication",
+   "Motor check",
+   "Check elect. Connections"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "CCP continuous band sealer",
+  "page": 22,
+  "checkpoints": [
+   "Motor check",
+   "Check elect connections",
+   "Check sealing heaters",
+   "Check heater condition",
+   "conveyor belt integrity",
+   "oiling / greasing"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Vibrative",
+  "page": 23,
+  "checkpoints": [
+   "Check fasteners",
+   "Check spring condition",
+   "Check motor connections",
+   "oiling / greasing",
+   "Check sieving screens"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Continuous Band Sealer",
+  "page": 23,
+  "checkpoints": [
+   "Motor check",
+   "Line check",
+   "Valve check",
+   "Compressor check"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Foot Sealer",
+  "page": 23,
+  "checkpoints": [
+   "Check elect connections",
+   "Check heater"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "UPS Room AC 1, 2",
+  "page": 23,
+  "checkpoints": [
+   "Clean condenser",
+   "Check elect connections",
+   "Clean air filter",
+   "Check drain line"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Lab AC",
+  "page": 24,
+  "checkpoints": [
+   "Clean condenser",
+   "Check elect connections",
+   "Clean air filter",
+   "Check drain line"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "CCP Blender1 Room AC1, AC2",
+  "page": 24,
+  "checkpoints": [
+   "Clean condenser",
+   "Check elect connections",
+   "Clean air filter",
+   "Check drain line"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Blender 2 Room AC1, AC2",
+  "page": 24,
+  "checkpoints": [
+   "Clean condenser",
+   "Check elect connections",
+   "Clean air filter",
+   "Check drain line"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Server Room AC",
+  "page": 24,
+  "checkpoints": [
+   "Clean condenser",
+   "Check elect connections",
+   "Clean air filter",
+   "Check drain line"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Cold Room AC1, AC2, AC3, AC$",
+  "page": 24,
+  "checkpoints": [
+   "Clean condenser",
+   "Check elect connections",
+   "Clean air filter",
+   "Check drain line"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "CEO Office AC",
+  "page": 25,
+  "checkpoints": [
+   "Clean condenser",
+   "Check elect connections",
+   "Clean air filter",
+   "Check drain line"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Conference Room AC",
+  "page": 25,
+  "checkpoints": [
+   "Clean condenser",
+   "Check elect connections",
+   "Clean air filter",
+   "Check drain line"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Creshe AC",
+  "page": 25,
+  "checkpoints": [
+   "Clean condenser",
+   "Check elect connections",
+   "Clean air filter",
+   "Check drain line"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Water Cooler",
+  "page": 25,
+  "checkpoints": [
+   "Motor check",
+   "Line check",
+   "Valve check"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Air Compressor",
+  "page": 25,
+  "checkpoints": [
+   "Tank check",
+   "Check filter",
+   "oiling / greasing",
+   "Check elect connections",
+   "Motor check"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Air Dryer",
+  "page": 26,
+  "checkpoints": [
+   "Tank check",
+   "Check filter",
+   "oiling / greasing",
+   "Check elect connections",
+   "Check drain trap",
+   "Check dew point"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Air Compressor",
+  "page": 26,
+  "checkpoints": [
+   "oiling / greasing",
+   "Check filter",
+   "Motor check"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Air Dryer",
+  "page": 26,
+  "checkpoints": [
+   "oiling / greasing",
+   "Check elect connections",
+   "Check drain trap"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Nitrogen Plant",
+  "page": 26,
+  "checkpoints": [
+   "Motor check",
+   "Line check"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Dock",
+  "page": 26,
+  "checkpoints": [
+   "Motor connections check",
+   "oiling / greasing"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Fire Water Pump 1",
+  "page": 27,
+  "checkpoints": [
+   "Motor check",
+   "Line check",
+   "Valve check",
+   "Check foundation bolts",
+   "Check coupling"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Fire Water Pump 2",
+  "page": 27,
+  "checkpoints": [
+   "Motor check",
+   "Line check",
+   "Valve check",
+   "Check foundation bolts",
+   "Check coupling"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Fire Alarm Panel",
+  "page": 27,
+  "checkpoints": [
+   "Check alarm",
+   "Check elect. Connections"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Videojet printer",
+  "page": 27,
+  "checkpoints": [
+   "Check conveyor",
+   "Check printer"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Reach Truck",
+  "page": 27,
+  "checkpoints": [
+   "Carry preventive checks by OEM",
+   "Check battery charger"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Battery operated Pellet TrucK",
+  "page": 27,
+  "checkpoints": [
+   "Check battery charge",
+   "Check Lifting Mechanism"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Control Panel 1 (A)",
+  "page": 28,
+  "checkpoints": [
+   "Clean AC filter",
+   "Check UPS connections",
+   "Check Earthing"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Control Panel 2 (B)",
+  "page": 28,
+  "checkpoints": [
+   "Clean AC filter",
+   "Check UPS connections",
+   "Check Earthing"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Fire extinguishers ABC, CO2",
+  "page": 28,
+  "checkpoints": [
+   "Check Gas pressure",
+   "Check validity",
+   "Fire Water Pump Panel",
+   "Check alarm is working",
+   "Check connections"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Air Receiver (2 M3)",
+  "page": 28,
+  "checkpoints": [
+   "Check foundation bolts tightness",
+   "Check for safety valve leakage"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Nitrogen Receiver ( 2 M3)",
+  "page": 28,
+  "checkpoints": [
+   "Check foundation bolts tightness",
+   "Check for safety valve leakage"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "HT Transformer ( 630 KVA)",
+  "page": 28,
+  "checkpoints": [
+   "Check Earthings",
+   "Clean externally",
+   "Check oil level"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Metering Kiosk",
+  "page": 29,
+  "checkpoints": [
+   "Check Earthing",
+   "Clean externally"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "RMU, HT Breaker",
+  "page": 29,
+  "checkpoints": [
+   "Check Earthing",
+   "Clean Externally"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "LT Panel",
+  "page": 29,
+  "checkpoints": [
+   "Check Earthing",
+   "Check tightness of internal connections"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Utility Panel",
+  "page": 29,
+  "checkpoints": [
+   "Check Earthing",
+   "Check tightness of internal connections"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Emergency Panel",
+  "page": 29,
+  "checkpoints": [
+   "Check Earthing",
+   "Check tightness of internal connections"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Emergency Panel",
+  "page": 29,
+  "checkpoints": [
+   "Check Earthing",
+   "Check functioning of cooling fans",
+   "Check tightness of internal connections"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Hydraulic press machine",
+  "page": 30,
+  "checkpoints": [
+   "oiling / greasing",
+   "Pressure gause"
+  ]
+ },
+ {
+  "kind": "equipment",
+  "name": "Air curtain",
+  "page": 30,
+  "checkpoints": [
+   "Check Door position",
+   "check elect connection",
+   "Check limit switch and on-off operation.",
+   "Windows and mesh",
+   "Doors and gaps",
+   "Pestoflash Machines",
+   "Drainage and mesh coverings",
+   "gaskets (for all machines )",
+   "Lids of all equipments (acrylic or plastics)",
+   "Purifier Water Cooler",
+   "VRV System"
+  ]
+ }
+]

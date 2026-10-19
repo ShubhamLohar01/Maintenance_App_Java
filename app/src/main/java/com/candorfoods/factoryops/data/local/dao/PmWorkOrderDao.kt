@@ -66,11 +66,12 @@ interface PmWorkOrderDao {
     @Query(
         """
         UPDATE pm_work_orders
-        SET status = 'SUBMITTED', submittedAt = :ts, finalNotes = :finalNotes, syncStatus = 'PENDING'
+        SET status = 'SUBMITTED', submittedAt = :ts, finalNotes = :finalNotes,
+            overallResult = :overallResult, syncStatus = 'PENDING'
         WHERE id = :id
         """
     )
-    suspend fun markSubmitted(id: String, ts: Long, finalNotes: String?)
+    suspend fun markSubmitted(id: String, ts: Long, finalNotes: String?, overallResult: String?)
 
     /**
      * Phase 2C-3: supervisor approval IS the QC handoff.

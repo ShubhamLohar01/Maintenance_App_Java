@@ -1,5 +1,7 @@
 package com.candorfoods.factoryops.data.repository
 
+import com.candorfoods.factoryops.data.local.AuthPreferences
+import com.candorfoods.factoryops.data.remote.api.UserApi
 import com.candorfoods.factoryops.domain.model.UserRole
 import com.candorfoods.factoryops.domain.model.UserSummary
 import com.candorfoods.factoryops.domain.repository.UserRepository
@@ -7,21 +9,29 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * On-device user directory. There is no users-list endpoint yet (login is the
- * only user-facing API), so the roster is seeded here — mirroring the mt_users
- * rows in [com.candorfoods.factoryops.data.remote.mock.MockAuthApi]. Ids match
- * the login `userId` so an assigned technician resolves consistently downstream.
- *
- * Phase 3: replace with a backend `GET /users?role=` call.
+ * User directory backed by the backend's real mt_users table via GET /users?role=.
+ * The returned id is mt_users.id as a string — the exact value stored in a PM
+ * plan's assigned_technician_id (the backend fills assigned_technician_name from
+ * that same table). Auth follows the per-call "Bearer <token>" pattern used by
+ * MachineTransferRepositoryImpl / DeviceApi.
  */
 @Singleton
-class UserRepositoryImpl @Inject constructor() : UserRepository {
+class UserRepositoryImpl @Inject constructor(
+    private val api: UserApi,
+    private val authPreferences: AuthPreferences,
+) : UserRepository {
 
-    private val seed = listOf(
-        UserSummary(id = "4", name = "Anil Yadav",   role = UserRole.TECHNICIAN, plantId = "185-Koparkhairnae"),
-        UserSummary(id = "5", name = "Manish Kumar", role = UserRole.TECHNICIAN, plantId = "W-202-Koparkhairne"),
-    )
-
-    override suspend fun getUsersByRole(role: UserRole): List<UserSummary> =
-        seed.filter { it.role == role }
+    override suspend fun getUsersByRole(role: UserRole): List<UserSummary> = try {
+        val token = "Bearer ${authPreferences.getToken().orEmpty()}"
+        api.list(token, role.name).map {
+            UserSummary(
+                id = it.id,
+                name = it.name,
+                role = runCatching { UserRole.valueOf(it.role.uppercase()) }.getOrDefault(role),
+                plantId = it.plantId,
+            )
+        }
+    } catch (e: Exception) {
+        emptyList()   // offline/error → empty picker; retries when back online
+    }
 }

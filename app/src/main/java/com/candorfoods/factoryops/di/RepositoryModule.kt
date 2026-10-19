@@ -17,7 +17,13 @@ import com.candorfoods.factoryops.data.repository.MtUserRepositoryImpl
 import com.candorfoods.factoryops.data.repository.PmPlanRepositoryImpl
 import com.candorfoods.factoryops.data.repository.PmTemplateRepositoryImpl
 import com.candorfoods.factoryops.data.repository.PmWorkOrderRepositoryImpl
+import com.candorfoods.factoryops.data.repository.RaisedTicketRepositoryImpl
+import com.candorfoods.factoryops.data.repository.ReportsRepositoryImpl
+import com.candorfoods.factoryops.data.repository.SparePartsRepositoryImpl
 import com.candorfoods.factoryops.data.repository.UserRepositoryImpl
+import com.candorfoods.factoryops.data.repository.UtilitiesRepositoryImpl
+import com.candorfoods.factoryops.data.repository.A185ReadingsRepositoryImpl
+import com.candorfoods.factoryops.data.repository.W202ReadingsRepositoryImpl
 import com.candorfoods.factoryops.domain.repository.AssetScheduleRepository
 import com.candorfoods.factoryops.domain.repository.AuthRepository
 import com.candorfoods.factoryops.domain.repository.BreakdownRepository
@@ -31,7 +37,13 @@ import com.candorfoods.factoryops.domain.repository.MtUserRepository
 import com.candorfoods.factoryops.domain.repository.PmPlanRepository
 import com.candorfoods.factoryops.domain.repository.PmTemplateRepository
 import com.candorfoods.factoryops.domain.repository.PmWorkOrderRepository
+import com.candorfoods.factoryops.domain.repository.RaisedTicketRepository
+import com.candorfoods.factoryops.domain.repository.ReportsRepository
+import com.candorfoods.factoryops.domain.repository.SparePartsRepository
 import com.candorfoods.factoryops.domain.repository.UserRepository
+import com.candorfoods.factoryops.domain.repository.UtilitiesRepository
+import com.candorfoods.factoryops.domain.repository.A185ReadingsRepository
+import com.candorfoods.factoryops.domain.repository.W202ReadingsRepository
 import javax.inject.Singleton
 
 @Module
@@ -79,4 +91,22 @@ abstract class RepositoryModule {
 
     @Binds @Singleton
     abstract fun bindUserRepository(impl: UserRepositoryImpl): UserRepository
+
+    @Binds @Singleton
+    abstract fun bindUtilitiesRepository(impl: UtilitiesRepositoryImpl): UtilitiesRepository
+
+    @Binds @Singleton
+    abstract fun bindA185ReadingsRepository(impl: A185ReadingsRepositoryImpl): A185ReadingsRepository
+
+    @Binds @Singleton
+    abstract fun bindW202ReadingsRepository(impl: W202ReadingsRepositoryImpl): W202ReadingsRepository
+
+    @Binds @Singleton
+    abstract fun bindSparePartsRepository(impl: SparePartsRepositoryImpl): SparePartsRepository
+
+    @Binds @Singleton
+    abstract fun bindReportsRepository(impl: ReportsRepositoryImpl): ReportsRepository
+
+    @Binds @Singleton
+    abstract fun bindRaisedTicketRepository(impl: RaisedTicketRepositoryImpl): RaisedTicketRepository
 }

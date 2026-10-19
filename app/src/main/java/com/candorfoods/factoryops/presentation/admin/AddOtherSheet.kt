@@ -35,6 +35,7 @@ fun AddOtherSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
+                .imePadding()
                 .padding(horizontal = 24.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -156,4 +157,4 @@ private fun DropdownField(
     }
 }
 
-private val buildingOptions = listOf("W-202", "A-185")
+private val buildingOptions = listOf("W202", "A185")

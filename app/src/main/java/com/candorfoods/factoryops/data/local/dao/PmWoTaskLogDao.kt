@@ -29,8 +29,6 @@ interface PmWoTaskLogDao {
         """
         UPDATE pm_wo_task_logs
         SET status = :status,
-            measurementValue = :measurementValue,
-            photoLocalPath = :photoLocalPath,
             notes = :notes,
             completedAt = :ts,
             completedBy = :userId,
@@ -41,8 +39,6 @@ interface PmWoTaskLogDao {
     suspend fun updateLogResult(
         id: String,
         status: String,
-        measurementValue: Double?,
-        photoLocalPath: String?,
         notes: String?,
         ts: Long,
         userId: String

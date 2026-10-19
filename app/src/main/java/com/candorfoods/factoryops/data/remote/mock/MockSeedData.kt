@@ -127,34 +127,22 @@ object MockSeedData {
             PmTemplateItem(
                 id = "item-roaster-1", templateId = roaster.id, orderIndex = 0,
                 title = "Check burner alignment",
-                description = "Inspect burner orientation and flame consistency. Verify visually that the flame is uniform and not deflected.",
-                expectedResult = "Flame is symmetrical, no yellow flickering, no soot buildup.",
-                requiresPhoto = true, requiresMeasurement = false,
-                measurementUnit = null, measurementMin = null, measurementMax = null
+                description = "Inspect burner orientation and flame consistency. Verify visually that the flame is uniform and not deflected."
             ),
             PmTemplateItem(
                 id = "item-roaster-2", templateId = roaster.id, orderIndex = 1,
                 title = "Lubricate bearings — Servo Mesh 220",
-                description = "Apply Servo Mesh 220 grease to drum bearings (left and right). Wipe excess.",
-                expectedResult = "Smooth rotation under hand-spin. No metal-on-metal sound.",
-                requiresPhoto = true, requiresMeasurement = false,
-                measurementUnit = null, measurementMin = null, measurementMax = null
+                description = "Apply Servo Mesh 220 grease to drum bearings (left and right). Wipe excess."
             ),
             PmTemplateItem(
                 id = "item-roaster-3", templateId = roaster.id, orderIndex = 2,
                 title = "Verify temperature sensor calibration",
-                description = "Use reference probe and record drum-temperature reading at steady state.",
-                expectedResult = "Sensor reading within ±2°C of reference probe.",
-                requiresPhoto = false, requiresMeasurement = true,
-                measurementUnit = "°C", measurementMin = -2.0, measurementMax = 2.0
+                description = "Use reference probe and record drum-temperature reading at steady state."
             ),
             PmTemplateItem(
                 id = "item-roaster-4", templateId = roaster.id, orderIndex = 3,
                 title = "Clean exhaust filter",
-                description = "Remove and clean exhaust filter. Replace if torn or saturated.",
-                expectedResult = "Filter mesh clear, no visible blockage.",
-                requiresPhoto = true, requiresMeasurement = false,
-                measurementUnit = null, measurementMin = null, measurementMax = null
+                description = "Remove and clean exhaust filter. Replace if torn or saturated."
             )
         )
 
@@ -173,39 +161,24 @@ object MockSeedData {
         val compressorItems = listOf(
             PmTemplateItem(
                 id = "item-compressor-1", templateId = compressor.id, orderIndex = 0,
-                title = "Check oil level", description = "Confirm oil level in sight glass.",
-                expectedResult = "Oil between MIN and MAX marks.",
-                requiresPhoto = true, requiresMeasurement = false,
-                measurementUnit = null, measurementMin = null, measurementMax = null
+                title = "Check oil level", description = "Confirm oil level in sight glass."
             ),
             PmTemplateItem(
                 id = "item-compressor-2", templateId = compressor.id, orderIndex = 1,
-                title = "Drain condensate", description = "Drain water from receiver bottom valve.",
-                expectedResult = "Clean air discharge once water clears.",
-                requiresPhoto = true, requiresMeasurement = false,
-                measurementUnit = null, measurementMin = null, measurementMax = null
+                title = "Drain condensate", description = "Drain water from receiver bottom valve."
             ),
             PmTemplateItem(
                 id = "item-compressor-3", templateId = compressor.id, orderIndex = 2,
                 title = "Verify pressure switch",
-                description = "Cycle compressor and record cut-in / cut-out pressure.",
-                expectedResult = "Cut-in 6-7 bar, cut-out 8-9 bar.",
-                requiresPhoto = false, requiresMeasurement = true,
-                measurementUnit = "bar", measurementMin = 6.0, measurementMax = 9.0
+                description = "Cycle compressor and record cut-in / cut-out pressure."
             ),
             PmTemplateItem(
                 id = "item-compressor-4", templateId = compressor.id, orderIndex = 3,
-                title = "Inspect belts for wear", description = "Visually inspect drive belts for cracks or glazing.",
-                expectedResult = "No cracks, no fraying, tension within 10mm deflection.",
-                requiresPhoto = true, requiresMeasurement = false,
-                measurementUnit = null, measurementMin = null, measurementMax = null
+                title = "Inspect belts for wear", description = "Visually inspect drive belts for cracks or glazing."
             ),
             PmTemplateItem(
                 id = "item-compressor-5", templateId = compressor.id, orderIndex = 4,
-                title = "Tighten electrical connections", description = "Power off, open panel, torque-check all terminations.",
-                expectedResult = "All terminations torqued to spec, no discoloration.",
-                requiresPhoto = true, requiresMeasurement = false,
-                measurementUnit = null, measurementMin = null, measurementMax = null
+                title = "Tighten electrical connections", description = "Power off, open panel, torque-check all terminations."
             )
         )
 
@@ -225,26 +198,17 @@ object MockSeedData {
             PmTemplateItem(
                 id = "item-packing-1", templateId = packingLine.id, orderIndex = 0,
                 title = "Check sealing temperature",
-                description = "Record sealing-jaw temperature at steady state.",
-                expectedResult = "Within target band 130–180°C.",
-                requiresPhoto = false, requiresMeasurement = true,
-                measurementUnit = "°C", measurementMin = 130.0, measurementMax = 180.0
+                description = "Record sealing-jaw temperature at steady state."
             ),
             PmTemplateItem(
                 id = "item-packing-2", templateId = packingLine.id, orderIndex = 1,
                 title = "Verify weighing accuracy",
-                description = "Place 100g calibration weight; record displayed reading.",
-                expectedResult = "Display within ±0.5g of calibration weight.",
-                requiresPhoto = false, requiresMeasurement = true,
-                measurementUnit = "g", measurementMin = 99.5, measurementMax = 100.5
+                description = "Place 100g calibration weight; record displayed reading."
             ),
             PmTemplateItem(
                 id = "item-packing-3", templateId = packingLine.id, orderIndex = 2,
                 title = "Inspect conveyor belt tension",
-                description = "Check belt tension and tracking.",
-                expectedResult = "Belt centered, tension matches OEM spec, no slip.",
-                requiresPhoto = true, requiresMeasurement = false,
-                measurementUnit = null, measurementMin = null, measurementMax = null
+                description = "Check belt tension and tracking."
             )
         )
 

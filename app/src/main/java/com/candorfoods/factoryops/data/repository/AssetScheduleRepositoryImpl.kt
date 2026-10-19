@@ -2,10 +2,13 @@ package com.candorfoods.factoryops.data.repository
 
 import com.candorfoods.factoryops.data.local.AuthPreferences
 import com.candorfoods.factoryops.data.remote.api.AssetScheduleApi
+import com.candorfoods.factoryops.data.remote.dto.AssetScheduleIntervalDto
 import com.candorfoods.factoryops.data.remote.dto.AssetScheduleUpsertDto
+import com.candorfoods.factoryops.data.remote.dto.daysToCodes
 import com.candorfoods.factoryops.data.remote.dto.toDomain
 import com.candorfoods.factoryops.domain.model.ElectricAssetSchedule
 import com.candorfoods.factoryops.domain.model.Result
+import com.candorfoods.factoryops.domain.model.ScheduleInterval
 import com.candorfoods.factoryops.domain.repository.AssetScheduleRepository
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -32,15 +35,26 @@ class AssetScheduleRepositoryImpl @Inject constructor(
 
     override suspend fun setSchedule(
         machineId: String,
-        startMin: Int,
-        endMin: Int,
+        intervals: List<ScheduleInterval>,
         active: Boolean,
+        days: Set<Int>,
+        is24h: Boolean,
     ): Result<ElectricAssetSchedule> {
         val token = authPreferences.getToken() ?: return Result.Error("Not logged in")
+        val sorted = intervals.sortedBy { it.startMin }
+        if (sorted.isEmpty()) return Result.Error("A schedule needs at least one interval.")
         return try {
             val dto = api.upsert(
                 "Bearer $token", machineId,
-                AssetScheduleUpsertDto(startMin = startMin, endMin = endMin, active = active),
+                AssetScheduleUpsertDto(
+                    // The derived pair a pre-split-shift backend reads as the one window.
+                    startMin = sorted.first().startMin,
+                    endMin = sorted.last().endMin,
+                    intervals = sorted.map { AssetScheduleIntervalDto(it.startMin, it.endMin) },
+                    active = active,
+                    days = daysToCodes(days),
+                    is24h = is24h,
+                ),
             )
             Result.Success(dto.toDomain())
         } catch (e: Exception) {

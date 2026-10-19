@@ -13,6 +13,7 @@ import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface ChecklistApi {
     /** Create a PM checklist record (DRAFT or SUBMITTED). Returns the new id. */
@@ -30,10 +31,16 @@ interface ChecklistApi {
         @Body body: ChecklistSubmissionDto,
     ): ChecklistSubmitResponseDto
 
-    /** List stored preventive checklists (newest first). */
+    /**
+     * List stored preventive checklists (newest first).
+     *
+     * `status` is an optional comma-separated allow-list ("SUBMITTED") — read-only
+     * consumers pass it so DRAFTs stay out; null keeps every status.
+     */
     @GET("preventive-maintenance/checklists")
     suspend fun list(
         @Header("Authorization") token: String,
+        @Query("status") status: String? = null,
     ): List<ChecklistRecordSummaryDto>
 
     /** Fetch one stored checklist with all its checkpoint rows. */

@@ -11,7 +11,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.*
 import androidx.navigation.compose.*
+import com.candorfoods.factoryops.domain.model.ItAssetCategory
 import com.candorfoods.factoryops.domain.model.UserRole
+import com.candorfoods.factoryops.presentation.it.ItAssetCategoriesScreen
+import com.candorfoods.factoryops.presentation.it.ItAssetDetailScreen
+import com.candorfoods.factoryops.presentation.it.ItAssetListScreen
+import com.candorfoods.factoryops.presentation.tickets.RaisedTicketDetailScreen
+import com.candorfoods.factoryops.presentation.tickets.RaisedTicketsScreen
 import com.candorfoods.factoryops.presentation.admin.AdminHomeScreen
 import com.candorfoods.factoryops.presentation.breakdown.BreakdownFlagScreen
 import com.candorfoods.factoryops.presentation.checklist.BreakdownFormScreen
@@ -25,9 +31,8 @@ import com.candorfoods.factoryops.presentation.head.HeadHomeScreen
 import com.candorfoods.factoryops.presentation.head.HeadQcScreen
 import com.candorfoods.factoryops.presentation.head.reports.BreakdownHistoryScreen
 import com.candorfoods.factoryops.presentation.head.reports.HeadReportsScreen
+import com.candorfoods.factoryops.presentation.head.reports.PmHistoryScreen
 import com.candorfoods.factoryops.presentation.head.reports.QcActivityHistoryScreen
-import com.candorfoods.factoryops.presentation.reports.FloorReadingsReportScreen
-import com.candorfoods.factoryops.presentation.reports.MachinesReadingScreen
 import com.candorfoods.factoryops.presentation.dashboard.ComingSoonScreen
 import com.candorfoods.factoryops.presentation.dashboard.DashboardScreen
 import com.candorfoods.factoryops.presentation.history.HistoryScreen
@@ -41,16 +46,35 @@ import com.candorfoods.factoryops.presentation.machinemaster.MachineMasterScreen
 import com.candorfoods.factoryops.presentation.settings.SettingsScreen
 import com.candorfoods.factoryops.presentation.sync.SyncStatusScreen
 import com.candorfoods.factoryops.presentation.qc.QcHomeScreen
+import com.candorfoods.factoryops.presentation.qc.QcLandingScreen
 import com.candorfoods.factoryops.presentation.qc.QcInboxRow
 import com.candorfoods.factoryops.presentation.qc.QcPmDetailScreen
 import com.candorfoods.factoryops.presentation.qc.QcTicketDetailScreen
+import com.candorfoods.factoryops.presentation.qc.history.QcBreakdownHistoryScreen
+import com.candorfoods.factoryops.presentation.qc.history.QcHistoryHubScreen
+import com.candorfoods.factoryops.presentation.qc.history.QcPmHistoryScreen
 import com.candorfoods.factoryops.presentation.supervisor.PlanEditorScreen
 import com.candorfoods.factoryops.presentation.supervisor.SupervisorHomeScreen
 import com.candorfoods.factoryops.presentation.supervisor.SupervisorPmReviewScreen
+import com.candorfoods.factoryops.presentation.reports.FloorReadingsReportScreen
+import com.candorfoods.factoryops.presentation.reports.MachinesReadingScreen
+import com.candorfoods.factoryops.presentation.reports.ReportsHubScreen
+import com.candorfoods.factoryops.presentation.spareparts.SparePartHistoryScreen
+import com.candorfoods.factoryops.presentation.spareparts.SparePartsDetailScreen
+import com.candorfoods.factoryops.presentation.spareparts.SparePartsMachineListScreen
+import com.candorfoods.factoryops.presentation.technician.DailyReadingHubScreen
 import com.candorfoods.factoryops.presentation.technician.DailyReadingScreen
+import com.candorfoods.factoryops.presentation.a185.A185ReadingFormScreen
+import com.candorfoods.factoryops.presentation.a185.A185ReadingHistoryScreen
+import com.candorfoods.factoryops.presentation.w202.W202ReadingFormScreen
+import com.candorfoods.factoryops.presentation.w202.W202ReadingHistoryScreen
+import com.candorfoods.factoryops.presentation.utilities.UtilityFormScreen
+import com.candorfoods.factoryops.presentation.utilities.UtilityHistoryScreen
+import com.candorfoods.factoryops.presentation.utilities.UtilityRatesScreen
 import com.candorfoods.factoryops.presentation.technician.TechnicianHomeScreen
 import com.candorfoods.factoryops.presentation.technician.TechnicianPmDetailScreen
 import com.candorfoods.factoryops.presentation.technician.TechnicianPmExecuteScreen
+import com.candorfoods.factoryops.presentation.technician.TechnicianPmScreen
 import com.candorfoods.factoryops.presentation.technician.TicketDetailScreen
 import com.candorfoods.factoryops.presentation.transfer.TransferFormScreen
 import com.candorfoods.factoryops.presentation.transfer.TransferRecordsScreen
@@ -83,10 +107,12 @@ fun AppNavGraph() {
                         // Technician and SUPERVISOR land on the launcher grid.
                         UserRole.TECHNICIAN,
                         UserRole.SUPERVISOR            -> Screen.Dashboard.createRoute(role)
+                        // IT technician gets the same launcher grid with an IT-only tile set.
+                        UserRole.IT_TECHNICIAN         -> Screen.Dashboard.createRoute(role)
                         // HEAD gets a dedicated read-only oversight interface.
                         UserRole.HEAD                  -> Screen.HeadHome.route
                         UserRole.QC_HEAD,
-                        UserRole.QC_MEMBER             -> Screen.QcHome.route
+                        UserRole.QC_MEMBER             -> Screen.QcLanding.route
                         UserRole.ADMIN                 -> Screen.AdminHome.route
                     }
                     navController.navigate(target) {
@@ -148,20 +174,170 @@ fun AppNavGraph() {
         composable(Screen.ScheduleElectricAssets.route) {
             ScheduleElectricAssetsScreen(
                 onBack = { navController.popBackStack() },
+                )
+        }
+
+        // Utility Rates — supervisor sets diesel/gas/water/electricity prices (head read-only).
+        composable(Screen.UtilityRates.route) {
+            UtilityRatesScreen(
+                onBack = { navController.popBackStack() },
             )
+        }
+
+        // Spare Parts — every role: browse, add/edit, use/restock, history.
+        composable(Screen.SparePartsMachineList.route) {
+            SparePartsMachineListScreen(
+                onMachineClick = { machineName -> navController.navigate(Screen.SparePartsDetail.createRoute(machineName)) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(
+            route = Screen.SparePartsDetail.route,
+            arguments = listOf(navArgument(Screen.SparePartsDetail.ARG_MACHINE) { type = NavType.StringType; defaultValue = "" }),
+        ) {
+            SparePartsDetailScreen(
+                onBack = { navController.popBackStack() },
+                onOpenHistory = { partId ->
+                    navController.navigate(Screen.SparePartHistory.createRoute(partId))
+                },
+            )
+        }
+
+        composable(
+            route = Screen.SparePartHistory.route,
+            arguments = listOf(navArgument(Screen.SparePartHistory.ARG_PART_ID) { type = NavType.IntType; defaultValue = 0 }),
+        ) {
+            SparePartHistoryScreen(onBack = { navController.popBackStack() })
+        }
+
+        // Supervisor Reports — Machines Reading + Warehouse/Floor Readings.
+        composable(Screen.ReportsHub.route) {
+            ReportsHubScreen(
+                onMachinesReading = { navController.navigate(Screen.MachinesReading.route) },
+                onFloorReadings = { navController.navigate(Screen.FloorReadingsReport.route) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(Screen.MachinesReading.route) {
+            MachinesReadingScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(Screen.FloorReadingsReport.route) {
+            FloorReadingsReportScreen(onBack = { navController.popBackStack() })
         }
 
         composable(Screen.TechnicianHome.route) {
             TechnicianHomeScreen(
                 onTicketClick        = { id -> navController.navigate(Screen.TicketDetail.createRoute(id)) },
-                onPmClick            = { id -> navController.navigate(Screen.TechnicianPmDetail.createRoute(id)) },
                 onSettingsClick      = { navController.navigate(Screen.Settings.route) },
                 onMachineMasterClick = { navController.navigate(Screen.MachineMaster.route) },
             )
         }
 
+        // Technician's dedicated PM tasks list (opened from the home dashboard tile).
+        composable(Screen.TechnicianPmList.route) {
+            TechnicianPmScreen(
+                onBack    = { navController.popBackStack() },
+                onPmClick = { id -> navController.navigate(Screen.TechnicianPmDetail.createRoute(id)) },
+            )
+        }
+
+        composable(Screen.DailyReadingHub.route) {
+            DailyReadingHubScreen(
+                onUtility = { type -> navController.navigate(Screen.UtilityHistory.createRoute(type.slug)) },
+                // Electricity reverted to the legacy floor-meter "Electric Consumption" screen (W-202).
+                // New utility electricity flow parked: navController.navigate(Screen.UtilityHistory.createRoute("electricity"))
+                onElectricConsumption = { navController.navigate(Screen.DailyReading.route) },
+                onA185Readings = { navController.navigate(Screen.A185ReadingHistory.route) },
+                onW202Reading = { kind -> navController.navigate(Screen.W202ReadingHistory.createRoute(kind.slug)) },
+                onBack    = { navController.popBackStack() },
+            )
+        }
+
+        composable(
+            route = Screen.W202ReadingHistory.route,
+            arguments = listOf(navArgument(Screen.W202ReadingHistory.ARG_KIND) { type = NavType.StringType }),
+        ) { backStackEntry ->
+            val kind = backStackEntry.arguments?.getString(Screen.W202ReadingHistory.ARG_KIND).orEmpty()
+            W202ReadingHistoryScreen(
+                onAdd  = { navController.navigate(Screen.W202ReadingForm.createRoute(kind)) },
+                onEdit = { date -> navController.navigate(Screen.W202ReadingForm.createRoute(kind, date)) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(
+            route = Screen.W202ReadingForm.route,
+            arguments = listOf(
+                navArgument(Screen.W202ReadingForm.ARG_KIND) { type = NavType.StringType },
+                navArgument(Screen.W202ReadingForm.ARG_DATE) { type = NavType.StringType; defaultValue = "" },
+            ),
+        ) {
+            W202ReadingFormScreen(
+                onSaved = { navController.popBackStack() },
+                onBack  = { navController.popBackStack() },
+            )
+        }
+
+        composable(Screen.A185ReadingHistory.route) {
+            A185ReadingHistoryScreen(
+                onAdd  = { navController.navigate(Screen.A185ReadingForm.createRoute()) },
+                onEdit = { date -> navController.navigate(Screen.A185ReadingForm.createRoute(date)) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(
+            route = Screen.A185ReadingForm.route,
+            arguments = listOf(
+                navArgument(Screen.A185ReadingForm.ARG_DATE) { type = NavType.StringType; defaultValue = "" },
+            ),
+        ) {
+            A185ReadingFormScreen(
+                onSaved = { navController.popBackStack() },
+                onBack  = { navController.popBackStack() },
+            )
+        }
+
+        composable(
+            route = Screen.UtilityHistory.route,
+            arguments = listOf(navArgument(Screen.UtilityHistory.ARG_UTIL) { type = NavType.StringType }),
+        ) { backStackEntry ->
+            val util = backStackEntry.arguments?.getString(Screen.UtilityHistory.ARG_UTIL).orEmpty()
+            UtilityHistoryScreen(
+                onAdd  = { navController.navigate(Screen.UtilityForm.createRoute(util)) },
+                onEdit = { plant, date -> navController.navigate(Screen.UtilityForm.createRoute(util, plant, date)) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(
+            route = Screen.UtilityForm.route,
+            arguments = listOf(
+                navArgument(Screen.UtilityForm.ARG_UTIL) { type = NavType.StringType },
+                navArgument(Screen.UtilityForm.ARG_PLANT) { type = NavType.StringType; defaultValue = "" },
+                navArgument(Screen.UtilityForm.ARG_DATE) { type = NavType.StringType; defaultValue = "" },
+            ),
+        ) {
+            UtilityFormScreen(
+                onSaved = { navController.popBackStack() },
+                onBack  = { navController.popBackStack() },
+            )
+        }
+
         composable(Screen.DailyReading.route) {
             DailyReadingScreen(onBack = { navController.popBackStack() })
+        }
+
+        // QC home — two-card chooser: Verification (live inbox) vs Checklist Records (archive).
+        composable(Screen.QcLanding.route) {
+            QcLandingScreen(
+                onQcVerification   = { navController.navigate(Screen.QcHome.route) },
+                onChecklistRecords = { navController.navigate(Screen.QcHistoryHub.route) },
+                onSettingsClick    = { navController.navigate(Screen.Settings.route) },
+            )
         }
 
         composable(Screen.QcHome.route) {
@@ -173,8 +349,30 @@ fun AppNavGraph() {
                     }
                     navController.navigate(route)
                 },
+                onBack = { navController.popBackStack() },
                 onSettingsClick = { navController.navigate(Screen.Settings.route) }
             )
+        }
+
+        // QC History — read-only archive. PM rows reuse PreventiveDetailScreen, which is
+        // already view-only and carries the Download PDF action.
+        composable(Screen.QcHistoryHub.route) {
+            QcHistoryHubScreen(
+                onPmRecords        = { navController.navigate(Screen.QcPmHistory.route) },
+                onBreakdownRecords = { navController.navigate(Screen.QcBreakdownHistory.route) },
+                onBack             = { navController.popBackStack() },
+            )
+        }
+
+        composable(Screen.QcPmHistory.route) {
+            QcPmHistoryScreen(
+                onOpen = { id -> navController.navigate(Screen.PreventiveDetail.createRoute(id)) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(Screen.QcBreakdownHistory.route) {
+            QcBreakdownHistoryScreen(onBack = { navController.popBackStack() })
         }
 
         composable(Screen.AdminHome.route) {
@@ -229,7 +427,14 @@ fun AppNavGraph() {
         ) {
             TechnicianPmExecuteScreen(
                 onBack = { navController.popBackStack() },
-                onSubmitted = { navController.popBackStack(Screen.TechnicianHome.route, inclusive = false) }
+                onSubmitted = {
+                    // PM lives under Dashboard → PM Tasks now (not TechnicianHome), so
+                    // return to the PM list; plain pop as a fallback if it isn't on
+                    // the stack (e.g. a deep-link straight into execution).
+                    if (!navController.popBackStack(Screen.TechnicianPmList.route, inclusive = false)) {
+                        navController.popBackStack()
+                    }
+                }
             )
         }
 
@@ -287,7 +492,67 @@ fun AppNavGraph() {
         }
 
         composable(Screen.MachineMaster.route) {
-            MachineMasterScreen(onBack = { navController.popBackStack() })
+            MachineMasterScreen(
+                onBack         = { navController.popBackStack() },
+                onMachineClick = { id -> navController.navigate(Screen.MachineDetail.createRoute(id)) },
+            )
+        }
+
+        // ─── IT technician: IT Assets ────────────────────────────────────────
+        composable(Screen.ItAssetCategories.route) {
+            ItAssetCategoriesScreen(
+                onCategoryClick = { category ->
+                    navController.navigate(Screen.ItAssetList.createRoute(category))
+                },
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(
+            route = Screen.ItAssetList.route,
+            arguments = listOf(navArgument(Screen.ItAssetList.ARG) { type = NavType.StringType })
+        ) { backStackEntry ->
+            // Same pattern as the Dashboard route: parse the arg here, and fall back
+            // rather than crash on an unknown value.
+            ItAssetListScreen(
+                category = ItAssetCategory.of(
+                    backStackEntry.arguments?.getString(Screen.ItAssetList.ARG)
+                ),
+                onAssetClick = { assetId ->
+                    navController.navigate(Screen.ItAssetDetail.createRoute(assetId))
+                },
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(
+            route = Screen.ItAssetDetail.route,
+            arguments = listOf(navArgument(Screen.ItAssetDetail.ARG) { type = NavType.StringType })
+        ) { backStackEntry ->
+            ItAssetDetailScreen(
+                assetId = backStackEntry.arguments?.getString(Screen.ItAssetDetail.ARG).orEmpty(),
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        // ─── IT technician: Raised Tickets (WhatsApp complaints) ─────────────
+        composable(Screen.RaisedTickets.route) {
+            RaisedTicketsScreen(
+                onTicketClick = { id ->
+                    navController.navigate(Screen.RaisedTicketDetail.createRoute(id))
+                },
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(
+            route = Screen.RaisedTicketDetail.route,
+            arguments = listOf(navArgument(Screen.RaisedTicketDetail.ARG) { type = NavType.IntType })
+        ) { backStackEntry ->
+            RaisedTicketDetailScreen(
+                ticketId = backStackEntry.arguments?.getInt(Screen.RaisedTicketDetail.ARG) ?: 0,
+                onBack = { navController.popBackStack() },
+            )
         }
 
         composable(Screen.ChecklistHub.route) {
@@ -405,6 +670,7 @@ fun AppNavGraph() {
                 onFloorReadings      = { navController.navigate(Screen.HeadReportsFloor.route) },
                 onBreakdownHistory   = { navController.navigate(Screen.HeadReportsBreakdowns.route) },
                 onQcActivityHistory  = { navController.navigate(Screen.HeadReportsQcActivity.route) },
+                onPmHistory          = { navController.navigate(Screen.HeadReportsPm.route) },
             )
         }
         composable(Screen.HeadReportsMachine.route) {
@@ -418,6 +684,9 @@ fun AppNavGraph() {
         }
         composable(Screen.HeadReportsQcActivity.route) {
             QcActivityHistoryScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Screen.HeadReportsPm.route) {
+            PmHistoryScreen(onBack = { navController.popBackStack() })
         }
 
         composable(Screen.ManageUsers.route) {

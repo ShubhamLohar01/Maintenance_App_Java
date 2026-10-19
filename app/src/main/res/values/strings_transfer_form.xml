@@ -21,6 +21,7 @@
     <string name="transfer_form_warehouse_from">From</string>
     <string name="transfer_form_switch_warehouses">Switch From and To</string>
     <string name="transfer_form_warehouse_to">To</string>
+    <string name="transfer_form_same_warehouse_error">From and To warehouse can\'t be the same.</string>
     <string name="transfer_form_machine_name_label">Machine name * — search or type</string>
     <string name="transfer_form_take_photo">Take photo (camera)</string>
     <string name="transfer_form_choose_gallery">Choose from gallery</string>

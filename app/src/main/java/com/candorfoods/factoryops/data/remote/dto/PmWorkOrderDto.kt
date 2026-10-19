@@ -35,6 +35,7 @@ data class PmWorkOrderDto(
     @SerialName("started_at")                  val startedAt: Long? = null,
     @SerialName("submitted_at")                val submittedAt: Long? = null,
     @SerialName("final_notes")                 val finalNotes: String? = null,
+    @SerialName("overall_result")              val overallResult: String? = null,
     @SerialName("supervisor_approved_by")      val supervisorApprovedBy: String? = null,
     @SerialName("supervisor_approved_by_name") val supervisorApprovedByName: String? = null,
     @SerialName("supervisor_approved_at")      val supervisorApprovedAt: Long? = null,
@@ -57,17 +58,9 @@ data class PmTaskLogDto(
     @SerialName("template_item_id")     val templateItemId: String? = null,
     @SerialName("order_index")          val orderIndex: Int = 0,
     val title: String = "",
-    val description: String = "",
-    @SerialName("expected_result")      val expectedResult: String = "",
-    @SerialName("requires_photo")       val requiresPhoto: Boolean = false,
-    @SerialName("requires_measurement") val requiresMeasurement: Boolean = false,
-    @SerialName("measurement_unit")     val measurementUnit: String? = null,
-    @SerialName("measurement_min")      val measurementMin: Double? = null,
-    @SerialName("measurement_max")      val measurementMax: Double? = null,
-    val status: String = "PENDING",
-    @SerialName("measurement_value")    val measurementValue: Double? = null,
-    @SerialName("photo_url")            val photoUrl: String? = null,   // S3 URL (was device path)
-    val notes: String? = null,
+    val description: String = "",           // "Remarks" guidance snapshot
+    val status: String = "PENDING",         // PENDING | PASS (Is good) | FAIL (not good)
+    val notes: String? = null,              // technician remark; required when FAIL
     @SerialName("completed_at")         val completedAt: Long? = null,
     @SerialName("completed_by")         val completedBy: String? = null,
 )
@@ -75,12 +68,19 @@ data class PmTaskLogDto(
 @Serializable
 data class PmSpareDto(
     val id: String,
+    // The mt_spareparts row this line decrements. Null only on entries logged
+    // before the picker shipped — those are free text and move no stock.
+    @SerialName("part_id")       val partId: Int? = null,
     @SerialName("spare_name")    val spareName: String,
+    @SerialName("machine_name")  val machineName: String? = null,
     @SerialName("quantity_used") val quantityUsed: Double,
     val unit: String = "",
     val notes: String? = null,
     @SerialName("logged_at")     val loggedAt: Long = 0,
     @SerialName("logged_by")     val loggedBy: String = "",
+    // Server's word on whether stock has already been moved for this line. Sent
+    // back verbatim on a resubmit; the server ignores it and trusts its own copy.
+    @SerialName("deducted")      val deducted: Boolean = false,
 )
 
 // ─── Read: backend WO → app PmWorkOrder (dropped fields → defaults) ──────────
@@ -118,6 +118,7 @@ fun PmWorkOrderDto.toDomain(): PmWorkOrder = PmWorkOrder(
     qcChecklistJson = qcChecklist?.toString(),
     closedAt = closedAt,
     finalNotes = finalNotes,
+    overallResult = overallResult,
     escalationTier = 0,                              // dropped on backend
     taskLogs = taskLogs.map { it.toDomain(id) },
     spares = spares.map { it.toDomain(id) },
@@ -130,15 +131,7 @@ fun PmTaskLogDto.toDomain(woId: String) = PmWoTaskLog(
     orderIndex = orderIndex,
     title = title,
     description = description,
-    expectedResult = expectedResult,
-    requiresPhoto = requiresPhoto,
-    requiresMeasurement = requiresMeasurement,
-    measurementUnit = measurementUnit,
-    measurementMin = measurementMin,
-    measurementMax = measurementMax,
     status = runCatching { PmTaskLogStatus.valueOf(status) }.getOrDefault(PmTaskLogStatus.PENDING),
-    measurementValue = measurementValue,
-    photoLocalPath = photoUrl,
     notes = notes,
     completedAt = completedAt,
     completedBy = completedBy,
@@ -147,7 +140,9 @@ fun PmTaskLogDto.toDomain(woId: String) = PmWoTaskLog(
 fun PmSpareDto.toDomain(woId: String) = PmWoSpare(
     id = id,
     woId = woId,
+    partId = partId,
     spareName = spareName,
+    machineName = machineName,
     quantityUsed = quantityUsed,
     unit = unit,
     notes = notes,
@@ -184,6 +179,7 @@ fun PmWorkOrder.toDto(): PmWorkOrderDto = PmWorkOrderDto(
     // App stores the checklist as a JSON string; send it as a real JSON object for JSONB.
     qcChecklist = qcChecklistJson?.let { runCatching { Json.parseToJsonElement(it) }.getOrNull() },
     closedAt = closedAt,
+    overallResult = overallResult,
     taskLogs = taskLogs.map { it.toDto() },
     spares = spares.map { it.toDto() },
     createdAt = generatedAt,
@@ -196,15 +192,7 @@ fun PmWoTaskLog.toDto() = PmTaskLogDto(
     orderIndex = orderIndex,
     title = title,
     description = description,
-    expectedResult = expectedResult,
-    requiresPhoto = requiresPhoto,
-    requiresMeasurement = requiresMeasurement,
-    measurementUnit = measurementUnit,
-    measurementMin = measurementMin,
-    measurementMax = measurementMax,
     status = status.name,
-    measurementValue = measurementValue,
-    photoUrl = photoLocalPath,                       // caller swaps device path → S3 URL before send
     notes = notes,
     completedAt = completedAt,
     completedBy = completedBy,
@@ -212,7 +200,9 @@ fun PmWoTaskLog.toDto() = PmTaskLogDto(
 
 fun PmWoSpare.toDto() = PmSpareDto(
     id = id,
+    partId = partId,
     spareName = spareName,
+    machineName = machineName,
     quantityUsed = quantityUsed,
     unit = unit,
     notes = notes,

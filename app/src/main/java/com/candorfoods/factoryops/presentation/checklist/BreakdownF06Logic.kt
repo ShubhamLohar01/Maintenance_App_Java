@@ -20,7 +20,7 @@ fun breakdownStatusLabel(flag: BreakdownFlag): String = when {
     else                                        -> "Open"
 }
 
-/** Map a submitted F.06 record to a single register row for PDF export.
+/** Map a submitted breakdown record to a single register row for PDF export.
  *  `srNo` is 1 because each download is a single-record sheet; a multi-record
  *  register must number rows at the call site. */
 fun BreakdownRecord.toF06Row(): BreakdownRow = BreakdownRow(

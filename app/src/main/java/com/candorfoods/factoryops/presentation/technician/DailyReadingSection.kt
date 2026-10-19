@@ -1,5 +1,6 @@
 package com.candorfoods.factoryops.presentation.technician
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,6 +47,13 @@ fun DailyReadingSection(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    LaunchedEffect(uiState.downloadMessage) {
+        uiState.downloadMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.onDownloadMessageShown()
+        }
+    }
+
     LaunchedEffect(Unit) {
         viewModel.uiEvent.collect { event ->
             when (event) {
@@ -69,7 +77,11 @@ fun DailyReadingSection(
             else -> LoadedState(
                 uiState = uiState,
                 onInputChange = viewModel::onInputChange,
+                onAcInputChange = viewModel::onAcInputChange,
+                onToggleAc = viewModel::toggleAcSection,
                 onRefetch = viewModel::fetchSystemReading,
+                onDownload = viewModel::onDownload,
+                isDownloading = uiState.isDownloading,
                 onSubmit = viewModel::submit,
             )
         }
@@ -107,7 +119,11 @@ private fun IdleState(error: String?, onFetch: () -> Unit) {
 private fun LoadedState(
     uiState: DailyReadingUiState,
     onInputChange: (String, String) -> Unit,
+    onAcInputChange: (String, String) -> Unit,
+    onToggleAc: () -> Unit,
     onRefetch: () -> Unit,
+    onDownload: () -> Unit,
+    isDownloading: Boolean,
     onSubmit: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
@@ -121,8 +137,15 @@ private fun LoadedState(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
             )
-            OutlinedButton(onClick = onRefetch, modifier = Modifier.padding(top = 8.dp)) {
-                Text("Refresh system reading")
+            Row(
+                modifier = Modifier.padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OutlinedButton(onClick = onRefetch) { Text("Refresh system reading") }
+                OutlinedButton(onClick = onDownload, enabled = !isDownloading) {
+                    Text(if (isDownloading) "Preparing…" else "Download Excel")
+                }
             }
         }
 
@@ -133,6 +156,24 @@ private fun LoadedState(
         ) {
             items(uiState.rows, key = { it.floor }) { row ->
                 FloorReadingCard(row = row, onInputChange = onInputChange)
+            }
+
+            // AC units ride the same daily round (W-202 only). Collapsed by default so
+            // twenty-odd of them don't bury the floors above.
+            if (uiState.acRows.isNotEmpty()) {
+                item(key = "ac-header") {
+                    AcSectionHeader(
+                        count = uiState.acRows.size,
+                        filled = uiState.filledAc.size,
+                        expanded = uiState.isAcExpanded,
+                        onClick = onToggleAc,
+                    )
+                }
+                if (uiState.isAcExpanded) {
+                    items(uiState.acRows, key = { it.point.assetId }) { row ->
+                        AcReadingCard(row = row, onInputChange = onAcInputChange)
+                    }
+                }
             }
         }
 
@@ -153,7 +194,8 @@ private fun LoadedState(
             if (uiState.phase == DailyReadingPhase.Submitting) {
                 CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
             } else {
-                Text("Submit")
+                val n = uiState.filledCount
+                Text(if (n == 0) "Submit" else "Submit $n reading${if (n == 1) "" else "s"}")
             }
         }
     }
@@ -181,6 +223,75 @@ private fun FloorReadingCard(
                     value = row.input,
                     onValueChange = { onInputChange(row.floor, it) },
                     label = { Text("Meter reading") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.width(170.dp),
+                )
+            }
+        }
+    }
+}
+
+/** Tap-to-expand header for the AC group, with how many of them are filled so far. */
+@Composable
+private fun AcSectionHeader(
+    count: Int,
+    filled: Int,
+    expanded: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            "${if (expanded) "▾" else "▸"}  AC reading ($count)",
+            style = MaterialTheme.typography.titleSmall,
+        )
+        Text(
+            if (filled == 0) "none filled" else "$filled filled",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+        )
+    }
+}
+
+/**
+ * One AC unit. No system column — nothing computes kWh per AC — so the left side shows
+ * what is already stored for this date instead.
+ */
+@Composable
+private fun AcReadingCard(
+    row: AcRowUi,
+    onInputChange: (String, String) -> Unit,
+) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp)) {
+            Text(row.point.name, style = MaterialTheme.typography.titleSmall)
+            Text(
+                "${row.point.assetId} · ${row.point.subLocation}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    row.saved?.let { "Saved: ${formatReading(it)}" } ?: "Not read yet",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                )
+                OutlinedTextField(
+                    value = row.input,
+                    onValueChange = { onInputChange(row.point.assetId, it) },
+                    label = { Text("Reading") },
+                    isError = row.isInvalid,
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.width(170.dp),

@@ -22,6 +22,7 @@ import com.candorfoods.factoryops.R
 import com.candorfoods.factoryops.domain.model.ChecklistRecordDetail
 import com.candorfoods.factoryops.domain.model.ChecklistRecordItem
 import com.candorfoods.factoryops.presentation.common.components.FactoryCard
+import com.candorfoods.factoryops.util.PeriodLabel
 import com.candorfoods.factoryops.presentation.common.theme.Spacing
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -93,9 +94,13 @@ fun PreventiveDetailScreen(
 @Composable
 private fun RecordBody(record: ChecklistRecordDetail) {
     val typeLabel = when (record.formType.uppercase()) {
-        "MONTHLY"   -> stringResource(R.string.preventive_type_monthly)
-        "QUARTERLY" -> stringResource(R.string.preventive_type_quarterly)
-        else        -> record.formType
+        "MONTHLY"        -> stringResource(R.string.preventive_type_monthly)
+        "QUARTERLY"      -> stringResource(R.string.preventive_type_quarterly)
+        // A-185's own form. Without these its records rendered the raw wire value,
+        // e.g. "A185_MONTHLY".
+        "A185_MONTHLY"   -> stringResource(R.string.preventive_type_a185_monthly)
+        "A185_QUARTERLY" -> stringResource(R.string.preventive_type_a185_quarterly)
+        else             -> record.formType
     }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -106,7 +111,50 @@ private fun RecordBody(record: ChecklistRecordDetail) {
             FactoryCard(modifier = Modifier.fillMaxWidth()) {
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                     Text("$typeLabel · ${record.docNo}", style = MaterialTheme.typography.titleMedium)
-                    InfoLine(stringResource(R.string.preventive_label_date), record.checklistDate)
+                    // The period this sheet covers, named the way the register
+                    // names it. Leads, because an auto-generated record has no
+                    // signature date and this is what identifies it.
+                    InfoLine(
+                        stringResource(R.string.preventive_label_period),
+                        PeriodLabel.of(
+                            record.checklistDateFrom, record.checklistDateTo, record.checklistDate,
+                        ),
+                    )
+                    // The exact span, under the readable label above — an auditor
+                    // wants the dates, a technician wants "Jul–Sep 2026". Shown
+                    // only when it really is a span: a monthly sheet stores
+                    // from == to, and "2026-07-09 to 2026-07-09" is noise.
+                    if (record.hasDateRange) {
+                        InfoLine(
+                            stringResource(R.string.preventive_label_dates),
+                            "${record.checklistDateFrom} to ${record.checklistDateTo}",
+                        )
+                    }
+                    // The signature date, present only once a person has signed the
+                    // sheet. Auto-generated drafts leave it blank by design.
+                    if (record.checklistDate.isNotBlank()) {
+                        InfoLine(stringResource(R.string.preventive_label_date), record.checklistDate)
+                    }
+                    // Computed here rather than fetched: the detail response already
+                    // carries every item, so a count is free.
+                    val total = record.items.size
+                    val filled = record.items.count {
+                        it.status.trim().uppercase() !in setOf("", "UNSET")
+                    }
+                    if (total > 0) {
+                        val remaining = (total - filled).coerceAtLeast(0)
+                        Text(
+                            if (remaining == 0) {
+                                stringResource(R.string.preventive_detail_progress_done, filled, total)
+                            } else {
+                                stringResource(R.string.preventive_detail_progress, filled, total, remaining)
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (remaining == 0) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+                        )
+                    }
                     InfoLine(stringResource(R.string.preventive_label_done_by), record.doneBy)
                     InfoLine(stringResource(R.string.preventive_label_checked_by), record.checkedBy)
                     InfoLine(stringResource(R.string.preventive_label_verified_by), record.verifiedBy)
@@ -132,7 +180,14 @@ private fun RecordBody(record: ChecklistRecordDetail) {
                 val name = buildString {
                     if (item.srNo != null) append("${item.srNo}. ")
                     append(item.equipment)
-                    if (item.equipmentDate.isNotBlank()) append("  ·  ${item.equipmentDate}")
+                    // Quarterly machines carry a range; monthly ones only a single
+                    // date, and "X to X" on every row would be noise.
+                    if (item.equipmentDate.isNotBlank()) {
+                        append("  ·  ${item.equipmentDate}")
+                        if (item.equipmentDateTo.isNotBlank() &&
+                            item.equipmentDateTo != item.equipmentDate
+                        ) append(" to ${item.equipmentDateTo}")
+                    }
                 }
                 Text(
                     name,
@@ -146,32 +201,57 @@ private fun RecordBody(record: ChecklistRecordDetail) {
     }
 }
 
+/**
+ * One checkpoint, laid out as a form row rather than its own card, so a sheet
+ * reads like the printed table instead of a stack of tiles.
+ *
+ * THREE states, not two. This used to be `status == "OK"` with everything else
+ * rendered "NOT OK", which meant an untouched UNSET cell was reported as a
+ * failure — an auto-generated draft, whose cells are UNSET until the work is
+ * done, looked entirely failed.
+ */
 @Composable
 private fun ItemRow(item: ChecklistRecordItem) {
-    val ok = item.status.uppercase() == "OK"
-    FactoryCard(modifier = Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.Top) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    item.checkpoint.ifBlank { stringResource(R.string.preventive_general_check) },
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-                if (item.remarks.isNotBlank()) {
-                    Text(
-                        item.remarks,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    )
-                }
-            }
-            Text(
-                if (ok) stringResource(R.string.preventive_status_ok) else stringResource(R.string.preventive_status_not_ok),
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = if (ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-            )
-        }
+    val status = item.status.trim().uppercase()
+    val (label, tint) = when (status) {
+        "OK", "PASS" ->
+            stringResource(R.string.preventive_status_ok) to MaterialTheme.colorScheme.primary
+        "NOT_OK", "FAIL" ->
+            stringResource(R.string.preventive_status_not_ok) to MaterialTheme.colorScheme.error
+        else ->
+            stringResource(R.string.preventive_status_pending) to
+                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
     }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = Spacing.xs, horizontal = Spacing.sm),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                item.checkpoint.ifBlank { stringResource(R.string.preventive_general_check) },
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            if (item.remarks.isNotBlank()) {
+                Text(
+                    item.remarks,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                )
+            }
+        }
+        // A word, not a bare colour: a red/green dot alone is unreadable for a
+        // colour-blind technician and invisible in a pasted screenshot.
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = tint,
+        )
+    }
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
 }
 
 @Composable

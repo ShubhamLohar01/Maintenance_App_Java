@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.candorfoods.factoryops.domain.model.MtMachine
 import com.candorfoods.factoryops.domain.model.PmPlan
+import com.candorfoods.factoryops.domain.model.PmWoStatus
 import com.candorfoods.factoryops.domain.model.PmWorkOrder
 import com.candorfoods.factoryops.domain.model.Result
 import com.candorfoods.factoryops.domain.model.User
@@ -27,7 +28,9 @@ data class SupervisorHomeUiState(
     val isLoading: Boolean = true,
     val plans: List<SupervisorPlanRow> = emptyList(),
     val workOrders: List<SupervisorWoRow> = emptyList(),
-    val pendingApprovals: List<SupervisorWoRow> = emptyList()
+    val pendingApprovals: List<SupervisorWoRow> = emptyList(),
+    /** Completed work orders (CLOSED in mt_pm_work_order), newest first. */
+    val history: List<SupervisorWoRow> = emptyList()
 )
 
 data class SupervisorPlanRow(
@@ -63,6 +66,25 @@ class SupervisorHomeViewModel @Inject constructor(
         viewModelScope.launch {
             (mtMachineRepo.list() as? Result.Success)?.data?.let { list ->
                 assets.value = list.associateBy { it.assetId }
+            }
+        }
+
+        // Best-effort: mirror every plan (mt_pm_plan) into Room so the Plan tab always
+        // equals the database — not just what THIS device created (plans otherwise
+        // vanish after a reinstall or on a second supervisor phone).
+        viewModelScope.launch { runCatching { planRepo.refreshAllPlans() } }
+
+        // Best-effort: mirror work orders from the backend into Room so the
+        // Active/Approvals tabs reflect work done on OTHER devices (a technician's
+        // submission, QC's bounce) and History shows QC-closed tasks.
+        viewModelScope.launch {
+            runCatching {
+                woRepo.refreshByStatuses(
+                    listOf(
+                        PmWoStatus.NOTIFIED, PmWoStatus.ACKNOWLEDGED, PmWoStatus.IN_PROGRESS,
+                        PmWoStatus.SUBMITTED, PmWoStatus.PENDING_QC, PmWoStatus.CLOSED,
+                    )
+                )
             }
         }
 
@@ -102,9 +124,27 @@ class SupervisorHomeViewModel @Inject constructor(
 
         // Active WOs. machineId is an asset_id; name from the register, else the
         // WO's templateName snapshot (which = the asset name for asset-based plans).
+        // Terminal WOs are excluded here — they live on the History tab instead.
         viewModelScope.launch {
             combine(woRepo.observeAll(), assets) { wos, assetMap ->
-                wos.sortedBy { it.scheduledDate }.map { wo ->
+                wos.filter { it.status !in TERMINAL_STATUSES }
+                    .sortedBy { it.scheduledDate }
+                    .map { wo ->
+                        SupervisorWoRow(
+                            wo = wo,
+                            machineName = assetMap[wo.machineId]?.assetName ?: wo.templateName,
+                            machineCode = wo.machineId
+                        )
+                    }
+            }.collect { rows ->
+                _uiState.update { it.copy(workOrders = rows) }
+            }
+        }
+
+        // History — completed (QC-closed) work orders from mt_pm_work_order, newest first.
+        viewModelScope.launch {
+            combine(woRepo.observeByStatus(PmWoStatus.CLOSED), assets) { wos, assetMap ->
+                wos.sortedByDescending { it.closedAt ?: it.scheduledDate }.map { wo ->
                     SupervisorWoRow(
                         wo = wo,
                         machineName = assetMap[wo.machineId]?.assetName ?: wo.templateName,
@@ -112,7 +152,7 @@ class SupervisorHomeViewModel @Inject constructor(
                     )
                 }
             }.collect { rows ->
-                _uiState.update { it.copy(workOrders = rows) }
+                _uiState.update { it.copy(history = rows) }
             }
         }
 
@@ -133,5 +173,9 @@ class SupervisorHomeViewModel @Inject constructor(
                 _uiState.update { it.copy(pendingApprovals = rows) }
             }
         }
+    }
+
+    private companion object {
+        val TERMINAL_STATUSES = setOf(PmWoStatus.CLOSED, PmWoStatus.QC_APPROVED, PmWoStatus.CANCELLED)
     }
 }

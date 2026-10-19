@@ -25,7 +25,7 @@ import java.io.File
 import java.time.LocalDate
 import javax.inject.Inject
 
-/** One breakdown row of the F.06 register. */
+/** One breakdown row of the register (same columns on F.06 and F.61). */
 data class BreakdownEntryState(
     val key: String,
     val date: String = LocalDate.now().toString(),
@@ -50,6 +50,8 @@ data class BreakdownEntryState(
 data class MachineOption(val name: String, val srNo: String)
 
 data class BreakdownFormState(
+    /** The signed-in technician's plant form — sets the doc no. and the printed header. */
+    val spec: BreakdownFormSpec = BreakdownFormSpec.W202,
     val entries: List<BreakdownEntryState> = emptyList(),
     val verifiedBy: String = "",
     val isSubmitting: Boolean = false,
@@ -97,39 +99,46 @@ class BreakdownFormViewModel @Inject constructor(
 
     init {
         loadMachines()
-        loadDefaultLocation()
-        if (!breakdownId.isNullOrBlank()) prefillFromBreakdown(breakdownId)
-    }
-
-    /** Load the technician's warehouse and back-fill the Location of any blank rows. */
-    private fun loadDefaultLocation() {
         viewModelScope.launch {
-            val user = getCurrentUser().firstOrNull() ?: return@launch
-            defaultLocation = warehouseName(user.plantId)
-            _state.update { st ->
-                st.copy(entries = st.entries.map {
-                    if (it.location.isBlank()) it.copy(location = defaultLocation) else it
-                })
-            }
+            // Resolve the plant before prefilling, so a prefilled row's Location isn't
+            // overwritten by the default that loadUserContext back-fills.
+            loadUserContext()
+            if (!breakdownId.isNullOrBlank()) prefillFromBreakdown(breakdownId)
         }
     }
 
-    private fun warehouseName(plantId: String?): String = when (plantId?.trim()?.uppercase()) {
-        "W202" -> "W-202"
-        "A185" -> "A-185"
-        else -> plantId.orEmpty()
+    /**
+     * Resolve which plant's controlled copy this is, and back-fill the Location of blank
+     * rows. The technician's own plantId picks it — there is no plant switcher.
+     */
+    private suspend fun loadUserContext() {
+        val user = getCurrentUser().firstOrNull() ?: return
+        defaultLocation = warehouseName(user.plantId)
+        _state.update { st ->
+            st.copy(spec = BreakdownFormSpec.forPlant(user.plantId), entries = st.entries.map {
+                if (it.location.isBlank()) it.copy(location = defaultLocation) else it
+            })
+        }
+    }
+
+    /**
+     * Canonical building for the Location prefill, matching mt_asset_list.building.
+     * Resolved through [ChecklistType.plantOf] because plantId is the descriptive
+     * mt_users.location ("A-185-Koparkhairne"), not a bare plant code.
+     */
+    private fun warehouseName(plantId: String?): String = when (ChecklistType.plantOf(plantId)) {
+        "A185" -> "A185"
+        else -> "W202"
     }
 
     /** Seed the single form row from a QC-approved breakdown (technician then reviews/edits). */
-    private fun prefillFromBreakdown(id: String) {
-        viewModelScope.launch {
-            val flag = breakdownRepository.observeFlagById(id).firstOrNull() ?: return@launch
-            val entry = breakdownFlagToEntry(flag, "bd-${seq++}")
-            _state.update {
-                it.copy(entries = listOf(
-                    entry.copy(typeOfMaintenance = entry.typeOfMaintenance.ifBlank { "Breakdown" })
-                ))
-            }
+    private suspend fun prefillFromBreakdown(id: String) {
+        val flag = breakdownRepository.observeFlagById(id).firstOrNull() ?: return
+        val entry = breakdownFlagToEntry(flag, "bd-${seq++}")
+        _state.update {
+            it.copy(entries = listOf(
+                entry.copy(typeOfMaintenance = entry.typeOfMaintenance.ifBlank { "Breakdown" })
+            ))
         }
     }
 
@@ -181,7 +190,7 @@ class BreakdownFormViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isSubmitting = true, error = null) }
             val submission = BreakdownSubmission(
-                docNo = "CFPLA.C4.F.06",
+                docNo = s.spec.docNo,
                 verifiedBy = s.verifiedBy.trim(),
                 entries = s.entries.map {
                     BreakdownEntrySubmission(
@@ -211,7 +220,7 @@ class BreakdownFormViewModel @Inject constructor(
 
     fun onSubmittedHandled() = _state.update { it.copy(submitted = false) }
 
-    /** Build the F.06 PDF from the complete on-screen entries and emit it for sharing. */
+    /** Build this plant's PDF from the complete on-screen entries and emit it for sharing. */
     fun exportPdf() {
         val s = _state.value
         if (s.isExporting) return
@@ -242,9 +251,10 @@ class BreakdownFormViewModel @Inject constructor(
             try {
                 val file = pdfRenderer.renderBreakdown(
                     BreakdownDocData(
-                        docNo = "CFPLA.C4.F.06",
+                        docNo = s.spec.docNo,
                         verifiedBy = s.verifiedBy.trim(),
                         rows = rows,
+                        spec = s.spec,
                     )
                 )
                 _state.update { it.copy(isExporting = false, pdfToShare = file) }

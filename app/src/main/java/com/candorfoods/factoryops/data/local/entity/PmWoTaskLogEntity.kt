@@ -10,17 +10,9 @@ data class PmWoTaskLogEntity(
     val templateItemId: String,
     val orderIndex: Int,
     val title: String,
-    val description: String,
-    val expectedResult: String,
-    val requiresPhoto: Boolean,
-    val requiresMeasurement: Boolean,
-    val measurementUnit: String?,
-    val measurementMin: Double?,
-    val measurementMax: Double?,
-    val status: String,
-    val measurementValue: Double?,
-    val photoLocalPath: String?,
-    val notes: String?,
+    val description: String,        // "Remarks" guidance snapshot
+    val status: String,            // PENDING | PASS (Is good) | FAIL (not good)
+    val notes: String?,            // technician remark; required when FAIL
     val completedAt: Long?,
     val completedBy: String?,
     val syncStatus: String

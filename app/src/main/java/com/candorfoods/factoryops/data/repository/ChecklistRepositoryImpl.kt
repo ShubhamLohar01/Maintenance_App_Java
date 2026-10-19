@@ -30,8 +30,8 @@ class ChecklistRepositoryImpl @Inject constructor(
         Result.Success(responseId)
     }
 
-    override suspend fun list(): Result<List<ChecklistRecordSummary>> = call { token ->
-        Result.Success(checklistApi.list(token).map { it.toDomain() })
+    override suspend fun list(status: String?): Result<List<ChecklistRecordSummary>> = call { token ->
+        Result.Success(checklistApi.list(token, status).map { it.toDomain() })
     }
 
     override suspend fun detail(id: Int): Result<ChecklistRecordDetail> = call { token ->

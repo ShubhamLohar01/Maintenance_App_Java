@@ -80,6 +80,15 @@ class NotificationHelper @Inject constructor(
                     enableVibration(true)
                 }
             )
+            notificationManager.createNotificationChannel(
+                NotificationChannel(
+                    Constants.NOTIFICATION_CHANNEL_TRANSFER,
+                    "Machine Transfers",
+                    NotificationManager.IMPORTANCE_DEFAULT
+                ).apply {
+                    description = "A machine was transferred into your warehouse — acknowledge receipt"
+                }
+            )
         }
     }
 
@@ -142,52 +151,47 @@ class NotificationHelper @Inject constructor(
      *   T3 → HIGH priority, default sound
      *   T4 → HIGH priority, alert sound + vibration pattern
      */
-    fun showPmEscalationNotification(
-        woId: String,
-        machineName: String,
-        templateName: String,
-        tier: Int,
-        daysOverdue: Long
-    ) {
+    /**
+     * One daily nudge covering everything still on the technician's plate today.
+     *
+     * Deliberately a single grouped notification on a fixed id: a technician with a dozen
+     * due tasks needs one reminder, not a dozen, and re-issuing the same id updates the
+     * existing notice instead of stacking another one.
+     */
+    fun showPmDueSummaryNotification(count: Int, leadTaskName: String, maxDaysOverdue: Long) {
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra("pm_wo_id", woId)
+            putExtra("open_pm_today", true)
         }
         val pendingIntent = PendingIntent.getActivity(
-            context, woId.hashCode(), intent,
+            context, PM_DUE_SUMMARY_REQUEST, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val (priority, defaultsFlag) = when (tier) {
-            1    -> NotificationCompat.PRIORITY_DEFAULT to 0
-            2    -> NotificationCompat.PRIORITY_DEFAULT to NotificationCompat.DEFAULT_SOUND
-            3    -> NotificationCompat.PRIORITY_HIGH to NotificationCompat.DEFAULT_SOUND
-            else -> NotificationCompat.PRIORITY_HIGH to NotificationCompat.DEFAULT_ALL
-        }
-
-        val title = when (tier) {
-            1    -> "PM overdue — $machineName"
-            2    -> "PM overdue ${daysOverdue}d — $machineName"
-            3    -> "PM very overdue — $machineName"
-            else -> "PM critical — $machineName"
+        val title = if (count == 1) "1 PM task pending" else "$count PM tasks pending"
+        val body = when {
+            count == 1 && maxDaysOverdue <= 0L -> "$leadTaskName is due today."
+            count == 1                          -> "$leadTaskName is ${maxDaysOverdue}d overdue."
+            maxDaysOverdue <= 0L                -> "$leadTaskName and ${count - 1} more due today."
+            else -> "$leadTaskName and ${count - 1} more — oldest ${maxDaysOverdue}d overdue."
         }
 
         val notification = NotificationCompat.Builder(context, Constants.NOTIFICATION_CHANNEL_PM_ESCALATION)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setContentTitle(title)
-            .setContentText("$templateName — ${daysOverdue}d overdue")
-            .setStyle(NotificationCompat.BigTextStyle().bigText("$templateName has been overdue for $daysOverdue days."))
-            .setPriority(priority)
-            .setDefaults(defaultsFlag)
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setPriority(
+                if (maxDaysOverdue >= Constants.PM_TIER_3_DAYS) NotificationCompat.PRIORITY_HIGH
+                else NotificationCompat.PRIORITY_DEFAULT
+            )
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .build()
 
-        notificationManager.notify(
-            Constants.NOTIFICATION_ID_PM_ESCALATION_BASE + woId.hashCode(),
-            notification
-        )
+        notificationManager.notify(Constants.NOTIFICATION_ID_PM_DUE_SUMMARY, notification)
     }
+
 
     /**
      * Fire or update a reminder notification. The stable id means re-calling with the
@@ -201,6 +205,7 @@ class NotificationHelper @Inject constructor(
         val channel = when (reminder.category) {
             ReminderCategory.BREAKDOWN -> Constants.NOTIFICATION_CHANNEL_BREAKDOWN
             ReminderCategory.PM -> Constants.NOTIFICATION_CHANNEL_PM_ESCALATION
+            ReminderCategory.TRANSFER -> Constants.NOTIFICATION_CHANNEL_TRANSFER
         }
         val id = reminder.notificationId()
         val intent = Intent(context, MainActivity::class.java).apply {
@@ -245,5 +250,8 @@ class NotificationHelper @Inject constructor(
     companion object {
         const val EXTRA_TIER = "reminder_tier"
         const val EXTRA_IS_REMINDER = "is_reminder"
+
+        /** Its own PendingIntent request code, so the summary can't collide with a WO's. */
+        private const val PM_DUE_SUMMARY_REQUEST = 3999
     }
 }

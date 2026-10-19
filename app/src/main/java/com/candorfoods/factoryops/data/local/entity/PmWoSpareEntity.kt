@@ -7,7 +7,9 @@ import androidx.room.PrimaryKey
 data class PmWoSpareEntity(
     @PrimaryKey val id: String,
     val woId: String,
+    val partId: Int? = null,
     val spareName: String,
+    val machineName: String? = null,
     val quantityUsed: Double,
     val unit: String,
     val notes: String?,

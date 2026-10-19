@@ -3,7 +3,7 @@ package com.candorfoods.factoryops.domain.model
 import com.candorfoods.factoryops.util.Constants
 
 /** Which workflow a reminder belongs to (selects the OS channel + id band). */
-enum class ReminderCategory { BREAKDOWN, PM }
+enum class ReminderCategory { BREAKDOWN, PM, TRANSFER }
 
 /** One row of the role×event matrix. */
 enum class ReminderType {
@@ -15,6 +15,8 @@ enum class ReminderType {
     P3_SUPERVISOR_REJECTED,
     P4_AWAITING_QC,
     P5_QC_REJECTED,
+    /** A new transfer into the recipient's warehouse — a gentle nudge to acknowledge receipt. */
+    T1_NEW_TRANSFER,
 }
 
 /**
@@ -43,6 +45,7 @@ fun Reminder.notificationId(): Int {
     val base = when (category) {
         ReminderCategory.BREAKDOWN -> Constants.NOTIFICATION_ID_BREAKDOWN_BASE
         ReminderCategory.PM -> Constants.NOTIFICATION_ID_PM_ESCALATION_BASE
+        ReminderCategory.TRANSFER -> Constants.NOTIFICATION_ID_TRANSFER_BASE
     }
     return base + (type.name + entityId).hashCode()
 }

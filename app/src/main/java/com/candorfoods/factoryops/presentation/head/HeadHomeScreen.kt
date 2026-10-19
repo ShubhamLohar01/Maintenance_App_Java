@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.candorfoods.factoryops.presentation.common.RequestNotificationPermission
 import com.candorfoods.factoryops.presentation.common.components.FactoryCard
 import com.candorfoods.factoryops.presentation.common.theme.Spacing
 import com.candorfoods.factoryops.presentation.dashboard.DashboardViewModel
@@ -41,6 +42,9 @@ fun HeadHomeScreen(
 ) {
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
     val scope = currentUser?.plantId?.let { if (it.equals("both", true)) "A185 + W202" else it }.orEmpty()
+
+    // Prompt for the Android 13+ notification permission so escalations reach the head.
+    RequestNotificationPermission()
 
     Scaffold(
         topBar = {

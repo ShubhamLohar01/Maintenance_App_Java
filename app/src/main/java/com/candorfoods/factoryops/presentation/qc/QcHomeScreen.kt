@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -26,6 +27,7 @@ import com.candorfoods.factoryops.domain.model.Criticality
 import com.candorfoods.factoryops.domain.model.PmWoStatus
 import com.candorfoods.factoryops.domain.model.Severity
 import com.candorfoods.factoryops.domain.model.UserRole
+import com.candorfoods.factoryops.presentation.common.RequestNotificationPermission
 import com.candorfoods.factoryops.presentation.common.components.FactoryCard
 import com.candorfoods.factoryops.presentation.common.theme.FactoryTheme
 import com.candorfoods.factoryops.util.DateTimeFormatter
@@ -38,11 +40,15 @@ private val AmberBorder   = Color(0xFFF59E0B)
 @Composable
 fun QcHomeScreen(
     onRowClick: (QcInboxRow) -> Unit,
+    onBack: () -> Unit,
     onSettingsClick: () -> Unit,
     viewModel: QcHomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+
+    // Prompt for the Android 13+ notification permission so QC handoff alerts show.
+    RequestNotificationPermission()
 
     Scaffold(
         topBar = {
@@ -65,6 +71,11 @@ fun QcHomeScreen(
                         }
                     }
                 },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
                 actions = {
                     IconButton(onClick = onSettingsClick) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
@@ -74,21 +85,24 @@ fun QcHomeScreen(
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            TabRow(selectedTabIndex = selectedTab) {
+            ScrollableTabRow(selectedTabIndex = selectedTab, edgePadding = 0.dp) {
                 QcTab("Awaiting QC", uiState.awaiting.size, selectedTab == 0) { selectedTab = 0 }
                 QcTab("My Active",   uiState.myActive.size, selectedTab == 1) { selectedTab = 1 }
                 QcTab("Done today",  uiState.doneToday.size, selectedTab == 2) { selectedTab = 2 }
+                QcTab("History",     uiState.history.size,   selectedTab == 3) { selectedTab = 3 }
             }
 
             val rows = when (selectedTab) {
                 0    -> uiState.awaiting
                 1    -> uiState.myActive
-                else -> uiState.doneToday
+                2    -> uiState.doneToday
+                else -> uiState.history
             }
             val emptyMsg = when (selectedTab) {
                 0    -> "No tickets waiting for QC."
                 1    -> "You have no active QC items."
-                else -> "Nothing decided today."
+                2    -> "Nothing decided today."
+                else -> "You haven't decided anything yet."
             }
 
             PullToRefreshBox(
@@ -268,7 +282,8 @@ private fun breakdownStatusLine(
             else                        -> "Decided" to MaterialTheme.colorScheme.onSurface
         }
         val rel = flag.qcDecidedAt?.let { DateTimeFormatter.formatRelative(it, now) } ?: ""
-        "$verb $rel" to c
+        val who = flag.qcDecidedByName?.takeIf { it.isNotBlank() }
+        (if (who != null) "$verb by $who $rel" else "$verb $rel") to c
     }
 }
 
@@ -290,12 +305,16 @@ private fun pmStatusLine(
     }
     else -> {
         val (verb, c) = when (wo.status) {
-            PmWoStatus.QC_APPROVED -> "Approved" to FactoryTheme.colors.statusRunning
+            // CLOSED = QC-approved for a work order (network history rows arrive as CLOSED).
+            PmWoStatus.QC_APPROVED, PmWoStatus.CLOSED -> "Approved" to FactoryTheme.colors.statusRunning
             PmWoStatus.SUBMITTED   -> "Sent back to supervisor" to MaterialTheme.colorScheme.error
             else                   -> "Decided" to MaterialTheme.colorScheme.onSurface
         }
-        val rel = wo.qcDecidedAt?.let { DateTimeFormatter.formatRelative(it, now) } ?: ""
-        "$verb $rel" to c
+        // Network history WOs have no qcDecidedAt; fall back to closedAt / ack time.
+        val ts = wo.qcDecidedAt ?: wo.closedAt ?: wo.qcAcknowledgedAt
+        val rel = ts?.let { DateTimeFormatter.formatRelative(it, now) } ?: ""
+        val who = (wo.qcDecidedByName ?: wo.qcAcknowledgedByName)?.takeIf { it.isNotBlank() }
+        (if (who != null) "$verb by $who $rel" else "$verb $rel") to c
     }
 }
 

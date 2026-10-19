@@ -1,0 +1,678 @@
+
+##### Ground floor (p1)
+? | Inspection Feeder
+      - tightness of foundation bolts
+      - Electric connections
+? | Weighing Belt
+      - belt condition
+      - tightness of foundation bolts
+      - Clean load cells externally
+      - Electric connections
+      - oiling / greasing
+? | Bucket Elevator
+      - belt condition
+      - oiling / greasing
+      - Check tightness of foundation bolts
+
+##### Mezzanine floor (p1)
+? | Auto L-sealer (shrink wrapper)
+      - Lubrication
+? | Bi Directional Conveyor A
+      - oiling / greasing
+      - Check motor cable connector
+? | Bi Directional Conveyor B
+      - Check belt integrity
+      - oiling / greasing
+      - Check motor cable connector
+? | Dryer Forward Conveyor
+      - Check belt integrity
+      - oiling / greasing
+      - Check motor cable connector
+? | Dryer Reverse Conveyor
+      - Check belt integrity
+      - oiling / greasing
+      - Check motor cable connector
+? | Dryer circ. blower Side A
+      - Check foundation bolts for tightness
+      - Check for vibration, attend if any
+      - Check motor cable connector
+? | Dryer circ. blower Side B
+      - Check Cleaning of filter and internal parts
+      - Check motor cable connector
+? | Dryer Burner 1
+      - Check flame sensing
+      - Check holding down bolts
+      - Check elect. connections
+? | Dryer Burner 2
+      - Check flame sensing
+      - Check holding down bolts
+      - Check elect. connections
+? | Dryer Belt
+      - Check belt integrity
+      - oiling / greasing
+      - Check belt drive chain lubrication
+      - Check motor cable connector
+? | Dryer Exhaust Fan A
+      - Check foundation bolts for tightness
+      - Check for vibration, attend if any
+      - Check motor cable connector
+? | Dryer Exhaust Fan B
+      - Check foundation bolts for tightness
+      - Check for vibration, attend if any
+      - Check motor cable connector
+? | Conveyor with Diverter
+      - Motor check
+      - Check Lubrication
+? | Diverter Chute B
+      - Lubrication
+? | Return Line Conveyor
+      - Check conveyor integrity
+      - oiling / greasing
+      - Check motor connections
+? | Retention Tumbler
+      - Check conveyor
+      - oiling / greasing
+      - Check motor connections
+? | Salinity Centrifugal Pump
+      - Check pump and motor
+      - oiling / greasing
+      - Check foundation bolts
+      - Check elect. Connections
+? | Slurry Peristaltic Pump
+      - Check pump and motor
+      - oiling / greasing
+      - Check foundation bolts
+      - Check elect. Connections
+? | Salinity Centrifugal Pump
+      - Check pump and motor
+      - Check lubrication
+      - Check foundation bolts
+      - Check elect. Connections
+? | Slurry Peristaltic Pump
+      - Check pump and motor
+      - oiling / greasing
+      - Check foundation bolts
+      - Check elect. Connections
+? | Salinity Peristaltic Pump
+      - Check pump and motor
+      - oiling / greasing
+      - Check foundation bolts
+      - Check elect. Connections
+? | Make up Centrifugal Pump (dispensing
+      - Check pump and motor
+      - oiling / greasing
+      - Check foundation bolts
+      - Check elect. Connections
+? | Salinity Agitator A
+      - Check agitator fasteners
+      - oiling / greasing
+      - Check salinity sensor
+? | Salinity Agitator B
+      - Check agitator fasteners
+      - Check motor lubrication
+      - Check salinity sensor
+? | Salinity tank A Heater
+      - Element heater check
+      - Sealing base check
+      - Transformer check
+? | Salinity tank B Heater
+      - Element heater check
+      - Sealing base check
+      - Transformer check
+? | Diverter Chute C, Dewatering
+      - Lubrication
+? | Transfer Conveyor
+      - Check motor connections
+      - oiling / greasing
+      - Check conveyor Integrity
+? | Diverter Chute D
+      - Lubrication
+? | Ribbon Blender
+      - Check motor connections
+      - oiling / greasing
+      - Check fasteners
+      - Check cover Sensor interlock
+      - oiling / greasing
+? | Screw Conveyor
+      - Check motor connections
+      - Check clearance between screw and housing
+      - oiling / greasing
+      - Check fasteners
+? | Feeding Hopper Vibrator (Powder)
+      - Check vibrator elect connections
+      - Check fasteners
+? | Feeding Hopper Vibrator A (Peanut)
+      - Check vibrator elect connections
+      - Check fasteners
+? | Cable Vey
+      - Check drive motor connections
+      - Check air pressure
+      - Check smooth movements of conveyor discs.
+      - Check gates
+? | Syrup Peristaltic Pump
+      - Check pump piping for leakage
+      - Check motor connections
+      - oiling / greasing
+? | Syrup Makeup Centrifugal Pump
+      - Check pump piping for leakage
+      - Check motor connections
+      - oiling / greasing
+? | Syrup Tank 1 Agita. Motor
+      - Check motor connections
+      - oiling / greasing
+? | Syrup Tank 2 Agita. Motor
+      - Check motor connections
+      - oiling / greasing
+? | Syrup Tank 1 Heater
+      - Cooler check
+      - Motor check
+      - Temperature meter check
+? | Extruder, Main Motor
+      - Check V belts
+      - oiling / greasing
+      - Check oil sealing
+      - Check motor bearing lubrication
+      - Check foundation bolts
+? | Extruder Cutter
+      - Check motor connection
+      - Check fasteners
+? | Extruder Vibrator Feeder
+      - Check elect. Connections
+      - Check vibration, material flow
+? | Extruder Agitator
+      - Check elect connections
+      - oiling / greasing
+      - Check agitator blades, fasteners
+? | Extruder Hopper Screw Feeder
+      - Check elect connections
+      - oiling / greasing
+      - Check Screw
+? | Extruder Heater
+      - Check heater connections
+      - Check temperature indication
+? | L Conveyor
+      - Check motor connections
+      - oiling / greasing
+      - Check conveyor
+? | LIW Hopper- Vibrator Peanut
+      - Check load cell cleanliness
+      - Check elect connections
+? | Pan Coater-1 Tumbler
+      - Check motor connection
+      - Check drive lubrication
+? | Pan Coater-1 Conveyor
+      - Check motor connections
+      - oiling / greasing
+      - Check conveyor
+? | Pan Coater-1 Powder Hopper Vibratory Feeder ( Cab Levy G1)
+      - Check vibrator elect connections
+      - Check fasteners
+? | Pan Coater-1 Powder Vibrator
+      - Check vibrator elect connections
+      - Check fasteners
+? | RO water purifier 2000ltr/hr
+      - Tank integrity
+      - Filter
+      - motor
+? | Pan Coater-1 Syrup A
+      - Check elect connections
+      - Motor check
+      - Sensor check
+      - oiling / greasing
+      - Conveyor belt check-up and clean
+? | Pan Coater-1 Syrup B
+      - Check elect connections
+      - Motor check
+      - Sensor check
+      - oiling / greasing
+? | LIW Hopper- Vibrator Peanut, Pan coater 2
+      - Check motor connection
+      - Check drive lubrication
+? | Pan Coater-2 Conveyor
+      - oiling / greasing
+      - Check motor connections
+      - Check conveyor
+? | Pan Coater-2 Powder Hopper Vibratory Feeder (Cablevey G4)
+      - Check vibrator elect connections
+      - Check fasteners
+? | Pan Coater-2 Powder Vibrator
+      - Check vibrator elect connections
+      - Check fasteners
+? | Pan Coater-2 Syrup A
+      - Check elect connections
+      - Motor check
+      - Sensor check
+      - oiling / greasing
+      - Conveyor belt check-up and clean
+? | Pan Coater-2 Syrup B
+      - Check elect connections
+      - Motor check
+      - Sensor check
+      - oiling / greasing
+      - Conveyor belt check-up and clean
+? | LIW Hopper - 3 Vibrator Peanut
+      - Check load cell cleanliness
+      - Check elect connections
+? | HMC
+      - Check motor connection
+      - oiling / greasing
+? | Pan coater -3 Conveyor
+      - oiling / greasing
+      - Check motor connections
+      - Check conveyor
+? | Pan coater -3 Powder Vibrator
+      - Check vibrator elect connections
+      - Check fasteners
+? | Pan coater -3 Syrup A
+      - Check elect connections
+      - Motor check
+      - Sensor check
+      - oiling / greasing
+      - Conveyor belt check-up and clean
+? | Pan coater -3 Syrup B
+      - Check elect connections
+      - Motor check
+      - Sensor check
+      - oiling / greasing
+      - Conveyor belt check-up and clean
+? | Main Transfer Conveyor
+      - oiling / greasing
+      - Check motor connections
+      - Check conveyor
+? | Buffer Shifter
+      - Heater check
+      - Motor check
+      - Temperature meter check
+      - Temperature meter check
+? | Inclined Conveyor A
+      - oiling / greasing
+      - Check motor connections
+      - Check conveyor
+? | Puffer Drum
+      - Check drum drive motor foundation bolts
+      - Check motor electrical connections
+      - Check sprocket and chain lubrication
+? | Puffer Blower
+      - Check motor foundation bolts
+      - Check blower impeller
+? | Puffer Vibratory Feeder
+      - Check vibrator elect connections
+      - Check fasteners
+? | Puffer Burner
+      - Check gas piping for leaks
+      - Check flame sensor function
+? | Cooling Tumbler
+      - Check motor connection
+      - Check motor lubrication
+      - Check motor foundation bolts
+? | Cooling Tumbler Blower 1
+      - Check motor foundation bolts
+      - Check belt tension
+      - Check blower impeller
+      - Check impeller locking, key
+      - Check motor connections
+? | Cooling Tumbler Blower 2
+      - Check motor foundation bolts
+      - Check belt tension
+      - Check blower impeller
+      - Check impeller locking, key
+      - Check motor connections
+? | Inclined Conveyor B
+      - oiling / greasing
+      - Check motor connections
+      - Check conveyor
+? | Feeding Hopper Vibrator, A
+      - Check vibrator elect connections
+      - Check fasteners
+? | Feeding Hopper Vibrator B
+      - Check vibrator elect connections
+      - Check fasteners
+? | Nested Feeder 1
+      - Check vibrator elect connections
+      - Check fasteners
+? | Nested Feeder 2
+      - Check vibrator elect connections
+      - Check fasteners
+? | Nested Feeder 3
+      - Check vibrator elect connections
+      - Check fasteners
+? | Kettle 1- Centrifugal Pump
+      - Check motor connections
+      - Motor check
+      - Check pump
+? | Kettle 2- Centrifugal Pump
+      - Check motor connections
+      - Motor check
+      - Check pump
+? | Kettle -1 agitator
+      - Check motor connections
+      - Motor check
+      - Check agitator blades
+? | Kettle- 2 Agitator
+      - Check motor connections
+      - Motor check
+      - Check agitator blades
+? | Kettler-1 Heater
+      - Check connections
+      - Check working
+      - Check sensor
+? | Kettler-2 Heater
+      - Check connections
+      - Check working
+      - Check sensor
+? | Peristaltic Pump
+      - Check motor connections
+      - Motor check
+      - Check pump condition
+? | DFH Screw
+      - Check motor connections
+      - Motor check
+      - Check screw condition
+? | DFH Agitator
+      - Check motor connections
+      - Motor check
+      - Check agitator blades
+? | DFH Scarf Feeder
+      - Check Cleaning
+      - Check vibrator elect connections
+      - Check fasteners
+? | Seasoning Drum
+      - Check motor foundation bolts
+      - oiling / greasing
+      - Check motor connections
+      - Check cleaning
+? | Retention Conveyor
+      - Check motor connections
+      - Check motor lubrication
+      - Check conveyor
+? | Dryer Spreader Belt
+      - Motor check
+      - conveyor belt integrity
+      - Check spreader fasteners
+      - oiling / greasing
+? | New Vibrator
+      - Check elect connections
+      - Check vibrations
+? | Destoner with Blower
+      - Check motor
+      - oiling / greasing
+      - Check elect connections
+      - Check foundation bolts
+? | Z Conveyor for Destoner
+      - Tank check
+      - Filter check
+      - Motor check
+? | FFS Machine
+      - Check sensor
+      - Motor check
+      - Check heaters
+      - Check belts
+      - oiling / greasing
+? | FFS Machine
+      - Check sensor
+      - Motor check
+      - Check heaters
+      - Check belts
+      - oiling / greasing
+? | Roll Rewinding Machine
+      - Check sensor
+      - Motor check
+      - oiling / greasing
+? | Conveyorized Metal Detector
+      - Motor check
+      - Check elect connections
+      - Check conveyor Belt
+      - Check metal detection
+      - oiling / greasing
+? | Pet Sealing Machine
+      - Motor check
+      - Check elect connections
+      - Check sealing heaters
+      - Check heater condition
+      - Check conveyor Belt
+      - oiling / greasing
+? | Continuous Band Sealer Machine 1
+      - Motor check
+      - Check elect connections
+      - Check sealing heaters
+      - Check heater condition
+      - conveyor belt integrity
+      - oiling / greasing
+? | Flow Wrap Machine, Tunnel
+      - Motor check
+      - Check elect connections
+      - Check sealing heaters
+      - Check heater condition
+      - Check Fan
+      - conveyor Belt integrity
+      - oiling / greasing
+? | Pakona PFS
+      - Motor check
+      - Check elect connections
+      - conveyor belt integrity
+      - oiling / greasing
+      - Check vacuum
+? | UPS 300 KVS
+      - OEM service checks
+? | Underground Tank Water 15000
+? | Ltrs
+      - Check filling pipe line condition
+      - Check level switch
+? | Underground Water Tank Pump
+      - Pump, Motor check
+      - Check connections
+      - Check level sw operation
+      - Check level sw operation
+? | MIDC Water Overhead Tank 6000 Ltrs
+      - Piping check
+? | MIDC Water Overhead Tank 6000 Ltrs
+      - Piping check
+? | water Filtration Plant
+      - Check piping and vessels for leak
+      - oiling / greasing
+      - Check elect. connection
+? | Filtered Water Tank 10000 Ltrs
+      - Piping check
+? | RO filter and Pump
+      - Piping leak check
+      - Filter check
+      - Pump, Motor lubrication check
+? | Reach Truck
+      - OEM service checks
+      - Battery, check
+? | CCP Blender 1
+      - Check fasteners
+      - Check chain, bearing lubrication
+      - Motor check
+      - Check elect. Connections
+? | CCP continuous band sealer
+      - Motor check
+      - Check elect connections
+      - Check sealing heaters
+      - Check heater condition
+      - Check conveyor belt
+      - oiling / greasing
+? | Blender 2
+      - Check fasteners
+      - Check chain, bearing lubrication
+      - Motor check
+      - Check elect. Connections
+? | CCP continuous band sealer
+      - Motor check
+      - Check elect connections
+      - Check sealing heaters
+      - Check heater condition
+      - conveyor belt integrity
+      - oiling / greasing
+? | Vibrative
+      - Check fasteners
+      - Check spring condition
+      - Check motor connections
+      - oiling / greasing
+      - Check sieving screens
+? | Continuous Band Sealer
+      - Motor check
+      - Line check
+      - Valve check
+      - Compressor check
+? | Foot Sealer
+      - Check elect connections
+      - Check heater
+? | UPS Room AC 1, 2
+      - Clean condenser
+      - Check elect connections
+      - Clean air filter
+      - Check drain line
+? | Lab AC
+      - Clean condenser
+      - Check elect connections
+      - Clean air filter
+      - Check drain line
+? | CCP Blender1 Room AC1, AC2
+      - Clean condenser
+      - Check elect connections
+      - Clean air filter
+      - Check drain line
+? | Blender 2 Room AC1, AC2
+      - Clean condenser
+      - Check elect connections
+      - Clean air filter
+      - Check drain line
+? | Server Room AC
+      - Clean condenser
+      - Check elect connections
+      - Clean air filter
+      - Check drain line
+? | Cold Room AC1, AC2, AC3, AC$
+      - Clean condenser
+      - Check elect connections
+      - Clean air filter
+      - Check drain line
+? | CEO Office AC
+      - Clean condenser
+      - Check elect connections
+      - Clean air filter
+      - Check drain line
+? | Conference Room AC
+      - Clean condenser
+      - Check elect connections
+      - Clean air filter
+      - Check drain line
+? | Creshe AC
+      - Clean condenser
+      - Check elect connections
+      - Clean air filter
+      - Check drain line
+? | Water Cooler
+      - Motor check
+      - Line check
+      - Valve check
+? | Air Compressor
+      - Tank check
+      - Check filter
+      - oiling / greasing
+      - Check elect connections
+      - Motor check
+? | Air Dryer
+      - Tank check
+      - Check filter
+      - oiling / greasing
+      - Check elect connections
+      - Check drain trap
+      - Check dew point
+? | Air Compressor
+      - oiling / greasing
+      - Check filter
+      - Motor check
+? | Air Dryer
+      - oiling / greasing
+      - Check elect connections
+      - Check drain trap
+? | Nitrogen Plant
+      - Motor check
+      - Line check
+? | Dock
+      - Motor connections check
+      - oiling / greasing
+? | Fire Water Pump 1
+      - Motor check
+      - Line check
+      - Valve check
+      - Check foundation bolts
+      - Check coupling
+? | Fire Water Pump 2
+      - Motor check
+      - Line check
+      - Valve check
+      - Check foundation bolts
+      - Check coupling
+? | Fire Alarm Panel
+      - Check alarm
+      - Check elect. Connections
+? | Videojet printer
+      - Check conveyor
+      - Check printer
+? | Reach Truck
+      - Carry preventive checks by OEM
+      - Check battery charger
+? | Battery operated Pellet TrucK
+      - Check battery charge
+      - Check Lifting Mechanism
+? | Control Panel 1 (A)
+      - Clean AC filter
+      - Check UPS connections
+      - Check Earthing
+? | Control Panel 2 (B)
+      - Clean AC filter
+      - Check UPS connections
+      - Check Earthing
+? | Fire extinguishers ABC, CO2
+      - Check Gas pressure
+      - Check validity
+      - Fire Water Pump Panel
+      - Check alarm is working
+      - Check connections
+? | Air Receiver (2 M3)
+      - Check foundation bolts tightness
+      - Check for safety valve leakage
+? | Nitrogen Receiver ( 2 M3)
+      - Check foundation bolts tightness
+      - Check for safety valve leakage
+? | HT Transformer ( 630 KVA)
+      - Check Earthings
+      - Clean externally
+      - Check oil level
+? | Metering Kiosk
+      - Check Earthing
+      - Clean externally
+? | RMU, HT Breaker
+      - Check Earthing
+      - Clean Externally
+? | LT Panel
+      - Check Earthing
+      - Check tightness of internal connections
+? | Utility Panel
+      - Check Earthing
+      - Check tightness of internal connections
+? | Emergency Panel
+      - Check Earthing
+      - Check tightness of internal connections
+? | Emergency Panel
+      - Check Earthing
+      - Check functioning of cooling fans
+      - Check tightness of internal connections
+? | Hydraulic press machine
+      - oiling / greasing
+      - Pressure gause
+? | Air curtain
+      - Check Door position
+      - check elect connection
+      - Check limit switch and on-off operation.
+      - Windows and mesh
+      - Doors and gaps
+      - Pestoflash Machines
+      - Drainage and mesh coverings
+      - gaskets (for all machines )
+      - Lids of all equipments (acrylic or plastics)
+      - Purifier Water Cooler
+      - VRV System

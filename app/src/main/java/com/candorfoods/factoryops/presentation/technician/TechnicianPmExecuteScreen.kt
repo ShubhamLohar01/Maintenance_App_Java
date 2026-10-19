@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -63,6 +65,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.candorfoods.factoryops.domain.model.PmTaskLogStatus
 import com.candorfoods.factoryops.domain.model.PmWoSpare
+import com.candorfoods.factoryops.domain.model.spareparts.MAX_WO_SPARES
+import com.candorfoods.factoryops.domain.model.spareparts.SparePartPick
+import com.candorfoods.factoryops.domain.model.spareparts.SparePartPickerCatalog
+import com.candorfoods.factoryops.presentation.spareparts.components.SparePartPickerSheet
 import com.candorfoods.factoryops.domain.model.PmWoTaskLog
 import com.candorfoods.factoryops.presentation.common.components.FactoryCard
 import com.candorfoods.factoryops.presentation.common.components.PrimaryButton
@@ -129,6 +135,7 @@ fun TechnicianPmExecuteScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
+                    .imePadding()
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
@@ -137,12 +144,16 @@ fun TechnicianPmExecuteScreen(
                         wo = wo,
                         spares = wo.spares,
                         finalNotes = uiState.finalNotes,
-                        suggestions = uiState.spareSuggestions,
+                        overallResult = uiState.overallResult,
+                        sparePicker = uiState.sparePicker,
+                        isLoadingPicker = uiState.isLoadingPicker,
+                        canAddSpare = uiState.canAddSpare,
                         isSubmitting = uiState.isSubmitting,
                         onFinalNotesChange = viewModel::onFinalNotesChange,
+                        onOverallResultChange = viewModel::onOverallResultChange,
                         onAddSpare = viewModel::onAddSpare,
                         onDeleteSpare = viewModel::onDeleteSpare,
-                        onRefreshSuggestions = viewModel::refreshSpareSuggestions,
+                        onOpenSparePicker = viewModel::refreshSparePicker,
                         onJumpToItem = viewModel::onJumpToItem,
                         onSubmit = viewModel::onSubmit,
                         onSaveDraft = viewModel::onSaveDraft
@@ -153,10 +164,7 @@ fun TechnicianPmExecuteScreen(
                     ItemExecutionView(
                         log = log,
                         draft = draft,
-                        woId = wo.id,
-                        onStatusSelect = viewModel::onStatusSelect,
-                        onMeasurementChange = viewModel::onMeasurementChange,
-                        onPhotoCaptured = viewModel::onPhotoCaptured,
+                        onIsGoodChange = viewModel::onIsGoodChange,
                         onNotesChange = viewModel::onNotesChange
                     )
 
@@ -210,10 +218,7 @@ private fun ProgressBar(currentIndex: Int, total: Int) {
 private fun ItemExecutionView(
     log: PmWoTaskLog,
     draft: ItemExecutionDraft,
-    woId: String,
-    onStatusSelect: (PmTaskLogStatus) -> Unit,
-    onMeasurementChange: (String) -> Unit,
-    onPhotoCaptured: (String?) -> Unit,
+    onIsGoodChange: (Boolean) -> Unit,
     onNotesChange: (String) -> Unit
 ) {
     FactoryCard(modifier = Modifier.fillMaxWidth()) {
@@ -222,64 +227,57 @@ private fun ItemExecutionView(
             if (log.description.isNotBlank()) {
                 Text(log.description, style = MaterialTheme.typography.bodyMedium)
             }
-            if (log.expectedResult.isNotBlank()) {
-                HorizontalDivider()
-                Text("Expected", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
-                Text(log.expectedResult, style = MaterialTheme.typography.bodySmall)
-            }
         }
     }
 
-    PassFailNaButtons(selected = draft.status, onSelect = onStatusSelect)
-
-    if (log.requiresMeasurement) {
-        MeasurementInput(
-            log = log,
-            value = draft.measurementText,
-            onChange = onMeasurementChange
-        )
+    // "Is good?" — ticked = good (remark optional); un-ticked = not good (remark REQUIRED).
+    FactoryCard(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onIsGoodChange(!draft.isGood) }
+                .padding(vertical = 4.dp)
+        ) {
+            Checkbox(checked = draft.isGood, onCheckedChange = onIsGoodChange)
+            Spacer(Modifier.width(8.dp))
+            Text("Is good?", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        }
     }
 
-    if (log.requiresPhoto) {
-        PhotoCaptureBlock(
-            woId = woId,
-            itemId = log.id,
-            currentPath = draft.photoLocalPath,
-            onCaptured = onPhotoCaptured
-        )
-    }
-
+    val remarksRequired = !draft.isGood
     OutlinedTextField(
         value = draft.notes,
         onValueChange = onNotesChange,
-        label = { Text("Notes (optional)") },
+        label = { Text(if (remarksRequired) "Remarks (required)" else "Remarks (optional)") },
+        isError = remarksRequired && draft.notes.isBlank(),
+        supportingText = {
+            if (remarksRequired) {
+                Text(
+                    "Not marked good — add a remark describing the issue before continuing.",
+                    color = FactoryTheme.colors.statusStopped
+                )
+            }
+        },
         modifier = Modifier.fillMaxWidth(),
         minLines = 2
     )
 }
 
+/** Machine-level Pass/Fail toggle used once on the summary screen. */
 @Composable
-private fun PassFailNaButtons(selected: PmTaskLogStatus, onSelect: (PmTaskLogStatus) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        StatusButton("Pass", PmTaskLogStatus.PASS, FactoryTheme.colors.statusRunning, selected, onSelect, Modifier.weight(1f))
-        StatusButton("Fail", PmTaskLogStatus.FAIL, FactoryTheme.colors.statusStopped, selected, onSelect, Modifier.weight(1f))
-        StatusButton("N/A",  PmTaskLogStatus.NOT_APPLICABLE, FactoryTheme.colors.onSurfaceMuted, selected, onSelect, Modifier.weight(1f))
-    }
-}
-
-@Composable
-private fun StatusButton(
+private fun OverallResultButton(
     label: String,
-    target: PmTaskLogStatus,
+    target: String,
     color: Color,
-    selected: PmTaskLogStatus,
-    onSelect: (PmTaskLogStatus) -> Unit,
+    selected: String?,
+    onSelect: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isSelected = selected == target
     Button(
         onClick = { onSelect(target) },
-        modifier = modifier.height(64.dp),
+        modifier = modifier.height(56.dp),
         colors = if (isSelected)
             ButtonDefaults.buttonColors(containerColor = color, contentColor = Color.White)
         else
@@ -289,134 +287,22 @@ private fun StatusButton(
     }
 }
 
-@Composable
-private fun MeasurementInput(
-    log: PmWoTaskLog,
-    value: String,
-    onChange: (String) -> Unit
-) {
-    val parsed = value.toDoubleOrNull()
-    val outOfRange = parsed != null
-        && (log.measurementMin?.let { parsed < it } == true
-            || log.measurementMax?.let { parsed > it } == true)
-
-    OutlinedTextField(
-        value = value,
-        onValueChange = onChange,
-        label = {
-            val unit = log.measurementUnit?.let { " ($it)" } ?: ""
-            Text("Measurement$unit")
-        },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        singleLine = true,
-        isError = outOfRange,
-        modifier = Modifier.fillMaxWidth(),
-        supportingText = {
-            val rangeStr = when {
-                log.measurementMin != null && log.measurementMax != null ->
-                    "Acceptable ${log.measurementMin}–${log.measurementMax}${log.measurementUnit?.let { " $it" }.orEmpty()}"
-                log.measurementMin != null -> "Min ${log.measurementMin}"
-                log.measurementMax != null -> "Max ${log.measurementMax}"
-                else -> "Numeric value"
-            }
-            if (outOfRange) {
-                Text("Outside acceptable range — verify before submit. $rangeStr",
-                    color = FactoryTheme.colors.statusStopped)
-            } else {
-                Text(rangeStr)
-            }
-        }
-    )
-}
-
-@Composable
-private fun PhotoCaptureBlock(
-    woId: String,
-    itemId: String,
-    currentPath: String?,
-    onCaptured: (String?) -> Unit
-) {
-    val context = LocalContext.current
-    var pendingFile by remember { mutableStateOf<File?>(null) }
-
-    val cameraLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.TakePicture()
-    ) { success ->
-        val file = pendingFile
-        if (success && file != null && file.exists() && file.length() > 0) {
-            onCaptured(file.absolutePath)
-        }
-        pendingFile = null
-    }
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) {
-            val file = PmPhotoStorage.createItemPhotoFile(context, woId, itemId)
-            pendingFile = file
-            cameraLauncher.launch(PmPhotoStorage.fileToShareUri(context, file))
-        }
-    }
-
-    fun launch() {
-        val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
-            PackageManager.PERMISSION_GRANTED
-        if (!granted) {
-            permissionLauncher.launch(Manifest.permission.CAMERA)
-        } else {
-            val file = PmPhotoStorage.createItemPhotoFile(context, woId, itemId)
-            pendingFile = file
-            cameraLauncher.launch(PmPhotoStorage.fileToShareUri(context, file))
-        }
-    }
-
-    FactoryCard(modifier = Modifier.fillMaxWidth()) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Photo (required)", fontWeight = FontWeight.SemiBold)
-            if (currentPath != null) {
-                AsyncImage(
-                    model = File(currentPath),
-                    contentDescription = "Captured photo",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp)
-                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
-                )
-                PrimaryButton(
-                    text = "Retake",
-                    onClick = { launch() },
-                    style = PrimaryButtonStyle.Outlined,
-                    size = PrimaryButtonSize.Min,
-                    icon = Icons.Default.Camera,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            } else {
-                PrimaryButton(
-                    text = "Capture photo",
-                    onClick = { launch() },
-                    style = PrimaryButtonStyle.Outlined,
-                    size = PrimaryButtonSize.Min,
-                    icon = Icons.Default.PhotoCamera,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        }
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SummaryView(
     wo: com.candorfoods.factoryops.domain.model.PmWorkOrder,
     spares: List<PmWoSpare>,
     finalNotes: String,
-    suggestions: List<String>,
+    overallResult: String?,
+    sparePicker: SparePartPickerCatalog,
+    isLoadingPicker: Boolean,
+    canAddSpare: Boolean,
     isSubmitting: Boolean,
     onFinalNotesChange: (String) -> Unit,
-    onAddSpare: (String, Double, String, String?) -> Unit,
+    onOverallResultChange: (String) -> Unit,
+    onAddSpare: (SparePartPick, Double, String?) -> Unit,
     onDeleteSpare: (PmWoSpare) -> Unit,
-    onRefreshSuggestions: (String) -> Unit,
+    onOpenSparePicker: () -> Unit,
     onJumpToItem: (Int) -> Unit,
     onSubmit: () -> Unit,
     onSaveDraft: () -> Unit
@@ -448,12 +334,22 @@ private fun SummaryView(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Spares used", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
-                IconButton(onClick = {
-                    onRefreshSuggestions("")
-                    showAddSpareSheet = true
-                }) {
+                IconButton(
+                    enabled = canAddSpare,
+                    onClick = {
+                        onOpenSparePicker()
+                        showAddSpareSheet = true
+                    },
+                ) {
                     Icon(Icons.Default.Add, contentDescription = "Add spare")
                 }
+            }
+            if (!canAddSpare) {
+                Text(
+                    "Limit of $MAX_WO_SPARES spare parts reached.",
+                    color = FactoryTheme.colors.onSurfaceMuted,
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
             if (spares.isEmpty()) {
                 Text("No spares logged yet.", color = FactoryTheme.colors.onSurfaceMuted, style = MaterialTheme.typography.bodySmall)
@@ -462,7 +358,13 @@ private fun SummaryView(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(spare.spareName, fontWeight = FontWeight.SemiBold)
-                            Text("${spare.quantityUsed} ${spare.unit}", style = MaterialTheme.typography.bodySmall)
+                            Text(
+                                listOfNotNull(
+                                    "${spare.quantityUsed} ${spare.unit}".trim(),
+                                    spare.machineName?.takeIf { it.isNotBlank() },
+                                ).joinToString("  -  "),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
                         }
                         IconButton(onClick = { onDeleteSpare(spare) }) {
                             Icon(Icons.Default.Delete, contentDescription = "Remove")
@@ -481,10 +383,26 @@ private fun SummaryView(
         modifier = Modifier.fillMaxWidth()
     )
 
+    // Machine-level verdict — asked once, here at the end (not per item).
+    FactoryCard(modifier = Modifier.fillMaxWidth()) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Machine result", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Text(
+                "Overall verdict for this machine after the PM.",
+                style = MaterialTheme.typography.bodySmall,
+                color = FactoryTheme.colors.onSurfaceMuted
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OverallResultButton("Pass", "PASS", FactoryTheme.colors.statusRunning, overallResult, onOverallResultChange, Modifier.weight(1f))
+                OverallResultButton("Fail", "FAIL", FactoryTheme.colors.statusStopped, overallResult, onOverallResultChange, Modifier.weight(1f))
+            }
+        }
+    }
+
     PrimaryButton(
         text = "Submit for supervisor approval",
         onClick = onSubmit,
-        enabled = !isSubmitting,
+        enabled = !isSubmitting && overallResult != null,
         loading = isSubmitting,
         style = PrimaryButtonStyle.Success,
         size = PrimaryButtonSize.Hero,
@@ -499,120 +417,23 @@ private fun SummaryView(
     )
 
     if (showAddSpareSheet) {
-        ModalBottomSheet(onDismissRequest = { showAddSpareSheet = false }) {
-            AddSpareForm(
-                suggestions = suggestions,
-                onRefreshSuggestions = onRefreshSuggestions,
-                onConfirm = { name, qty, unit, notes ->
-                    onAddSpare(name, qty, unit, notes)
-                    showAddSpareSheet = false
-                },
-                onDismiss = { showAddSpareSheet = false }
-            )
-        }
-    }
-}
-
-@Composable
-private fun AddSpareForm(
-    suggestions: List<String>,
-    onRefreshSuggestions: (String) -> Unit,
-    onConfirm: (String, Double, String, String?) -> Unit,
-    onDismiss: () -> Unit
-) {
-    var name by remember { mutableStateOf("") }
-    var qty by remember { mutableStateOf("") }
-    var unit by remember { mutableStateOf("") }
-    var notes by remember { mutableStateOf("") }
-
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text("Add spare used", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-
-        OutlinedTextField(
-            value = name,
-            onValueChange = {
-                name = it
-                onRefreshSuggestions(it)
+        SparePartPickerSheet(
+            catalog = sparePicker,
+            isLoading = isLoadingPicker,
+            onConfirm = { pick, qty, notes ->
+                onAddSpare(pick, qty, notes)
+                showAddSpareSheet = false
             },
-            label = { Text("Part name") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
+            onDismiss = { showAddSpareSheet = false },
         )
-
-        // Q3 — autocomplete suggestions ordered by usage frequency
-        if (suggestions.isNotEmpty() && name != suggestions.firstOrNull()) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Previously used:", style = MaterialTheme.typography.labelSmall, color = FactoryTheme.colors.onSurfaceMuted)
-                suggestions.take(5).forEach { suggestion ->
-                    Box(
-                        modifier = Modifier
-                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(percent = 50))
-                            .clickable { name = suggestion }
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-                        Text(suggestion, fontSize = 13.sp)
-                    }
-                }
-            }
-        }
-
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(
-                value = qty,
-                onValueChange = { qty = it.filter { c -> c.isDigit() || c == '.' } },
-                label = { Text("Quantity") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
-                modifier = Modifier.weight(1f)
-            )
-            OutlinedTextField(
-                value = unit,
-                onValueChange = { unit = it },
-                label = { Text("Unit") },
-                singleLine = true,
-                modifier = Modifier.weight(1f)
-            )
-        }
-
-        OutlinedTextField(
-            value = notes,
-            onValueChange = { notes = it },
-            label = { Text("Notes (optional)") },
-            minLines = 2,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        PrimaryButton(
-            text = "Add",
-            onClick = {
-                val q = qty.toDoubleOrNull() ?: 0.0
-                if (name.isBlank() || q <= 0.0 || unit.isBlank()) return@PrimaryButton
-                onConfirm(name.trim(), q, unit.trim(), notes.takeIf { it.isNotBlank() })
-            },
-            enabled = name.isNotBlank() && (qty.toDoubleOrNull() ?: 0.0) > 0.0 && unit.isNotBlank(),
-            style = PrimaryButtonStyle.Success,
-            size = PrimaryButtonSize.Primary,
-            modifier = Modifier.fillMaxWidth()
-        )
-        PrimaryButton(
-            text = "Cancel",
-            onClick = onDismiss,
-            style = PrimaryButtonStyle.Outlined,
-            size = PrimaryButtonSize.Min,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(Modifier.height(16.dp))
     }
 }
 
 @Composable
 private fun StatusPill(status: PmTaskLogStatus) {
     val (label, color) = when (status) {
-        PmTaskLogStatus.PASS -> "PASS" to FactoryTheme.colors.statusRunning
-        PmTaskLogStatus.FAIL -> "FAIL" to FactoryTheme.colors.statusStopped
+        PmTaskLogStatus.PASS -> "GOOD" to FactoryTheme.colors.statusRunning
+        PmTaskLogStatus.FAIL -> "NOT GOOD" to FactoryTheme.colors.statusStopped
         PmTaskLogStatus.NOT_APPLICABLE -> "N/A" to FactoryTheme.colors.onSurfaceMuted
         PmTaskLogStatus.PENDING -> "PENDING" to FactoryTheme.colors.statusFlagged
     }

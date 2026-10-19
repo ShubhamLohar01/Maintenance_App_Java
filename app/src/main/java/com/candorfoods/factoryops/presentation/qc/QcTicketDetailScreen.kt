@@ -230,7 +230,20 @@ private fun QcActionSection(
 ) {
     when {
         flag.status == BreakdownStatus.PENDING_QC -> {
-            when {
+            if (!uiState.isQcRole) {
+                // View-only for non-QC roles (Supervisor / Head): QC status, no actions.
+                Card(colors = CardDefaults.cardColors(containerColor = LightAmberBg)) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Awaiting QC verification",
+                            fontWeight = FontWeight.SemiBold, color = DarkAmberText)
+                        flag.qcAcknowledgedByName?.let {
+                            Text("Picked up by QC: $it",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = DarkAmberText.copy(alpha = 0.8f))
+                        }
+                    }
+                }
+            } else when {
                 flag.qcAcknowledgedBy == null -> {
                     // Intentional one-off amber styling (Warning semantic) — see TicketDetailScreen.
                     Button(

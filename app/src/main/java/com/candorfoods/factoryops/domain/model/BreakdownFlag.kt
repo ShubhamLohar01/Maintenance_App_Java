@@ -1,5 +1,25 @@
 package com.candorfoods.factoryops.domain.model
 
+/**
+ * One spare the technician picked while repairing a breakdown. [partId] is the
+ * mt_spareparts row it decrements when the repair is submitted — always set,
+ * because breakdown spares can only be chosen from the picker.
+ *
+ * The breakdown twin of [PmWoSpare]; kept separate because a breakdown is keyed by
+ * flag id and these rows never enter the offline sync queue.
+ */
+data class BreakdownSpare(
+    val id: String,
+    val flagId: String,
+    val partId: Int,
+    val spareName: String,
+    val machineName: String?,
+    val quantityUsed: Double,
+    val unit: String,
+    val notes: String?,
+    val loggedAt: Long,
+)
+
 data class BreakdownFlag(
     val id: String,
     val machineId: String,

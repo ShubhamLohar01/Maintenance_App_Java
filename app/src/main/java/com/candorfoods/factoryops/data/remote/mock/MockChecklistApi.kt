@@ -32,9 +32,9 @@ class MockChecklistApi : ChecklistApi {
         return ChecklistSubmitResponseDto(id = id)
     }
 
-    override suspend fun list(token: String): List<ChecklistRecordSummaryDto> {
+    override suspend fun list(token: String, status: String?): List<ChecklistRecordSummaryDto> {
         delay(300)
-        return emptyList()
+        return emptyList()   // nothing seeded, so the status allow-list has nothing to filter
     }
 
     override suspend fun detail(token: String, id: Int): ChecklistRecordDetailDto {

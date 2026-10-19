@@ -98,9 +98,12 @@ fun TransferFormScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     SectionTitle(stringResource(R.string.transfer_form_section_route))
                     Field(stringResource(R.string.transfer_form_date_label), state.date) { v -> viewModel.update { it.copy(date = v) } }
-                    WarehouseSwapRow(
+                    WarehouseRoutePicker(
                         from = state.fromWarehouse,
                         to = state.toWarehouse,
+                        sameWarehouseError = state.sameWarehouseError,
+                        onFrom = { v -> viewModel.update { it.copy(fromWarehouse = v) } },
+                        onTo = { v -> viewModel.update { it.copy(toWarehouse = v) } },
                         onSwap = { viewModel.swapWarehouses() },
                     )
                 }
@@ -185,31 +188,86 @@ private fun SectionTitle(text: String) {
     Text(text, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
 }
 
-/** From → To direction for the only two warehouses; the arrow swaps them. */
+/** From → To route: each warehouse is picked independently from the list; the arrow
+ *  swaps the current pair. An inline error shows when From and To are the same. */
 @Composable
-private fun WarehouseSwapRow(from: String, to: String, onSwap: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-    ) {
-        WarehouseBox(stringResource(R.string.transfer_form_warehouse_from), from, Modifier.weight(1f))
-        FilledTonalIconButton(onClick = onSwap) {
-            Icon(Icons.Default.SwapHoriz, contentDescription = stringResource(R.string.transfer_form_switch_warehouses))
+private fun WarehouseRoutePicker(
+    from: String,
+    to: String,
+    sameWarehouseError: Boolean,
+    onFrom: (String) -> Unit,
+    onTo: (String) -> Unit,
+    onSwap: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+        ) {
+            WarehouseDropdown(
+                label = stringResource(R.string.transfer_form_warehouse_from),
+                value = from,
+                onSelect = onFrom,
+                modifier = Modifier.weight(1f),
+            )
+            FilledTonalIconButton(onClick = onSwap) {
+                Icon(Icons.Default.SwapHoriz, contentDescription = stringResource(R.string.transfer_form_switch_warehouses))
+            }
+            WarehouseDropdown(
+                label = stringResource(R.string.transfer_form_warehouse_to),
+                value = to,
+                onSelect = onTo,
+                modifier = Modifier.weight(1f),
+            )
         }
-        WarehouseBox(stringResource(R.string.transfer_form_warehouse_to), to, Modifier.weight(1f))
+        if (sameWarehouseError) {
+            Text(
+                stringResource(R.string.transfer_form_same_warehouse_error),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
     }
 }
 
+/** Read-only warehouse picker from [TransferFormViewModel.WAREHOUSES]. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun WarehouseBox(label: String, value: String, modifier: Modifier = Modifier) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = {},
-        readOnly = true,
-        label = { Text(label) },
+private fun WarehouseDropdown(
+    label: String,
+    value: String,
+    onSelect: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
         modifier = modifier,
-    )
+    ) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(),
+        )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            TransferFormViewModel.WAREHOUSES.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option) },
+                    onClick = {
+                        onSelect(option)
+                        expanded = false
+                    },
+                )
+            }
+        }
+    }
 }
 
 @Composable

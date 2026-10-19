@@ -15,8 +15,12 @@ interface ChecklistRepository {
      */
     suspend fun save(submission: ChecklistSubmission, id: Int?): Result<Int>
 
-    /** List stored preventive checklists (newest first). */
-    suspend fun list(): Result<List<ChecklistRecordSummary>>
+    /**
+     * List stored preventive checklists (newest first). [status] is an optional
+     * comma-separated allow-list — pass "SUBMITTED" for read-only views that must not
+     * show DRAFTs; null (default) keeps every status, as the authoring screens expect.
+     */
+    suspend fun list(status: String? = null): Result<List<ChecklistRecordSummary>>
 
     /** Fetch one stored checklist with all its checkpoint rows. */
     suspend fun detail(id: Int): Result<ChecklistRecordDetail>

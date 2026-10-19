@@ -3,10 +3,10 @@ package com.candorfoods.factoryops.presentation.head.reports
 /**
  * Converts a Head Reports filter's UI plant value to the backend's short plant-id form.
  *
- * `PlantFilterChips` (presentation/utilities/UtilityComponents.kt) emits the hyphenated
- * form used by the Reports endpoints ("A-185"/"W-202", null = All). `BreakdownRepository`'s
- * history endpoints expect the short form used everywhere else in the API ("A185"/"W202",
- * "both" = All). Shared here so every Head Reports screen that mixes the two conventions
- * converts the same way.
+ * Since 2026-08-29 there is only ONE spelling: `PlantFilterChips` emits "A185"/"W202"
+ * (null = All) and every endpoint takes that same compact form, so the hyphen-strip is
+ * now a no-op kept for safety — a chip value or saved filter written by an older build
+ * still converts correctly. The one thing this still does is map null -> "both", which
+ * is what the history endpoints expect for All.
  */
 fun String?.toBackendPlantId(): String = if (this == null) "both" else replace("-", "")

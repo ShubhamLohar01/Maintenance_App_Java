@@ -34,6 +34,10 @@ data class QcTicketDetailUiState(
     val isHeldByOther: Boolean
         get() = flag?.qcAcknowledgedBy != null && flag.qcAcknowledgedBy != currentUser?.id
     val isQcHead: Boolean get() = currentUser?.role == UserRole.QC_HEAD
+
+    /** Only the QC role acts on QC; every other role (Supervisor/Head/…) is view-only. */
+    val isQcRole: Boolean
+        get() = currentUser?.role == UserRole.QC_HEAD || currentUser?.role == UserRole.QC_MEMBER
 }
 
 sealed interface QcTicketDetailUiEvent {
@@ -89,6 +93,7 @@ class QcTicketDetailViewModel @Inject constructor(
 
     fun onAcknowledgeForQc() {
         val state = _uiState.value
+        if (!state.isQcRole) return
         val user = state.currentUser ?: return
         val flag = state.flag ?: return
         viewModelScope.launch {
@@ -136,6 +141,7 @@ class QcTicketDetailViewModel @Inject constructor(
 
     fun onConfirmApprove() {
         val state = _uiState.value
+        if (!state.isQcRole) return
         val user = state.currentUser ?: return
         val flag = state.flag ?: return
 
@@ -164,6 +170,7 @@ class QcTicketDetailViewModel @Inject constructor(
 
     fun onConfirmDisapprove(reason: String) {
         val state = _uiState.value
+        if (!state.isQcRole) return
         val user = state.currentUser ?: return
         val flag = state.flag ?: return
         val trimmed = reason.trim()

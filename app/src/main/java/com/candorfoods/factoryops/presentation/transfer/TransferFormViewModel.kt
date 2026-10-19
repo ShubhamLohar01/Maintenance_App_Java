@@ -94,7 +94,7 @@ class TransferFormViewModel @Inject constructor(
 
     fun update(transform: (TransferFormState) -> TransferFormState) = _state.update(transform)
 
-    /** Flip the transfer direction — only two warehouses, so From/To just swap. */
+    /** Flip the transfer direction — swaps whatever From/To warehouses are selected. */
     fun swapWarehouses() = _state.update {
         it.copy(fromWarehouse = it.toWarehouse, toWarehouse = it.fromWarehouse)
     }
@@ -190,10 +190,12 @@ class TransferFormViewModel @Inject constructor(
     }
 
     companion object {
-        // Warehouse codes for transfer source/destination (only these two; user swaps direction).
+        // Warehouse codes for transfer source/destination. From/To are picked
+        // independently (dropdowns); the swap button just flips the current pair.
         val WAREHOUSES = listOf(
             "A185",
             "W202",
+            "A68",
         )
 
         val CONDITIONS = listOf(

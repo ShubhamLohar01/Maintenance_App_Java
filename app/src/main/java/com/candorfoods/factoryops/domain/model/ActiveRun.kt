@@ -12,5 +12,5 @@ data class ActiveRun(
     val operatorId: String?,        // who started it — null until backend supplies it
     val operatorName: String?,      // null until the live endpoint supplies it
     val startedAtEpochMs: Long,     // run start, epoch millis (UTC)
-    val building: String?,          // "W-202" | "A-185"; null if backend omits it
+    val building: String?,          // "W202" | "A185"; null if backend omits it
 )

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -114,6 +115,7 @@ fun SupervisorPmReviewScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
+                .imePadding()
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -176,6 +178,16 @@ fun SupervisorPmReviewScreen(
                         "Submitted by ${wo.assignedTechnicianName} ${wo.submittedAt?.let { DateTimeFormatter.formatRelative(it) }.orEmpty()}",
                         style = MaterialTheme.typography.bodySmall
                     )
+                    wo.overallResult?.takeIf { it.isNotBlank() }?.let { result ->
+                        val color = if (result.equals("PASS", true)) FactoryTheme.colors.statusRunning
+                                    else FactoryTheme.colors.statusStopped
+                        Text(
+                            "Machine result: ${result.uppercase()}",
+                            color = color,
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
                 }
             }
 
@@ -291,36 +303,8 @@ private fun ItemReviewCard(idx: Int, log: PmWoTaskLog) {
                 Text("$idx. ${log.title}", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
                 StatusPill(log.status)
             }
-            if (log.requiresMeasurement) {
-                val unit = log.measurementUnit?.let { " $it" }.orEmpty()
-                val rangeStr = when {
-                    log.measurementMin != null && log.measurementMax != null ->
-                        " (acceptable ${log.measurementMin}–${log.measurementMax}$unit)"
-                    else -> ""
-                }
-                val parsedOk = log.measurementValue?.let { v ->
-                    log.measurementMin?.let { v >= it } != false
-                        && log.measurementMax?.let { v <= it } != false
-                } ?: false
-                val color = if (parsedOk) FactoryTheme.colors.statusRunning else FactoryTheme.colors.statusStopped
-                Text(
-                    "Measured: ${log.measurementValue ?: "—"}$unit$rangeStr",
-                    color = color,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-            if (log.requiresPhoto && log.photoLocalPath != null) {
-                AsyncImage(
-                    model = File(log.photoLocalPath),
-                    contentDescription = "Photo",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp)
-                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
-                )
-            }
             if (!log.notes.isNullOrBlank()) {
-                Text("Notes: ${log.notes}", style = MaterialTheme.typography.bodySmall)
+                Text("Remarks: ${log.notes}", style = MaterialTheme.typography.bodySmall)
             }
         }
     }
@@ -329,8 +313,8 @@ private fun ItemReviewCard(idx: Int, log: PmWoTaskLog) {
 @Composable
 private fun StatusPill(status: PmTaskLogStatus) {
     val (label, color) = when (status) {
-        PmTaskLogStatus.PASS -> "PASS" to FactoryTheme.colors.statusRunning
-        PmTaskLogStatus.FAIL -> "FAIL" to FactoryTheme.colors.statusStopped
+        PmTaskLogStatus.PASS -> "GOOD" to FactoryTheme.colors.statusRunning
+        PmTaskLogStatus.FAIL -> "NOT GOOD" to FactoryTheme.colors.statusStopped
         PmTaskLogStatus.NOT_APPLICABLE -> "N/A" to FactoryTheme.colors.onSurfaceMuted
         PmTaskLogStatus.PENDING -> "PENDING" to FactoryTheme.colors.statusFlagged
     }

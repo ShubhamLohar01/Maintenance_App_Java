@@ -37,6 +37,10 @@ data class QcPmDetailUiState(
     val isHeldByOther: Boolean
         get() = workOrder?.qcAcknowledgedBy != null && workOrder.qcAcknowledgedBy != currentUser?.id
     val isQcHead: Boolean get() = currentUser?.role == UserRole.QC_HEAD
+
+    /** Only the QC role acts on QC; every other role (Supervisor/Head/…) is view-only. */
+    val isQcRole: Boolean
+        get() = currentUser?.role == UserRole.QC_HEAD || currentUser?.role == UserRole.QC_MEMBER
 }
 
 sealed interface QcPmDetailUiEvent {
@@ -70,6 +74,9 @@ class QcPmDetailViewModel @Inject constructor(
     private var cachedMachine: Machine? = null
 
     init {
+        // Best-effort: re-pull this WO so QC reviews the latest server state (supervisor
+        // approval, another QC's pickup) rather than a stale local copy.
+        viewModelScope.launch { runCatching { pmRepo.refreshWorkOrder(woId) } }
         viewModelScope.launch {
             getCurrentUser().collect { user ->
                 _uiState.update { it.copy(currentUser = user) }
@@ -92,6 +99,7 @@ class QcPmDetailViewModel @Inject constructor(
 
     fun onAcknowledgeForQc() {
         val state = _uiState.value
+        if (!state.isQcRole) return
         val user = state.currentUser ?: return
         val wo = state.workOrder ?: return
         viewModelScope.launch {
@@ -142,6 +150,7 @@ class QcPmDetailViewModel @Inject constructor(
 
     fun onApprove() {
         val state = _uiState.value
+        if (!state.isQcRole) return
         val user = state.currentUser ?: return
         val wo = state.workOrder ?: return
         val draft = state.checklist
@@ -173,6 +182,7 @@ class QcPmDetailViewModel @Inject constructor(
 
     fun onDisapprove(reason: String) {
         val state = _uiState.value
+        if (!state.isQcRole) return
         val user = state.currentUser ?: return
         val wo = state.workOrder ?: return
         val draft = state.checklist

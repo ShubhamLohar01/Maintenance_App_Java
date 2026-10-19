@@ -55,6 +55,7 @@ class MockBreakdownApi : BreakdownApi {
         userId: RequestBody,
         userName: RequestBody,
         workDone: RequestBody,
+        spares: RequestBody,
         doneAt: RequestBody,
         afterPhoto: MultipartBody.Part?,
     ): QcUpdateResponseDto {

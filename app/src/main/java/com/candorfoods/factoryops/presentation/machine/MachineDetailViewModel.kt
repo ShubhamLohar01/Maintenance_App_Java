@@ -22,24 +22,11 @@ import com.candorfoods.factoryops.domain.usecase.energy.GetActiveRunsUseCase
 import com.candorfoods.factoryops.domain.usecase.energy.GetTodaysRunsUseCase
 import com.candorfoods.factoryops.domain.usecase.energy.StartProductionRunUseCase
 import com.candorfoods.factoryops.navigation.Screen
+import com.candorfoods.factoryops.presentation.common.components.AssetEditForm
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-
-/** Text-backed editable fields of an asset for the supervisor edit sheet. */
-data class AssetEditForm(
-    val building: String = "",
-    val assetName: String = "",
-    val category: String = "",
-    val subLocation: String = "",
-    val quantity: String = "",
-    val modelNo: String = "",
-    val serialNo: String = "",
-    val powerLoad: String = "",
-    val condition: String = "",
-    val remarks: String = "",
-)
 
 data class MachineDetailUiState(
     val asset: MtMachine?               = null,
@@ -97,6 +84,11 @@ data class MachineDetailUiState(
     val underBreakdown: Boolean get() = activeBreakdown != null
     /** This asset has been shut down (soft-decommissioned) — locked for all users. */
     val isShutDown: Boolean get() = asset?.isShutDown() == true
+    /**
+     * A supervisor's active schedule owns this machine: it records automatically, so the
+     * operator has no manual production start/stop on it (single control path per machine).
+     */
+    val isScheduleLocked: Boolean get() = asset?.scheduleLocked == true
     /** Supervisor / Admin / Head may shut down or restore a machine. */
     val canToggleShutDown: Boolean
         get() = currentUser?.role == UserRole.SUPERVISOR ||
@@ -182,8 +174,8 @@ class MachineDetailViewModel @Inject constructor(
     }
 
     fun onStartClicked() {
-        // Guard: a machine under breakdown or shut down can't start.
-        if (_uiState.value.underBreakdown || _uiState.value.isShutDown) return
+        // Guard: a machine under breakdown, shut down, or under a supervisor schedule can't start.
+        if (_uiState.value.underBreakdown || _uiState.value.isShutDown || _uiState.value.isScheduleLocked) return
         _uiState.update { it.copy(showStartDialog = true) }
     }
     fun onStopClicked()  = _uiState.update { it.copy(showStopDialog = true) }
@@ -230,7 +222,7 @@ class MachineDetailViewModel @Inject constructor(
     /** Resume from recess: open a new segment, keeping the banked active time. One-tap. */
     fun onResumeClicked() {
         val asset = _uiState.value.asset ?: return
-        if (_uiState.value.isShutDown) return
+        if (_uiState.value.isShutDown || _uiState.value.isScheduleLocked) return
         if (!_uiState.value.onRecess) return
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }

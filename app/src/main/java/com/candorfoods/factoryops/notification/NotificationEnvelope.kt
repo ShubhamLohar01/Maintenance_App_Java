@@ -23,8 +23,11 @@ object NotificationEnvelope {
         val tier = data["tier"]?.toIntOrNull() ?: 0
         val title = data["title"] ?: return null
         val body = data["body"] ?: return null
-        val deepLinkExtraKey = data["deepLinkExtraKey"]
-            ?: if (category == ReminderCategory.BREAKDOWN) "ticket_id" else "pm_wo_id"
+        val deepLinkExtraKey = data["deepLinkExtraKey"] ?: when (category) {
+            ReminderCategory.BREAKDOWN -> "ticket_id"
+            ReminderCategory.TRANSFER -> "transfer_id"
+            ReminderCategory.PM -> "pm_wo_id"
+        }
         return Reminder(
             type = type, category = category, entityId = entityId,
             recipientRole = role, tier = tier, title = title, body = body,

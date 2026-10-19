@@ -3,9 +3,6 @@ package com.candorfoods.factoryops.presentation.machine
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Block
@@ -17,7 +14,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -27,6 +23,7 @@ import com.candorfoods.factoryops.domain.model.BreakdownStatus
 import com.candorfoods.factoryops.domain.model.Severity
 import com.candorfoods.factoryops.domain.model.MtMachine
 import com.candorfoods.factoryops.domain.model.ProductionRun
+import com.candorfoods.factoryops.presentation.common.components.AssetEditSheet
 import com.candorfoods.factoryops.presentation.common.components.ConfirmDialog
 import com.candorfoods.factoryops.presentation.common.components.FactoryCard
 import com.candorfoods.factoryops.presentation.common.components.LoadingOverlay
@@ -104,7 +101,7 @@ fun MachineDetailScreen(
     }
 
     if (uiState.showEditSheet) {
-        EditAssetSheet(
+        AssetEditSheet(
             form     = uiState.editForm,
             isSaving = uiState.isSavingEdit,
             error    = uiState.editError,
@@ -192,6 +189,24 @@ fun MachineDetailScreen(
                     if (uiState.isOperator) {
                         item {
                             when {
+                                // Under a supervisor schedule → records automatically; no operator run.
+                                uiState.isScheduleLocked -> Column(
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    PrimaryButton(
+                                        text = stringResource(R.string.machine_action_production_start),
+                                        onClick = {},
+                                        enabled = false,
+                                        style = PrimaryButtonStyle.Success,
+                                        size = PrimaryButtonSize.Hero,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                    Text(
+                                        stringResource(R.string.machine_schedule_locked_note),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                    )
+                                }
                                 // Paused → Resume the run or end the shift.
                                 uiState.onRecess -> Column(
                                     verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -521,75 +536,3 @@ private fun RunRowItem(run: ProductionRun) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun EditAssetSheet(
-    form: AssetEditForm,
-    isSaving: Boolean,
-    error: String?,
-    onChange: ((AssetEditForm) -> AssetEditForm) -> Unit,
-    onSave: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(
-                stringResource(R.string.machine_edit_title),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-            )
-            EditField(stringResource(R.string.machine_field_asset_name), form.assetName) { v -> onChange { it.copy(assetName = v) } }
-            EditField(stringResource(R.string.machine_field_building), form.building) { v -> onChange { it.copy(building = v) } }
-            EditField(stringResource(R.string.machine_field_category), form.category) { v -> onChange { it.copy(category = v) } }
-            EditField(stringResource(R.string.machine_field_sub_location), form.subLocation) { v -> onChange { it.copy(subLocation = v) } }
-            EditField(stringResource(R.string.machine_field_quantity), form.quantity, keyboardType = KeyboardType.Number) { v ->
-                onChange { it.copy(quantity = v.filter(Char::isDigit)) }
-            }
-            EditField(stringResource(R.string.machine_field_model_no), form.modelNo) { v -> onChange { it.copy(modelNo = v) } }
-            EditField(stringResource(R.string.machine_field_serial_no), form.serialNo) { v -> onChange { it.copy(serialNo = v) } }
-            EditField(stringResource(R.string.machine_field_power_load), form.powerLoad) { v -> onChange { it.copy(powerLoad = v) } }
-            EditField(stringResource(R.string.machine_field_condition), form.condition) { v -> onChange { it.copy(condition = v) } }
-            EditField(stringResource(R.string.machine_field_remarks), form.remarks, singleLine = false) { v -> onChange { it.copy(remarks = v) } }
-            if (error != null) {
-                Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-            }
-            PrimaryButton(
-                text = if (isSaving) stringResource(R.string.machine_action_saving) else stringResource(R.string.machine_action_save_changes),
-                onClick = onSave,
-                enabled = !isSaving,
-                style = PrimaryButtonStyle.Success,
-                size = PrimaryButtonSize.Hero,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(Modifier.height(8.dp))
-        }
-    }
-}
-
-@Composable
-private fun EditField(
-    label: String,
-    value: String,
-    singleLine: Boolean = true,
-    keyboardType: KeyboardType = KeyboardType.Text,
-    onChange: (String) -> Unit,
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onChange,
-        label = { Text(label) },
-        singleLine = singleLine,
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        modifier = Modifier.fillMaxWidth(),
-    )
-}

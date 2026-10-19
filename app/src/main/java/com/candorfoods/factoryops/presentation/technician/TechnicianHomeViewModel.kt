@@ -6,14 +6,12 @@ import com.candorfoods.factoryops.domain.model.BreakdownFlag
 import com.candorfoods.factoryops.domain.model.Criticality
 import com.candorfoods.factoryops.domain.model.Machine
 import com.candorfoods.factoryops.domain.model.MtMachine
-import com.candorfoods.factoryops.domain.model.PmWoStatus
 import com.candorfoods.factoryops.domain.model.Result
 import com.candorfoods.factoryops.domain.model.Severity
 import com.candorfoods.factoryops.domain.model.User
 import com.candorfoods.factoryops.domain.repository.BreakdownRepository
 import com.candorfoods.factoryops.domain.repository.MachineRepository
 import com.candorfoods.factoryops.domain.repository.MtMachineRepository
-import com.candorfoods.factoryops.domain.repository.PmWorkOrderRepository
 import com.candorfoods.factoryops.domain.usecase.auth.GetCurrentUserUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -26,8 +24,7 @@ data class TechnicianHomeUiState(
     val isLoading: Boolean = true,
     val openTickets: List<TicketRowUiModel> = emptyList(),
     val activeTickets: List<TicketRowUiModel> = emptyList(),
-    val resolvedTickets: List<TicketRowUiModel> = emptyList(),
-    val pmTasks: List<PmTaskRowUiModel> = emptyList()
+    val resolvedTickets: List<TicketRowUiModel> = emptyList()
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -36,8 +33,7 @@ class TechnicianHomeViewModel @Inject constructor(
     private val getCurrentUser: GetCurrentUserUseCase,
     private val breakdownRepository: BreakdownRepository,
     private val machineRepository: MachineRepository,
-    private val mtMachineRepository: MtMachineRepository,
-    private val pmWoRepository: PmWorkOrderRepository
+    private val mtMachineRepository: MtMachineRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TechnicianHomeUiState())
@@ -84,7 +80,7 @@ class TechnicianHomeViewModel @Inject constructor(
         }
         viewModelScope.launch {
             combine(
-                breakdownRepository.observeAcknowledgedFlagsByUser(user.id),
+                breakdownRepository.observeAcknowledgedFlagsByUser(user.id, user.name),
                 machines,
                 assets
             ) { flags, machineMap, assetMap -> flags.toTicketRows(machineMap, assetMap) }
@@ -99,22 +95,8 @@ class TechnicianHomeViewModel @Inject constructor(
             ) { flags, machineMap, assetMap -> flags.toTicketRows(machineMap, assetMap) }
                 .collect { rows -> _uiState.update { it.copy(resolvedTickets = rows) } }
         }
-
-        // Phase 2C-2 — PM tasks assigned to this technician (NOTIFIED / ACKNOWLEDGED / IN_PROGRESS).
-        // SUBMITTED disappears from this tab — it's in the supervisor queue at that point.
-        viewModelScope.launch {
-            val activePmStatuses = listOf(
-                PmWoStatus.NOTIFIED,
-                PmWoStatus.ACKNOWLEDGED,
-                PmWoStatus.IN_PROGRESS
-            )
-            combine(
-                pmWoRepository.observeForTechnician(user.id, activePmStatuses),
-                machines,
-                assets
-            ) { wos, machineMap, assetMap -> wos.toPmRows(machineMap, assetMap) }
-                .collect { rows -> _uiState.update { it.copy(pmTasks = rows) } }
-        }
+        // PM tasks now live on their own screen (TechnicianPmScreen), reached from the
+        // home dashboard "PM Tasks" tile — no longer a tab here.
     }
 
     private fun List<BreakdownFlag>.toTicketRows(
@@ -139,22 +121,4 @@ class TechnicianHomeViewModel @Inject constructor(
         Severity.MAJOR    -> Criticality.B
         Severity.MINOR    -> Criticality.C
     }
-
-    private fun List<com.candorfoods.factoryops.domain.model.PmWorkOrder>.toPmRows(
-        machineMap: Map<String, Machine>,
-        assetMap: Map<String, MtMachine>,
-    ): List<PmTaskRowUiModel> =
-        // machineId is an asset_id: resolve from the register first, then the legacy
-        // table, then the WO's snapshot name — never drop the task.
-        map { wo ->
-            val asset = assetMap[wo.machineId]
-            val legacy = machineMap[wo.machineId]
-            PmTaskRowUiModel(
-                wo = wo,
-                machineName = asset?.assetName ?: legacy?.name ?: wo.templateName,
-                machineCode = asset?.assetId ?: legacy?.code ?: wo.machineId,
-                machineLocation = asset?.subLocation ?: legacy?.location ?: "",
-                criticality = legacy?.criticality ?: Criticality.C
-            )
-        }.sortedBy { it.wo.scheduledDate }
 }

@@ -16,7 +16,13 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class PmPlanDto(
+    /** Server-assigned on create ('PLANAA001'…; legacy rows keep 'plan-<uuid>'). Any id
+     *  sent in a POST body is ignored — adopt the id from the response. */
     val id: String,
+    /** The app's locally-generated uuid, sent on create as the idempotency key — a
+     *  lost-response retry with the same client_ref updates instead of duplicating.
+     *  Echoed back in responses so the app can reconcile its provisional row. */
+    @SerialName("client_ref")             val clientRef: String? = null,
     @SerialName("machine_id")             val machineId: String,
     @SerialName("machine_name")           val machineName: String,
     val description: String = "",
@@ -37,13 +43,7 @@ data class PmPlanItemDto(
     val id: String,
     @SerialName("order_index")          val orderIndex: Int = 0,
     val title: String = "",
-    val description: String = "",
-    @SerialName("expected_result")      val expectedResult: String = "",
-    @SerialName("requires_photo")       val requiresPhoto: Boolean = false,
-    @SerialName("requires_measurement") val requiresMeasurement: Boolean = false,
-    @SerialName("measurement_unit")     val measurementUnit: String? = null,
-    @SerialName("measurement_min")      val measurementMin: Double? = null,
-    @SerialName("measurement_max")      val measurementMax: Double? = null,
+    val description: String = "",   // "Remarks" (supervisor guidance; was "instruction")
 )
 
 // ─── Read: backend plan → the app's (PmPlan, PmTemplate) pair ────────────────
@@ -88,18 +88,13 @@ fun PmPlanItemDto.toDomain(templateId: String) = PmTemplateItem(
     orderIndex = orderIndex,
     title = title,
     description = description,
-    expectedResult = expectedResult,
-    requiresPhoto = requiresPhoto,
-    requiresMeasurement = requiresMeasurement,
-    measurementUnit = measurementUnit,
-    measurementMin = measurementMin,
-    measurementMax = measurementMax,
 )
 
 // ─── Write: the app's plan + template → one backend plan payload ─────────────
 
-fun pmPlanDto(plan: PmPlan, template: PmTemplate): PmPlanDto = PmPlanDto(
+fun pmPlanDto(plan: PmPlan, template: PmTemplate, clientRef: String? = null): PmPlanDto = PmPlanDto(
     id = plan.id,
+    clientRef = clientRef,
     machineId = plan.machineId,
     machineName = template.name,
     description = template.description,
@@ -120,10 +115,4 @@ fun PmTemplateItem.toDto() = PmPlanItemDto(
     orderIndex = orderIndex,
     title = title,
     description = description,
-    expectedResult = expectedResult,
-    requiresPhoto = requiresPhoto,
-    requiresMeasurement = requiresMeasurement,
-    measurementUnit = measurementUnit,
-    measurementMin = measurementMin,
-    measurementMax = measurementMax,
 )

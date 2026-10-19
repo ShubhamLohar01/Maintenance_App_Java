@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,6 +24,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.candorfoods.factoryops.R
 import com.candorfoods.factoryops.domain.model.ChecklistRecordSummary
 import com.candorfoods.factoryops.presentation.common.components.FactoryCard
+import com.candorfoods.factoryops.util.PeriodLabel
 import com.candorfoods.factoryops.presentation.common.theme.Spacing
 import com.candorfoods.factoryops.util.pdf.PdfDownloader
 
@@ -109,6 +111,7 @@ fun PreventiveListScreen(
                             onClick = {
                                 if (!readOnly && record.isDraft) onDraft(record.id) else onFinal(record.id)
                             },
+                            onView = { onFinal(record.id) },
                             onDownload = { viewModel.exportPdf(record.id) },
                         )
                     }
@@ -123,12 +126,17 @@ private fun RecordCard(
     record: ChecklistRecordSummary,
     isExporting: Boolean,
     onClick: () -> Unit,
+    onView: () -> Unit,
     onDownload: () -> Unit,
 ) {
     val typeLabel = when (record.formType.uppercase()) {
-        "MONTHLY"   -> stringResource(R.string.preventive_type_monthly)
-        "QUARTERLY" -> stringResource(R.string.preventive_type_quarterly)
-        else        -> record.formType
+        "MONTHLY"        -> stringResource(R.string.preventive_type_monthly)
+        "QUARTERLY"      -> stringResource(R.string.preventive_type_quarterly)
+        // A-185's own form. Without these its records rendered the raw wire value,
+        // e.g. "A185_MONTHLY".
+        "A185_MONTHLY"   -> stringResource(R.string.preventive_type_a185_monthly)
+        "A185_QUARTERLY" -> stringResource(R.string.preventive_type_a185_quarterly)
+        else             -> record.formType
     }
     FactoryCard(modifier = Modifier.fillMaxWidth(), onClick = onClick) {
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
@@ -144,11 +152,39 @@ private fun RecordCard(
                     )
                 }
             }
+            // The PERIOD, not the signature date. An auto-generated record leaves
+            // checklist_date empty on purpose (nobody signed it), which used to
+            // render "Date · #19" with a hole where the date should be.
             Text(
-                stringResource(R.string.preventive_list_date_line, record.checklistDate, record.id),
+                stringResource(
+                    R.string.preventive_list_period_line,
+                    PeriodLabel.of(
+                        record.checklistDateFrom, record.checklistDateTo, record.checklistDate,
+                    ),
+                    record.docNo,
+                    record.id,
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
             )
+            if (record.hasCounts) {
+                Text(
+                    if (record.remainingCount == 0) {
+                        stringResource(
+                            R.string.preventive_list_progress_done,
+                            record.filledCount, record.totalCount,
+                        )
+                    } else {
+                        stringResource(
+                            R.string.preventive_list_progress,
+                            record.filledCount, record.totalCount, record.remainingCount,
+                        )
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (record.remainingCount == 0) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                )
+            }
             if (record.doneBy.isNotBlank()) {
                 Text(
                     stringResource(R.string.preventive_done_by_value, record.doneBy),
@@ -156,17 +192,32 @@ private fun RecordCard(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 )
             }
-            OutlinedButton(
-                onClick = onDownload,
-                enabled = !isExporting,
+            Row(
                 modifier = Modifier.align(Alignment.End),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             ) {
-                if (isExporting) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                } else {
-                    Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                // Always the read-only record view, even for a draft. Tapping the
+                // card still opens the editable form, so this adds a way in
+                // without taking one away.
+                OutlinedButton(onClick = onView) {
+                    Icon(
+                        Icons.Default.Visibility, contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
                     Spacer(Modifier.width(Spacing.sm))
-                    Text(stringResource(R.string.preventive_download))
+                    Text(stringResource(R.string.preventive_view))
+                }
+                OutlinedButton(onClick = onDownload, enabled = !isExporting) {
+                    if (isExporting) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    } else {
+                        Icon(
+                            Icons.Default.Download, contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.width(Spacing.sm))
+                        Text(stringResource(R.string.preventive_download))
+                    }
                 }
             }
         }

@@ -64,6 +64,9 @@ interface BreakdownApi {
         @Part("user_id") userId: RequestBody,
         @Part("user_name") userName: RequestBody,
         @Part("work_done") workDone: RequestBody,
+        // JSON array of the spares consumed. The server decrements each one's
+        // stock and logs it as 'Breakdown'. An empty array means none were used.
+        @Part("spares") spares: RequestBody,
         @Part("done_at") doneAt: RequestBody,
         @Part afterPhoto: MultipartBody.Part?,
     ): QcUpdateResponseDto

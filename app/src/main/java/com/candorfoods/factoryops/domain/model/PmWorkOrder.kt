@@ -33,6 +33,8 @@ data class PmWorkOrder(
     val qcChecklistJson: String?,
     val closedAt: Long?,
     val finalNotes: String?,
+    /** Machine-level PASS/FAIL the technician picks on the summary screen before submit. */
+    val overallResult: String?,
     val escalationTier: Int,                   // 0..4 — Phase 2C-4
     val taskLogs: List<PmWoTaskLog> = emptyList(),
     val spares: List<PmWoSpare> = emptyList()
@@ -45,26 +47,25 @@ data class PmWoTaskLog(
     val orderIndex: Int,
     // snapshot of template item at WO generation time
     val title: String,
-    val description: String,
-    val expectedResult: String,
-    val requiresPhoto: Boolean,
-    val requiresMeasurement: Boolean,
-    val measurementUnit: String?,
-    val measurementMin: Double?,
-    val measurementMax: Double?,
-    // execution data
+    val description: String,                 // "Remarks" guidance snapshot from the plan item
+    // execution data — status carries the "Is good?" verdict (PASS = good, FAIL = not good)
     val status: PmTaskLogStatus,
-    val measurementValue: Double?,
-    val photoLocalPath: String?,
-    val notes: String?,
+    val notes: String?,                      // technician remark; required when status = FAIL
     val completedAt: Long?,
     val completedBy: String?
 )
 
+/**
+ * One spare consumed by a work order. [partId] is the stock row (mt_spareparts)
+ * it decrements when the PM is submitted; it is null only for entries logged before
+ * the picker shipped, which are free text and move no stock.
+ */
 data class PmWoSpare(
     val id: String,
     val woId: String,
+    val partId: Int? = null,
     val spareName: String,
+    val machineName: String? = null,
     val quantityUsed: Double,
     val unit: String,
     val notes: String?,

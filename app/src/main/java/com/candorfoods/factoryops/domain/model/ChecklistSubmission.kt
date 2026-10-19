@@ -14,6 +14,9 @@ data class ChecklistItemSubmission(
     val equipment: String,
     val srNo: Int?,
     val equipmentDate: String,   // ISO yyyy-MM-dd — the date this equipment was checked
+    // Quarterly forms date each machine over a range; this is its end. Blank on
+    // monthly forms, where equipmentDate is the single date.
+    val equipmentDateTo: String = "",
     val checkpoint: String,
     val status: CheckpointStatus,
     val remarks: String,
@@ -28,7 +31,7 @@ data class ChecklistSubmission(
     val formType: String,
     val docNo: String,
     val status: ChecklistStatus,  // DRAFT (partial save) | SUBMITTED (final)
-    val checklistDate: String,   // ISO yyyy-MM-dd
+    val checklistDate: String,   // ISO yyyy-MM-dd - the date the sheet was signed
     val doneBy: String,
     val checkedBy: String,
     val verifiedBy: String,

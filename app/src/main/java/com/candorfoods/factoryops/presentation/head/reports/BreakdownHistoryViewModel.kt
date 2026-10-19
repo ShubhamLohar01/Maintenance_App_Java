@@ -16,7 +16,7 @@ import javax.inject.Inject
 
 data class BreakdownHistoryUiState(
     val isLoading: Boolean = true,
-    val plant: String? = null,   // hyphenated UI form, e.g. "A-185"; null = Both
+    val plant: String? = null,   // compact UI form, e.g. "A185"; null = Both
     val status: String? = null,  // "OPEN" / "CLOSED"; null = All
     val from: String? = null,    // null = server default
     val to: String? = null,      // null = server default

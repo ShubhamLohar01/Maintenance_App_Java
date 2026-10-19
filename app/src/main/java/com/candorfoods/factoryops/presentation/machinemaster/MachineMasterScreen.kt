@@ -1,27 +1,24 @@
 package com.candorfoods.factoryops.presentation.machinemaster
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.candorfoods.factoryops.domain.model.MachineCategory
 import com.candorfoods.factoryops.domain.model.MtMachine
 import com.candorfoods.factoryops.presentation.common.components.FactoryCard
 import com.candorfoods.factoryops.presentation.common.components.PrimaryButton
@@ -33,6 +30,7 @@ import com.candorfoods.factoryops.presentation.common.theme.Spacing
 @Composable
 fun MachineMasterScreen(
     onBack: () -> Unit,
+    onMachineClick: (String) -> Unit,
     viewModel: MachineMasterViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -64,7 +62,11 @@ fun MachineMasterScreen(
                     onRetry = viewModel::onRetry,
                     modifier = Modifier.align(Alignment.Center).padding(Spacing.xl),
                 )
-                else -> Content(state = uiState, viewModel = viewModel)
+                else -> Content(
+                    state = uiState,
+                    viewModel = viewModel,
+                    onMachineClick = onMachineClick,
+                )
             }
         }
     }
@@ -81,211 +83,160 @@ private fun ErrorBlock(message: String, onRetry: () -> Unit, modifier: Modifier 
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun Content(state: MachineMasterUiState, viewModel: MachineMasterViewModel) {
+private fun Content(
+    state: MachineMasterUiState,
+    viewModel: MachineMasterViewModel,
+    onMachineClick: (String) -> Unit,
+) {
     Column(modifier = Modifier.fillMaxSize()) {
-        FilterBar(
-            buildings           = state.buildings,
-            locations           = state.locations,
-            subCategories       = state.subCategories,
-            selectedBuilding    = state.selectedBuilding,
-            selectedLocation    = state.selectedLocation,
-            selectedSubCategory = state.selectedSubCategory,
-            onBuildingSelect    = viewModel::onBuildingSelected,
-            onLocationSelect    = viewModel::onLocationSelected,
-            onSubCategorySelect = viewModel::onSubCategorySelected,
+        // Warehouse capsule — scope the register to one building (or Both). Shown when 2+ exist.
+        if (state.buildings.size >= 2) {
+            val options = listOf<String?>(null) + state.buildings
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = Spacing.base, vertical = Spacing.xs),
+            ) {
+                options.forEachIndexed { index, building ->
+                    SegmentedButton(
+                        selected = state.selectedBuilding == building,
+                        onClick = { viewModel.onBuildingSelected(building) },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                    ) { Text(building ?: "Both") }
+                }
+            }
+        }
+
+        OutlinedTextField(
+            value = state.searchQuery,
+            onValueChange = viewModel::onSearchChange,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.base, vertical = Spacing.xs),
+            placeholder = { Text("Search machines…") },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            trailingIcon = {
+                if (state.searchQuery.isNotEmpty()) {
+                    IconButton(onClick = { viewModel.onSearchChange("") }) {
+                        Icon(Icons.Default.Close, contentDescription = "Clear search")
+                    }
+                }
+            },
+            singleLine = true,
         )
 
-        if (state.rows.isEmpty()) {
+        // Floor filter — scoped to the chosen warehouse; "All" clears it.
+        if (state.floors.isNotEmpty()) {
+            FloorFilterDropdown(
+                value = state.selectedFloor,
+                options = state.floors,
+                onSelect = viewModel::onFloorSelected,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = Spacing.base, vertical = Spacing.xs),
+            )
+        }
+
+        if (state.categories.isNotEmpty()) {
+            val selectedIndex = state.selectedCategory
+                ?.let { state.categories.indexOf(it) }?.takeIf { it >= 0 }?.plus(1) ?: 0
+            ScrollableTabRow(
+                selectedTabIndex = selectedIndex,
+                edgePadding = Spacing.base,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Tab(
+                    selected = selectedIndex == 0,
+                    onClick = { viewModel.onCategorySelected(null) },
+                    text = { Text("All") },
+                )
+                state.categories.forEach { category ->
+                    Tab(
+                        selected = state.selectedCategory == category,
+                        onClick = { viewModel.onCategorySelected(category) },
+                        text = { Text(category) },
+                    )
+                }
+            }
+        }
+
+        val items = state.items
+        if (items.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    "No assets in the register",
+                    "No machines match your filters.",
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 )
             }
-            return@Column
-        }
-
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                start = Spacing.base, end = Spacing.base, bottom = Spacing.base,
-            ),
-            verticalArrangement = Arrangement.spacedBy(Spacing.md),
-        ) {
-            state.sections.forEach { (category, rows) ->
-                val expanded = state.isExpanded(category)
-
-                stickyHeader(key = "header-${category.name}") {
-                    SectionHeader(
-                        category = category,
-                        count = rows.size,
-                        expanded = expanded,
-                        onToggle = { viewModel.onToggleSection(category) },
-                    )
-                }
-
-                if (expanded) {
-                    if (rows.isEmpty()) {
-                        item(key = "empty-${category.name}") {
-                            Text(
-                                "No matches in this section",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                                modifier = Modifier.padding(vertical = Spacing.md),
-                            )
-                        }
-                    } else {
-                        items(rows, key = { it.assetId }) { row ->
-                            MtMachineRow(machine = row)
-                        }
+        } else {
+            // Category-wise segregation: show a header per category only when the user
+            // hasn't drilled into a single category tab.
+            val grouped = state.selectedCategory == null
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(Spacing.base),
+                verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+            ) {
+                itemsIndexed(items, key = { _, it -> it.assetId }) { index, machine ->
+                    val prev = items.getOrNull(index - 1)
+                    if (grouped && (prev == null || !prev.category.equals(machine.category, ignoreCase = true))) {
+                        val label = machine.category.ifBlank { "Uncategorised" }
+                        GroupHeader(label, items.count { it.category.equals(machine.category, ignoreCase = true) })
                     }
+                    MtMachineRow(machine = machine, onClick = { onMachineClick(machine.assetId) })
                 }
             }
         }
     }
 }
 
-// ---- Filter bar -----------------------------------------------------------
-
+/** Read-only floor filter; the first entry "All floors" clears the filter (null). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FilterBar(
-    buildings: List<String>,
-    locations: List<String>,
-    subCategories: List<String>,
-    selectedBuilding: String?,
-    selectedLocation: String?,
-    selectedSubCategory: String?,
-    onBuildingSelect: (String?) -> Unit,
-    onLocationSelect: (String?) -> Unit,
-    onSubCategorySelect: (String?) -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = Spacing.base, vertical = Spacing.sm),
-        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-        ) {
-            FilterDropdown(
-                modifier = Modifier.weight(1f),
-                label    = "Building",
-                options  = listOf<String?>(null) + buildings,
-                selected = selectedBuilding,
-                display  = { it ?: "All buildings" },
-                onSelect = onBuildingSelect,
-            )
-            FilterDropdown(
-                modifier = Modifier.weight(1f),
-                label    = "Location",
-                options  = listOf<String?>(null) + locations,
-                selected = selectedLocation,
-                display  = { it ?: "All locations" },
-                onSelect = onLocationSelect,
-            )
-        }
-
-        FilterDropdown(
-            modifier = Modifier.fillMaxWidth(),
-            label    = "Sub-category",
-            options  = listOf<String?>(null) + subCategories,
-            selected = selectedSubCategory,
-            display  = { it ?: "All sub-categories" },
-            onSelect = onSubCategorySelect,
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun <T> FilterDropdown(
-    label: String,
-    options: List<T>,
-    selected: T,
-    display: (T) -> String,
-    onSelect: (T) -> Unit,
+private fun FloorFilterDropdown(
+    value: String?,
+    options: List<String>,
+    onSelect: (String?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
-        modifier = modifier,
-    ) {
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }, modifier = modifier) {
         OutlinedTextField(
-            value = display(selected),
+            value = value ?: "All floors",
             onValueChange = {},
             readOnly = true,
-            label = { Text(label) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier.menuAnchor().fillMaxWidth(),
+            label = { Text("Floor") },
             singleLine = true,
+            trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
+            modifier = Modifier
+                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth(),
         )
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(text = { Text("All floors") }, onClick = { onSelect(null); expanded = false })
             options.forEach { opt ->
-                DropdownMenuItem(
-                    text = { Text(display(opt)) },
-                    onClick = {
-                        onSelect(opt)
-                        expanded = false
-                    },
-                )
+                DropdownMenuItem(text = { Text(opt) }, onClick = { onSelect(opt); expanded = false })
             }
         }
     }
 }
 
-// ---- Section header -------------------------------------------------------
-
 @Composable
-private fun SectionHeader(
-    category: MachineCategory,
-    count: Int,
-    expanded: Boolean,
-    onToggle: () -> Unit,
-) {
-    val label = when (category) {
-        MachineCategory.PRODUCTION -> "Production"
-        MachineCategory.OTHERS     -> "Others"
-    }
-    val rotation by animateFloatAsState(
-        targetValue = if (expanded) 180f else 0f,
-        animationSpec = tween(200),
-        label = "SectionChevron",
+private fun GroupHeader(label: String, count: Int) {
+    Text(
+        "${label.uppercase()} ($count)",
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+        modifier = Modifier.padding(top = Spacing.sm),
     )
-    // Solid background so sticky-headers don't show list rows bleeding through.
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
-            .padding(vertical = Spacing.sm),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            "$label  ($count)",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.weight(1f),
-        )
-        IconButton(onClick = onToggle) {
-            Icon(
-                imageVector = Icons.Default.ExpandMore,
-                contentDescription = if (expanded) "Collapse" else "Expand",
-                modifier = Modifier.rotate(rotation),
-            )
-        }
-    }
 }
 
 // ---- Row card -------------------------------------------------------------
 
 @Composable
-private fun MtMachineRow(machine: MtMachine) {
+private fun MtMachineRow(machine: MtMachine, onClick: () -> Unit) {
     val mutedColor = FactoryTheme.colors.onSurfaceMuted
     val locationText = listOf(machine.building, machine.subLocation)
         .filter { it.isNotBlank() }
@@ -294,11 +245,11 @@ private fun MtMachineRow(machine: MtMachine) {
     val powerText = machine.ratedKw?.let { "%.2f kW".format(it) }
         ?: machine.powerLoadRaw
         ?: "—"
-    FactoryCard(modifier = Modifier.fillMaxWidth()) {
+    FactoryCard(modifier = Modifier.fillMaxWidth(), onClick = onClick) {
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    machine.assetName,
+                    machine.assetName.ifBlank { machine.assetId },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f),

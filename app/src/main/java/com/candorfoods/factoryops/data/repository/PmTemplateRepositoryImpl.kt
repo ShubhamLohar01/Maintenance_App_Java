@@ -104,13 +104,7 @@ class PmTemplateRepositoryImpl @Inject constructor(
         templateId = templateId,
         orderIndex = orderIndex,
         title = title,
-        description = description,
-        expectedResult = expectedResult,
-        requiresPhoto = requiresPhoto,
-        requiresMeasurement = requiresMeasurement,
-        measurementUnit = measurementUnit,
-        measurementMin = measurementMin,
-        measurementMax = measurementMax
+        description = description
     )
 
     private fun PmTemplateItem.toEntity() = PmTemplateItemEntity(
@@ -119,12 +113,6 @@ class PmTemplateRepositoryImpl @Inject constructor(
         orderIndex = orderIndex,
         title = title,
         description = description,
-        expectedResult = expectedResult,
-        requiresPhoto = requiresPhoto,
-        requiresMeasurement = requiresMeasurement,
-        measurementUnit = measurementUnit,
-        measurementMin = measurementMin,
-        measurementMax = measurementMax,
         syncStatus = SyncStatus.PENDING.name
     )
 }

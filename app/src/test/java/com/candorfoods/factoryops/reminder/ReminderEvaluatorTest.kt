@@ -66,9 +66,11 @@ class ReminderEvaluatorTest {
         assertEquals(listOf(ReminderType.B1_NEW_BREAKDOWN), types(UserRole.SUPERVISOR, flag(raisedAt = 0L), 70 * MIN))
     }
 
-    @Test fun `OPEN flag reaches head only at tier 3`() {
-        assertTrue(types(UserRole.HEAD, flag(raisedAt = 0L), 90 * MIN).isEmpty())
-        assertEquals(listOf(ReminderType.B1_NEW_BREAKDOWN), types(UserRole.HEAD, flag(raisedAt = 0L), 130 * MIN))
+    @Test fun `OPEN flag reaches head only at tier 4 (5h)`() {
+        // Head no longer wakes at 2h (tier 3) — must wait for tier 4 = 300 min = 5h.
+        assertTrue(types(UserRole.HEAD, flag(raisedAt = 0L), 130 * MIN).isEmpty())
+        assertTrue(types(UserRole.HEAD, flag(raisedAt = 0L), 290 * MIN).isEmpty())
+        assertEquals(listOf(ReminderType.B1_NEW_BREAKDOWN), types(UserRole.HEAD, flag(raisedAt = 0L), 310 * MIN))
     }
 
     @Test fun `CRITICAL severity halves thresholds`() {
@@ -97,6 +99,28 @@ class ReminderEvaluatorTest {
         assertTrue(types(UserRole.ADMIN, flag(), 200 * MIN).isEmpty())
     }
 
+    private fun userIn(role: UserRole, plant: String) = User(
+        id = "u1", name = "U", username = "u", role = role,
+        plantId = plant, jwtToken = "t", tokenExpiresAt = 0L,
+    )
+
+    @Test fun `technician does not get another warehouse's breakdown`() {
+        // A-185 technician, W-202 flag -> plant-scoped, no reminder.
+        val out = eval(userIn(UserRole.TECHNICIAN, "A185"), listOf(flag(raisedAt = 0L)), emptyList(), 5 * MIN)
+        assertTrue(out.isEmpty())
+    }
+
+    @Test fun `technician gets own warehouse breakdown (hyphen vs compact spelling)`() {
+        val out = eval(userIn(UserRole.TECHNICIAN, "W-202"), listOf(flag(raisedAt = 0L)), emptyList(), 5 * MIN)
+        assertEquals(listOf(ReminderType.B1_NEW_BREAKDOWN), out.map { it.type })
+    }
+
+    @Test fun `supervisor still gets cross-plant breakdown (all-plant role)`() {
+        // A-185 supervisor sees a W-202 breakdown once it reaches their tier (2).
+        val out = eval(userIn(UserRole.SUPERVISOR, "A185"), listOf(flag(raisedAt = 0L)), emptyList(), 70 * MIN)
+        assertEquals(listOf(ReminderType.B1_NEW_BREAKDOWN), out.map { it.type })
+    }
+
     private fun wo(
         id: String = "wo-1",
         status: PmWoStatus = PmWoStatus.SUBMITTED,
@@ -118,22 +142,29 @@ class ReminderEvaluatorTest {
         qcAcknowledgedBy = null, qcAcknowledgedByName = null, qcAcknowledgedAt = null,
         qcDecidedBy = null, qcDecidedByName = null, qcDecidedAt = qcDecidedAt,
         qcDecisionNotes = null, qcAfterPhotoLocalPath = null, qcChecklistJson = null,
-        closedAt = null, finalNotes = null, escalationTier = 0,
+        closedAt = null, finalNotes = null, overallResult = null, escalationTier = 0,
     )
 
     private fun pmTypes(role: UserRole, w: PmWorkOrder, now: Long) =
         eval(user(role), emptyList(), listOf(w), now).map { it.type }
 
-    @Test fun `submitted PM nudges supervisor, escalates to head at 48h`() {
+    @Test fun `submitted PM waits 24h before nudging supervisor, escalates to head at 48h`() {
         val w = wo(status = PmWoStatus.SUBMITTED, submittedAt = 0L, qcDecidedAt = null)
-        assertEquals(listOf(ReminderType.P2_AWAITING_SUPERVISOR), pmTypes(UserRole.SUPERVISOR, w, 1 * HOUR))
+        // A PM that reached the queue an hour ago isn't worth interrupting anyone for.
+        assertTrue(pmTypes(UserRole.SUPERVISOR, w, 1 * HOUR).isEmpty())
+        assertEquals(listOf(ReminderType.P2_AWAITING_SUPERVISOR), pmTypes(UserRole.SUPERVISOR, w, 25 * HOUR))
         assertTrue(pmTypes(UserRole.HEAD, w, 10 * HOUR).isEmpty())
         assertEquals(listOf(ReminderType.P2_AWAITING_SUPERVISOR), pmTypes(UserRole.HEAD, w, 49 * HOUR))
     }
 
-    @Test fun `supervisor-rejected PM nudges technician`() {
+    /** A technician's only PM notification is the daily "pending today" notice; rework
+     *  comes back as an IN_PROGRESS work order, which that notice already covers. */
+    @Test fun `supervisor-rejected PM does not separately nudge the technician`() {
         val w = wo(status = PmWoStatus.IN_PROGRESS, submittedAt = null, supervisorRejectedAt = 0L)
-        assertEquals(listOf(ReminderType.P3_SUPERVISOR_REJECTED), pmTypes(UserRole.TECHNICIAN, w, 1 * HOUR))
+        assertTrue(pmTypes(UserRole.TECHNICIAN, w, 1 * HOUR).isEmpty())
+        assertTrue(pmTypes(UserRole.TECHNICIAN, w, 100 * HOUR).isEmpty())
+        // The supervisor still hears about it once it has sat for 48h.
+        assertEquals(listOf(ReminderType.P3_SUPERVISOR_REJECTED), pmTypes(UserRole.SUPERVISOR, w, 49 * HOUR))
     }
 
     @Test fun `plain in-progress PM (never rejected) produces no reminder`() {
@@ -141,15 +172,26 @@ class ReminderEvaluatorTest {
         assertTrue(pmTypes(UserRole.TECHNICIAN, w, 100 * HOUR).isEmpty())
     }
 
-    @Test fun `pending-qc PM nudges qc member, qc head at 24h`() {
+    @Test fun `pending-qc PM waits 24h before nudging qc member or qc head`() {
         val w = wo(status = PmWoStatus.PENDING_QC, supervisorApprovedAt = 0L, qcDecidedAt = null)
-        assertEquals(listOf(ReminderType.P4_AWAITING_QC), pmTypes(UserRole.QC_MEMBER, w, 1 * HOUR))
+        assertTrue(pmTypes(UserRole.QC_MEMBER, w, 1 * HOUR).isEmpty())
+        assertEquals(listOf(ReminderType.P4_AWAITING_QC), pmTypes(UserRole.QC_MEMBER, w, 25 * HOUR))
         assertTrue(pmTypes(UserRole.QC_HEAD, w, 10 * HOUR).isEmpty())
         assertEquals(listOf(ReminderType.P4_AWAITING_QC), pmTypes(UserRole.QC_HEAD, w, 25 * HOUR))
     }
 
-    @Test fun `qc-rejected PM (submitted with decision) nudges supervisor as P5`() {
+    @Test fun `qc-rejected PM waits 24h before nudging supervisor as P5`() {
         val w = wo(status = PmWoStatus.SUBMITTED, submittedAt = 0L, qcDecidedAt = 0L)
-        assertEquals(listOf(ReminderType.P5_QC_REJECTED), pmTypes(UserRole.SUPERVISOR, w, 1 * HOUR))
+        assertTrue(pmTypes(UserRole.SUPERVISOR, w, 1 * HOUR).isEmpty())
+        assertEquals(listOf(ReminderType.P5_QC_REJECTED), pmTypes(UserRole.SUPERVISOR, w, 25 * HOUR))
+    }
+
+    /** Breakdowns are deliberately NOT quietened: this is how the floor learns a machine
+     *  is down, so it must still reach the technician the moment it is raised. */
+    @Test fun `a new breakdown still reaches the technician immediately`() {
+        assertEquals(
+            listOf(ReminderType.B1_NEW_BREAKDOWN),
+            types(UserRole.TECHNICIAN, flag(raisedAt = 0L), 5 * MIN),
+        )
     }
 }

@@ -33,4 +33,8 @@ interface PmPlanDao {
 
     @Query("SELECT COUNT(*) FROM pm_plans")
     suspend fun count(): Int
+
+    /** Drop a provisional local row once the server has assigned its canonical id. */
+    @Query("DELETE FROM pm_plans WHERE id = :id")
+    suspend fun deleteById(id: String)
 }

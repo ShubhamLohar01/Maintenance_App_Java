@@ -57,6 +57,15 @@ interface BreakdownFlagDao {
     @Query("SELECT * FROM breakdown_flags WHERE status IN ('OPEN', 'REOPENED') ORDER BY raisedAt DESC")
     fun observeAllOpenFlags(): Flow<List<BreakdownFlagEntity>>
 
+    /**
+     * Every unresolved breakdown (anything not yet QC-approved/CLOSED), newest first.
+     * For Head/Supervisor oversight: unlike observeAllOpenFlags (the OPEN/REOPENED
+     * pick-up pool) this also surfaces in-progress ACKNOWLEDGED and PENDING_QC tickets,
+     * so a breakdown a technician has picked up but not yet finished stays visible.
+     */
+    @Query("SELECT * FROM breakdown_flags WHERE status != 'CLOSED' ORDER BY raisedAt DESC")
+    fun observeUnresolvedFlags(): Flow<List<BreakdownFlagEntity>>
+
     /** Every breakdown in Room (all statuses), newest first — the Breakdown records page. */
     @Query("SELECT * FROM breakdown_flags ORDER BY raisedAt DESC")
     fun observeAll(): Flow<List<BreakdownFlagEntity>>
@@ -69,10 +78,11 @@ interface BreakdownFlagDao {
     @Query("""
         SELECT * FROM breakdown_flags
         WHERE status = 'ACKNOWLEDGED'
-          AND acknowledgedBy = :userId
+          AND (acknowledgedBy = :userId
+               OR (acknowledgedBy IS NULL AND acknowledgedByName = :userName))
         ORDER BY acknowledgedAt DESC
     """)
-    fun observeAcknowledgedFlagsByUser(userId: String): Flow<List<BreakdownFlagEntity>>
+    fun observeAcknowledgedFlagsByUser(userId: String, userName: String): Flow<List<BreakdownFlagEntity>>
 
     /**
      * Technician's "Resolved" tab — successfully closed (QC-approved) tickets only.

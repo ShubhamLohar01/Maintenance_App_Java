@@ -46,8 +46,10 @@ class HeadBreakdownsViewModel @Inject constructor(
                 }
                 val since = System.currentTimeMillis() - SEVEN_DAYS
                 combine(
-                    // No legacy `machines`-table join, so asset-register flags are included.
-                    breakdownRepository.observeAllOpenFlags(),
+                    // Unresolved (status != CLOSED), so acknowledged / PENDING_QC tickets a
+                    // technician is still working stay visible to Head/Supervisor — not just
+                    // the OPEN/REOPENED pick-up pool. Asset-register flags included (no join).
+                    breakdownRepository.observeUnresolvedFlags(),
                     breakdownRepository.observeResolvedFlagsByPlant(plant, since),
                 ) { open, resolved -> open to resolved }
                     .collectLatest { (open, resolved) ->

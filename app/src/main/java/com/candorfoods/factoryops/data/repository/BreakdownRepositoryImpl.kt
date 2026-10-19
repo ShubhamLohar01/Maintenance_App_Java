@@ -3,6 +3,7 @@ package com.candorfoods.factoryops.data.repository
 import com.candorfoods.factoryops.data.local.AppDatabase
 import com.candorfoods.factoryops.data.local.AuthPreferences
 import com.candorfoods.factoryops.data.local.entity.BreakdownFlagEntity
+import com.candorfoods.factoryops.data.local.entity.BreakdownSpareEntity
 import com.candorfoods.factoryops.data.local.entity.SyncQueueEntity
 import com.candorfoods.factoryops.data.remote.api.BreakdownApi
 import com.candorfoods.factoryops.data.remote.api.ChecklistApi
@@ -13,10 +14,15 @@ import com.candorfoods.factoryops.data.remote.dto.QcAcknowledgeRequestDto
 import com.candorfoods.factoryops.data.remote.dto.QcDecisionRequestDto
 import com.candorfoods.factoryops.data.remote.dto.toDomain
 import com.candorfoods.factoryops.domain.model.*
+import com.candorfoods.factoryops.domain.model.spareparts.MAX_WO_SPARES
+import com.candorfoods.factoryops.domain.model.spareparts.SparePartPick
 import com.candorfoods.factoryops.domain.repository.BreakdownRepository
 import com.candorfoods.factoryops.domain.repository.MtMachineRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -124,11 +130,14 @@ class BreakdownRepositoryImpl @Inject constructor(
     override fun observeAllOpenFlags(): Flow<List<BreakdownFlag>> =
         db.breakdownFlagDao().observeAllOpenFlags().map { it.map(::toDomain) }
 
+    override fun observeUnresolvedFlags(): Flow<List<BreakdownFlag>> =
+        db.breakdownFlagDao().observeUnresolvedFlags().map { it.map(::toDomain) }
+
     override fun observeAllFlags(): Flow<List<BreakdownFlag>> =
         db.breakdownFlagDao().observeAll().map { list -> list.map { toDomain(it) } }
 
-    override fun observeAcknowledgedFlagsByUser(userId: String): Flow<List<BreakdownFlag>> =
-        db.breakdownFlagDao().observeAcknowledgedFlagsByUser(userId).map { it.map(::toDomain) }
+    override fun observeAcknowledgedFlagsByUser(userId: String, userName: String): Flow<List<BreakdownFlag>> =
+        db.breakdownFlagDao().observeAcknowledgedFlagsByUser(userId, userName).map { it.map(::toDomain) }
 
     override fun observeResolvedFlagsByPlant(plantId: String, sinceMillis: Long): Flow<List<BreakdownFlag>> =
         // Scope by plant is resolved in the ViewModel (asset-register flags have no
@@ -150,9 +159,17 @@ class BreakdownRepositoryImpl @Inject constructor(
     override fun observeLatestFlagForMachine(machineId: String): Flow<BreakdownFlag?> =
         db.breakdownFlagDao().observeLatestFlagForMachine(machineId).map { it?.let(::toDomain) }
 
+    /**
+     * All unassigned PENDING_QC flags, INCLUDING other plants' — `plantId` is not
+     * applied here and the name is kept only because callers already use it.
+     *
+     * A flag row carries no plant of its own; the plant comes from its asset in the
+     * register, which this layer has no access to. The caller therefore does the
+     * scoping — see QcHomeViewModel.inPlant(), which resolves each flag's asset and
+     * drops the ones outside the user's plant. (Until that filter existed this
+     * parameter was silently dead and both plants reached every QC inbox.)
+     */
     override fun observePendingQcByPlant(plantId: String): Flow<List<BreakdownFlag>> =
-        // Scope by plant is resolved in the ViewModel; the DAO returns all
-        // unassigned PENDING_QC flags (incl. asset-register ones).
         db.breakdownFlagDao().observePendingQc().map { it.map(::toDomain) }
 
     override fun observeQcAcknowledgedByUser(userId: String): Flow<List<BreakdownFlag>> =
@@ -193,6 +210,86 @@ class BreakdownRepositoryImpl @Inject constructor(
         }
     }
 
+    private val spareDao get() = db.breakdownSpareDao()
+
+    override fun observeSpares(flagId: String): Flow<List<BreakdownSpare>> =
+        spareDao.observeForFlag(flagId).map { rows -> rows.map { it.toDomain() } }
+
+    override suspend fun logSpare(
+        flagId: String, pick: SparePartPick, quantityUsed: Double, notes: String?,
+    ): Result<Unit> = try {
+        val existing = spareDao.getForFlag(flagId)
+        // Same rule as the PM side: a part picked twice adds to its existing line
+        // rather than appearing as two rows on the QC and Head review screens.
+        val duplicate = existing.firstOrNull { it.partId == pick.partId }
+        when {
+            duplicate != null -> {
+                spareDao.upsert(
+                    duplicate.copy(
+                        quantityUsed = duplicate.quantityUsed + quantityUsed,
+                        notes = notes ?: duplicate.notes,
+                    )
+                )
+                Result.Success(Unit)
+            }
+            existing.size >= MAX_WO_SPARES ->
+                Result.Error("You can log at most $MAX_WO_SPARES spare parts on one repair.")
+            else -> {
+                spareDao.upsert(
+                    BreakdownSpareEntity(
+                        id = "spare-${UUID.randomUUID()}",
+                        flagId = flagId,
+                        partId = pick.partId,
+                        spareName = pick.partName.trim(),
+                        machineName = pick.machineName,
+                        quantityUsed = quantityUsed,
+                        unit = pick.unit.orEmpty().trim(),
+                        notes = notes,
+                        loggedAt = System.currentTimeMillis(),
+                    )
+                )
+                Result.Success(Unit)
+            }
+        }
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Couldn't add that spare part", e)
+    }
+
+    override suspend fun deleteSpare(spareId: String): Result<Unit> = try {
+        spareDao.deleteById(spareId)
+        Result.Success(Unit)
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Couldn't remove that spare part", e)
+    }
+
+    private fun BreakdownSpareEntity.toDomain() = BreakdownSpare(
+        id = id, flagId = flagId, partId = partId, spareName = spareName,
+        machineName = machineName, quantityUsed = quantityUsed, unit = unit,
+        notes = notes, loggedAt = loggedAt,
+    )
+
+    /**
+     * The picked spares as the JSON array POST /breakdowns/{id}/work-done expects.
+     * Field names are the wire names (snake_case) because the backend validates
+     * them with the same PmSpareDto the PM submit body uses.
+     */
+    private fun List<BreakdownSpareEntity>.toSparesJson(userId: String): String =
+        buildJsonArray {
+            this@toSparesJson.forEach { row ->
+                add(buildJsonObject {
+                    put("id", row.id)
+                    put("part_id", row.partId)
+                    put("spare_name", row.spareName)
+                    put("machine_name", row.machineName)
+                    put("quantity_used", row.quantityUsed)
+                    put("unit", row.unit)
+                    put("notes", row.notes)
+                    put("logged_at", row.loggedAt)
+                    put("logged_by", userId)
+                })
+            }
+        }.toString()
+
     override suspend fun resolveFlag(
         flagId: String, userId: String, userName: String,
         partsUsed: String, afterPhotoLocalPath: String?
@@ -201,6 +298,7 @@ class BreakdownRepositoryImpl @Inject constructor(
             val now = System.currentTimeMillis()
             val machineId = db.breakdownFlagDao().getFlagByIdOnce(flagId)?.machineId
                 ?: return Result.Error("Flag not found: $flagId")
+            val spares = spareDao.getForFlag(flagId)
 
             // Backend-authoritative (was a swallowed best-effort call): POST the repair
             // FIRST as multipart so the after-photo is uploaded to S3 and
@@ -213,6 +311,7 @@ class BreakdownRepositoryImpl @Inject constructor(
                 userId = userId.textPart(),
                 userName = userName.textPart(),
                 workDone = partsUsed.textPart(),
+                spares = spares.toSparesJson(userId).textPart(),
                 doneAt = now.toString().textPart(),
                 afterPhoto = photoPart("after_photo", afterPhotoLocalPath),
             )
@@ -228,6 +327,11 @@ class BreakdownRepositoryImpl @Inject constructor(
                 syncStatus = SyncStatus.SYNCED.name
             )
             db.machineDao().updateStatus(machineId, MachineStatus.PENDING_QC.name, now)
+            // The server owns this list now (mt_breakdown_records.spares). Clearing
+            // it stops a QC reopen -> re-resolve from re-posting the same picks:
+            // the server's diff would move nothing, but the technician would be
+            // looking at rows that are already accounted for.
+            spareDao.deleteForFlag(flagId)
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error(
@@ -413,9 +517,9 @@ class BreakdownRepositoryImpl @Inject constructor(
                 beforePhotoLocalPath = null,
                 raisedAt = dto.reportedAt ?: System.currentTimeMillis(),
                 status = dto.status,
-                acknowledgedBy = null,
-                acknowledgedByName = null,
-                acknowledgedAt = null,
+                acknowledgedBy = dto.acknowledgedBy,
+                acknowledgedByName = dto.acknowledgedByName,
+                acknowledgedAt = dto.acknowledgedAt,
                 resolvedBy = null,
                 resolvedByName = null,
                 resolvedAt = null,
@@ -433,6 +537,11 @@ class BreakdownRepositoryImpl @Inject constructor(
                     status = dto.status,
                     severity = dto.severity ?: base.severity,
                     description = dto.description.ifBlank { base.description },
+                    // Prefer the server's acknowledger, but keep a locally-written one if
+                    // the backend hasn't populated it yet (so the ack device isn't cleared).
+                    acknowledgedBy = dto.acknowledgedBy ?: base.acknowledgedBy,
+                    acknowledgedByName = dto.acknowledgedByName ?: base.acknowledgedByName,
+                    acknowledgedAt = dto.acknowledgedAt ?: base.acknowledgedAt,
                     qcStatus = dto.qcStatus ?: base.qcStatus,
                     qcDecisionNotes = dto.qcRejectReason ?: base.qcDecisionNotes,
                     syncStatus = SyncStatus.SYNCED.name

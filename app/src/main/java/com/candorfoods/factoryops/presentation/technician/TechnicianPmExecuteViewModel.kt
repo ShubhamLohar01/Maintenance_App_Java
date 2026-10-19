@@ -5,6 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.candorfoods.factoryops.domain.model.PmTaskLogStatus
 import com.candorfoods.factoryops.domain.model.PmWoSpare
+import com.candorfoods.factoryops.domain.model.spareparts.MAX_WO_SPARES
+import com.candorfoods.factoryops.domain.model.spareparts.SparePartPick
+import com.candorfoods.factoryops.domain.model.spareparts.SparePartPickerCatalog
 import com.candorfoods.factoryops.domain.model.PmWoTaskLog
 import com.candorfoods.factoryops.domain.model.PmWorkOrder
 import com.candorfoods.factoryops.domain.model.Result
@@ -24,14 +27,13 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * Local draft for the currently displayed item. Mirrors task-log fields plus a measurement
- * string so the user's typed value can be edited freely before parsing.
+ * Local draft for the currently displayed item. The per-item verdict is a single
+ * "Is good?" checkbox: ticked → the item is good (remark optional); un-ticked → not good
+ * (remark REQUIRED). Persisted as the task-log status (PASS = good, FAIL = not good).
  */
 data class ItemExecutionDraft(
     val logId: String,
-    val status: PmTaskLogStatus = PmTaskLogStatus.PENDING,
-    val measurementText: String = "",
-    val photoLocalPath: String? = null,
+    val isGood: Boolean = false,
     val notes: String = ""
 )
 
@@ -43,10 +45,17 @@ data class TechnicianPmExecuteUiState(
     val currentIndex: Int = 0,
     val draft: ItemExecutionDraft? = null,
     val finalNotes: String = "",
-    val spareSuggestions: List<String> = emptyList(),
+    /** Machine-level verdict chosen on the summary screen: "PASS" | "FAIL" | null. */
+    val overallResult: String? = null,
+    /** Warehouse-scoped stock for the picker; empty until the sheet is opened. */
+    val sparePicker: SparePartPickerCatalog = SparePartPickerCatalog(),
+    val isLoadingPicker: Boolean = false,
     val error: String? = null
 ) {
     val totalItems: Int get() = workOrder?.taskLogs?.size ?: 0
+
+    /** The server rejects an eleventh spare, so the Add button stops at ten. */
+    val canAddSpare: Boolean get() = (workOrder?.spares?.size ?: 0) < MAX_WO_SPARES
     val isOnSummary: Boolean get() = currentIndex >= totalItems
     val currentLog: PmWoTaskLog? get() = workOrder?.taskLogs?.getOrNull(currentIndex)
 }
@@ -97,7 +106,8 @@ class TechnicianPmExecuteViewModel @Inject constructor(
                         workOrder = wo,
                         currentIndex = resumeIndex,
                         draft = draft,
-                        finalNotes = it.finalNotes.ifBlank { wo.finalNotes.orEmpty() }
+                        finalNotes = it.finalNotes.ifBlank { wo.finalNotes.orEmpty() },
+                        overallResult = it.overallResult ?: wo.overallResult
                     )
                 }
             }
@@ -106,60 +116,41 @@ class TechnicianPmExecuteViewModel @Inject constructor(
 
     private fun PmWoTaskLog.toDraft() = ItemExecutionDraft(
         logId = id,
-        status = status,
-        measurementText = measurementValue?.toString().orEmpty(),
-        photoLocalPath = photoLocalPath,
+        isGood = status == PmTaskLogStatus.PASS,
         notes = notes.orEmpty()
     )
 
-    fun onStatusSelect(status: PmTaskLogStatus) =
-        _uiState.update { it.copy(draft = it.draft?.copy(status = status)) }
-
-    fun onMeasurementChange(v: String) =
-        _uiState.update {
-            // allow digits, dot, minus
-            val cleaned = v.filter { c -> c.isDigit() || c == '.' || c == '-' }
-            it.copy(draft = it.draft?.copy(measurementText = cleaned))
-        }
-
-    fun onPhotoCaptured(path: String?) =
-        _uiState.update { it.copy(draft = it.draft?.copy(photoLocalPath = path)) }
+    fun onIsGoodChange(isGood: Boolean) =
+        _uiState.update { it.copy(draft = it.draft?.copy(isGood = isGood)) }
 
     fun onNotesChange(v: String) =
         _uiState.update { it.copy(draft = it.draft?.copy(notes = v)) }
 
     fun onFinalNotesChange(v: String) = _uiState.update { it.copy(finalNotes = v) }
 
+    /** Machine-level PASS/FAIL selected on the summary screen. */
+    fun onOverallResultChange(result: String) = _uiState.update { it.copy(overallResult = result) }
+
     /** Validates and persists the current item, then advances to the next index (or summary). */
     fun onNext() {
         val state = _uiState.value
         val draft = state.draft ?: return
-        val log = state.currentLog ?: return
+        state.currentLog ?: return
         val user = state.currentUser ?: return
 
-        // Validation
-        if (draft.status == PmTaskLogStatus.PENDING) {
-            postError("Pick Pass, Fail, or N/A before continuing.")
+        // "Is good?" rule: ticked → remark optional; un-ticked (not good) → remark REQUIRED.
+        if (!draft.isGood && draft.notes.isBlank()) {
+            postError("This item is not marked good — add a remark explaining the issue, or tick \"Is good?\".")
             return
         }
-        if (log.requiresPhoto && draft.photoLocalPath == null) {
-            postError("This item requires a photo.")
-            return
-        }
-        val measurement = draft.measurementText.toDoubleOrNull()
-        if (log.requiresMeasurement && measurement == null && draft.status != PmTaskLogStatus.NOT_APPLICABLE) {
-            postError("Enter a numeric measurement (or mark N/A).")
-            return
-        }
+        val status = if (draft.isGood) PmTaskLogStatus.PASS else PmTaskLogStatus.FAIL
 
         viewModelScope.launch {
             _uiState.update { it.copy(isSubmitting = true) }
             val result = woRepo.logTaskResult(
                 logId = draft.logId,
                 woId = woId,
-                status = draft.status,
-                measurementValue = measurement,
-                photoLocalPath = draft.photoLocalPath,
+                status = status,
                 notes = draft.notes.takeIf { it.isNotBlank() },
                 userId = user.id
             )
@@ -207,14 +198,17 @@ class TechnicianPmExecuteViewModel @Inject constructor(
         val state = _uiState.value
         val wo = state.workOrder ?: return
         if (wo.taskLogs.any { it.status == PmTaskLogStatus.PENDING }) {
-            viewModelScope.launch {
-                _events.send(TechnicianPmExecuteEvent.ShowError("All items must be completed before submit."))
-            }
+            postError("Answer \"Is good?\" on every item before submit.")
+            return
+        }
+        val overall = state.overallResult
+        if (overall.isNullOrBlank()) {
+            postError("Select the machine result — Pass or Fail — before submit.")
             return
         }
         viewModelScope.launch {
             _uiState.update { it.copy(isSubmitting = true) }
-            when (val r = woRepo.submit(woId, state.finalNotes.takeIf { it.isNotBlank() })) {
+            when (val r = woRepo.submit(woId, state.finalNotes.takeIf { it.isNotBlank() }, overall)) {
                 is Result.Success -> _events.send(TechnicianPmExecuteEvent.Submitted)
                 is Result.Error -> _events.send(TechnicianPmExecuteEvent.ShowError(r.message))
                 Result.Loading -> Unit
@@ -223,18 +217,14 @@ class TechnicianPmExecuteViewModel @Inject constructor(
         }
     }
 
-    fun onAddSpare(name: String, qty: Double, unit: String, notes: String?) {
+    fun onAddSpare(pick: SparePartPick, qty: Double, notes: String?) {
         val user = _uiState.value.currentUser ?: return
-        if (name.isBlank() || qty <= 0.0) return
+        if (qty <= 0.0) return
         viewModelScope.launch {
-            woRepo.logSpare(
-                woId = woId,
-                spareName = name,
-                quantityUsed = qty,
-                unit = unit,
-                notes = notes,
-                userId = user.id
-            )
+            when (val r = woRepo.logSpare(woId, pick, qty, notes, user.id)) {
+                is Result.Error -> _events.send(TechnicianPmExecuteEvent.ShowError(r.message))
+                else -> Unit
+            }
         }
     }
 
@@ -242,10 +232,17 @@ class TechnicianPmExecuteViewModel @Inject constructor(
         viewModelScope.launch { woRepo.deleteSpare(spare.id, woId) }
     }
 
-    fun refreshSpareSuggestions(query: String) {
+    /**
+     * Load the pickable stock for this PM's machine. Called when the sheet opens
+     * rather than with the work order, so a technician who logs no spares never
+     * pays for the round trip.
+     */
+    fun refreshSparePicker() {
+        val assetId = _uiState.value.workOrder?.machineId
         viewModelScope.launch {
-            val list = woRepo.suggestSpareNames(query, limit = 10)
-            _uiState.update { it.copy(spareSuggestions = list) }
+            _uiState.update { it.copy(isLoadingPicker = true) }
+            val catalog = woRepo.sparePicker(assetId)
+            _uiState.update { it.copy(sparePicker = catalog, isLoadingPicker = false) }
         }
     }
 

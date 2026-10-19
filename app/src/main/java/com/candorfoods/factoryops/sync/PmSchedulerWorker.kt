@@ -7,200 +7,113 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import com.candorfoods.factoryops.domain.model.PmPlan
-import com.candorfoods.factoryops.domain.model.PmTaskLogStatus
-import com.candorfoods.factoryops.domain.model.PmTriggerType
 import com.candorfoods.factoryops.domain.model.PmWoStatus
-import com.candorfoods.factoryops.domain.model.PmWoTaskLog
-import com.candorfoods.factoryops.domain.model.PmWorkOrder
-import com.candorfoods.factoryops.domain.repository.MachineRepository
-import com.candorfoods.factoryops.domain.repository.PmPlanRepository
-import com.candorfoods.factoryops.domain.repository.PmTemplateRepository
+import com.candorfoods.factoryops.domain.model.UserRole
 import com.candorfoods.factoryops.domain.repository.PmWorkOrderRepository
 import com.candorfoods.factoryops.util.Constants
+import com.candorfoods.factoryops.domain.usecase.pm.PmDueNoticePolicy
+import com.candorfoods.factoryops.util.DateTimeFormatter
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
-import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 /**
- * PM scheduler — Phase 2C-1.
+ * Hourly PM sync + notify.
  *
- * Runs hourly. For each active plan:
- *   - seeds mock templates/plans on first run if DB empty
- *   - computes next_due_at (TIME-based for now; USAGE-based deferred until running-hours integration)
- *   - if due within `PM_GENERATION_LEAD_DAYS` and no DRAFT/NOTIFIED/etc WO exists, generates a WO
- *     with `status = NOTIFIED` and snapshotted task logs.
- *
- * Escalation tier compute (2C-4) and local-notification firing land in subsequent sub-sessions.
+ * Work-order GENERATION moved to the backend (GET /pm/work-orders runs the due-plan sweep
+ * server-side), so this worker no longer creates WOs — a local generator would mint
+ * duplicate ids alongside the server's. Instead it:
+ *   1. pulls the signed-in user's slice of mt_pm_work_order into Room (role-scoped), so
+ *      reminders below fire from server truth even when no screen is open;
+ *   2. recomputes overdue escalation tiers (they colour the PM cards; they no longer
+ *      notify on their own — the tier resets on every refresh, so that fired hourly);
+ *   3. reminds the technician ONCE A DAY, from shift start, about work still pending and
+ *      due today — their only PM notification, mirroring the Today tab;
+ *   4. runs the role-based handoff reminders (P2–P5) through the shared dispatcher.
  */
 @HiltWorker
 class PmSchedulerWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted workerParams: WorkerParameters,
-    private val templateRepo: PmTemplateRepository,
-    private val planRepo: PmPlanRepository,
     private val woRepo: PmWorkOrderRepository,
-    private val machineRepo: MachineRepository,
     private val computeTier: com.candorfoods.factoryops.domain.usecase.pm.ComputePmEscalationTierUseCase,
     private val notificationHelper: com.candorfoods.factoryops.notification.NotificationHelper,
     private val authRepository: com.candorfoods.factoryops.domain.repository.AuthRepository,
     private val reminderEvaluator: com.candorfoods.factoryops.domain.usecase.reminder.ReminderEvaluator,
     private val reminderDispatcher: com.candorfoods.factoryops.notification.ReminderDispatcher,
+    private val reminderPreferences: com.candorfoods.factoryops.data.local.PmReminderPreferences,
+    private val pendingDueWork: com.candorfoods.factoryops.domain.usecase.pm.PendingPmDueWorkUseCase,
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
-        // PM plans/templates are now owned by the backend (mt_pm_plan) and synced via
-        // PmPlanRepository -> PmSyncApi. We no longer seed mock PM data: it created
-        // local-only rows that never reached the server and polluted the Plans list.
-        // (Leftover mock/test rows from older builds are removed by clearing app storage
-        // once — see the note in the PR/commit description.)
+        try {
+            val user = authRepository.getCurrentUser().first() ?: return Result.success()
 
-        // Walk active plans
-        val now = System.currentTimeMillis()
-        val plans = planRepo.getActivePlans()
-        for (plan in plans) {
-            val nextDue = computeNextDueAt(plan)
-            val daysUntilDue = (nextDue - now) / DAY_MS
-
-            // Skip plans that are too far out
-            if (daysUntilDue > Constants.PM_GENERATION_LEAD_DAYS) continue
-
-            // Skip plans that already have an open WO
-            val openWos = woRepo.findOpenForPlan(plan.id)
-            if (openWos.isNotEmpty()) continue
-
-            // Generate. The plan's machineId is an mt_asset_list.asset_id and the
-            // machine type is snapshotted on the template, so no legacy machine lookup.
-            val template = templateRepo.getTemplateById(plan.templateId) ?: continue
-
-            val woId = "wo-${plan.id}-${now}"
-            val taskLogs = template.items.map { item ->
-                PmWoTaskLog(
-                    id = "log-${woId}-${item.id}",
-                    woId = woId,
-                    templateItemId = item.id,
-                    orderIndex = item.orderIndex,
-                    title = item.title,
-                    description = item.description,
-                    expectedResult = item.expectedResult,
-                    requiresPhoto = item.requiresPhoto,
-                    requiresMeasurement = item.requiresMeasurement,
-                    measurementUnit = item.measurementUnit,
-                    measurementMin = item.measurementMin,
-                    measurementMax = item.measurementMax,
-                    status = PmTaskLogStatus.PENDING,
-                    measurementValue = null,
-                    photoLocalPath = null,
-                    notes = null,
-                    completedAt = null,
-                    completedBy = null
-                )
+            // 1. Role-scoped pull of mt_pm_work_order (best-effort; offline keeps local cache).
+            runCatching {
+                when (user.role) {
+                    UserRole.TECHNICIAN -> woRepo.refreshForTechnician(user.id)
+                    UserRole.SUPERVISOR, UserRole.HEAD -> woRepo.refreshByStatuses(OPEN_STATUSES)
+                    UserRole.QC_HEAD, UserRole.QC_MEMBER ->
+                        woRepo.refreshByStatuses(listOf(PmWoStatus.PENDING_QC))
+                    else -> Result.success()
+                }
             }
 
-            val wo = PmWorkOrder(
-                id = woId,
-                planId = plan.id,
-                machineId = plan.machineId,
-                templateId = template.id,
-                templateName = template.name,
-                machineType = template.machineType,
-                estimatedDurationMinutes = template.estimatedDurationMinutes,
-                tradeType = template.defaultTradeType,
-                scheduledDate = nextDue,
-                generatedAt = now,
-                status = PmWoStatus.NOTIFIED,
-                assignedTechnicianId = plan.assignedTechnicianId,
-                assignedTechnicianName = "Priya Sharma",   // TODO 2C-2: lookup user-by-id once user repo exposes it
-                acknowledgedAt = null,
-                startedAt = null,
-                submittedAt = null,
-                supervisorApprovedBy = null,
-                supervisorApprovedByName = null,
-                supervisorApprovedAt = null,
-                supervisorRejectedAt = null,
-                supervisorRejectionNotes = null,
-                qcAcknowledgedBy = null,
-                qcAcknowledgedByName = null,
-                qcAcknowledgedAt = null,
-                qcDecidedBy = null,
-                qcDecidedByName = null,
-                qcDecidedAt = null,
-                qcDecisionNotes = null,
-                qcAfterPhotoLocalPath = null,
-                qcChecklistJson = null,
-                closedAt = null,
-                finalNotes = null,
-                escalationTier = 0,
-                taskLogs = taskLogs,
-                spares = emptyList()
-            )
-
-            woRepo.insertGeneratedWo(wo)
-            // 2C-2: fire local notification "PM scheduled on [machine]" — TODO once NotificationHelper extends.
-        }
-
-        // 3. Phase 2C-4 — escalation tier compute + notifications.
-        val openWos = woRepo.getAllNonClosed()
-        val nowForTier = System.currentTimeMillis()
-        for (wo in openWos) {
-            val newTier = computeTier(wo.scheduledDate, nowForTier)
-            if (newTier == wo.escalationTier) continue
-
-            woRepo.bumpTier(wo.id, newTier)
-
-            // Notify only when tier increases (not on tier reset to 0). The asset name
-            // is the plan's templateName snapshot (machineId is an asset_id).
-            if (newTier > wo.escalationTier) {
-                val daysOverdue = ((nowForTier - wo.scheduledDate)
-                    .coerceAtLeast(0L) / DAY_MS)
-                notificationHelper.showPmEscalationNotification(
-                    woId = wo.id,
-                    machineName = wo.templateName,
-                    templateName = wo.templateName,
-                    tier = newTier,
-                    daysOverdue = daysOverdue
-                )
-                // Q3A cascade: T1 = tech only; T2+ = tech + supervisor. In the mock-only
-                // stage, the worker fires a local notification on whichever device is
-                // running. There's no FCM fan-out yet — full cascade behaviour ships
-                // with the Phase 3 backend.
+            // 2. Keep escalation tiers current — they colour the PM cards on screen.
+            //    Tier changes no longer notify on their own: the tier is device-computed
+            //    and reset by every server refresh, so "notify when the tier rises" fired
+            //    again every hour for the same work order. Step 3 owns the reminding.
+            val openWos = woRepo.getAllNonClosed()
+            val now = System.currentTimeMillis()
+            for (wo in openWos) {
+                val newTier = computeTier(wo.scheduledDate, now)
+                if (newTier != wo.escalationTier) woRepo.bumpTier(wo.id, newTier)
             }
-        }
 
-        // 4. Role-based PM handoff reminders (P2-P5). P1 overdue escalation is handled
-        //    by step 3 above; the evaluator deliberately does not emit P1.
-        if (Constants.NOTIFICATIONS_SOURCE == Constants.NOTIFICATIONS_SOURCE_LOCAL_POLL) {
-            val user = authRepository.getCurrentUser().first()
-            if (user != null) {
+            // 3. The technician's ONLY PM notification: one notice a day, from shift start,
+            //    covering just the work that is genuinely still theirs to do. Submitted and
+            //    in-QC tasks have left their hands, and nagging about those is what buried
+            //    the real ones. It mirrors the Today tab exactly — same filter, same work.
+            if (user.role == UserRole.TECHNICIAN) {
+                val pending = pendingDueWork(openWos, user.id, now)
+                if (PmDueNoticePolicy.shouldNotify(pending.size, reminderPreferences.lastDueNoticeDate(), now)) {
+                    val oldest = pending.first()
+                    notificationHelper.showPmDueSummaryNotification(
+                        count = pending.size,
+                        leadTaskName = oldest.templateName,
+                        maxDaysOverdue = ((now - oldest.scheduledDate).coerceAtLeast(0L) / DAY_MS),
+                    )
+                    reminderPreferences.markDueNoticeShown(DateTimeFormatter.isoDate(now))
+                }
+            }
+
+            // 4. Role-based PM handoff reminders (P2-P5) — supervisor/QC/head hand-offs.
+            //    The technician's own overdue nudge is step 3; the evaluator emits no P1.
+            if (Constants.NOTIFICATIONS_SOURCE == Constants.NOTIFICATIONS_SOURCE_LOCAL_POLL) {
                 val reminders = reminderEvaluator(
                     user = user,
                     flags = emptyList(),
                     workOrders = openWos,
-                    now = System.currentTimeMillis(),
+                    now = now,
                 )
                 reminderDispatcher.dispatch(reminders)
             }
+        } catch (_: Exception) {
+            // Never let a periodic tick crash-loop; the next hourly run retries.
         }
-
         return Result.success()
-    }
-
-    private fun computeNextDueAt(plan: PmPlan): Long = when (plan.triggerType) {
-        PmTriggerType.TIME -> {
-            val base = plan.lastCompletedAt ?: plan.createdAt
-            base + plan.triggerInterval * DAY_MS
-        }
-        PmTriggerType.USAGE -> {
-            // TODO 2C-2: integrate cumulative-running-hours tracker. For now treat as 30-day fallback.
-            val base = plan.lastCompletedAt ?: plan.createdAt
-            base + 30L * DAY_MS
-        }
     }
 
     companion object {
         private const val DAY_MS = 86_400_000L
+
+        /** Everything a supervisor/head tracks — all statuses still in flight. */
+        private val OPEN_STATUSES = listOf(
+            PmWoStatus.NOTIFIED, PmWoStatus.ACKNOWLEDGED, PmWoStatus.IN_PROGRESS,
+            PmWoStatus.SUBMITTED, PmWoStatus.PENDING_QC,
+        )
 
         fun schedulePeriodic(workManager: WorkManager) {
             val request = PeriodicWorkRequestBuilder<PmSchedulerWorker>(
@@ -215,7 +128,7 @@ class PmSchedulerWorker @AssistedInject constructor(
             )
         }
 
-        /** Triggers an immediate run, used at app startup so 2C-1 demo data appears without an hour wait. */
+        /** Triggers an immediate sync at app startup so PM data appears without an hour wait. */
         fun enqueueImmediately(context: Context) {
             val request = androidx.work.OneTimeWorkRequestBuilder<PmSchedulerWorker>()
                 .addTag(Constants.WORKER_TAG_PM_SCHEDULER)

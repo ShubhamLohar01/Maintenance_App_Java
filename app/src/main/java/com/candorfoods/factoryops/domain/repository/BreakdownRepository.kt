@@ -1,6 +1,7 @@
 package com.candorfoods.factoryops.domain.repository
 
 import com.candorfoods.factoryops.domain.model.BreakdownFlag
+import com.candorfoods.factoryops.domain.model.BreakdownSpare
 import com.candorfoods.factoryops.domain.model.Result
 import com.candorfoods.factoryops.domain.model.Severity
 import com.candorfoods.factoryops.domain.model.SyncQueueItem
@@ -18,9 +19,14 @@ interface BreakdownRepository {
     fun observeOpenFlagsByPlant(plantId: String): Flow<List<BreakdownFlag>>
     /** All OPEN flags incl. asset-register ones (no legacy machines-table join). */
     fun observeAllOpenFlags(): Flow<List<BreakdownFlag>>
+    /** Every unresolved flag (status != CLOSED) — Head/Supervisor oversight list,
+     * so acknowledged / in-progress breakdowns stay visible, not just OPEN ones. */
+    fun observeUnresolvedFlags(): Flow<List<BreakdownFlag>>
     /** Every breakdown in Room (all statuses) for the Breakdown records page. */
     fun observeAllFlags(): Flow<List<BreakdownFlag>>
-    fun observeAcknowledgedFlagsByUser(userId: String): Flow<List<BreakdownFlag>>
+    /** "My Active" — flags this user acknowledged. Matches by user id; falls back to
+     *  the acknowledger's name for legacy rows synced before the backend returned an id. */
+    fun observeAcknowledgedFlagsByUser(userId: String, userName: String): Flow<List<BreakdownFlag>>
     fun observeResolvedFlagsByPlant(plantId: String, sinceMillis: Long): Flow<List<BreakdownFlag>>
     fun observeFlagById(flagId: String): Flow<BreakdownFlag?>
     fun observeActiveFlagForMachine(machineId: String): Flow<BreakdownFlag?>
@@ -38,6 +44,24 @@ interface BreakdownRepository {
     fun observeQcDoneByUserSince(userId: String, sinceMillis: Long): Flow<List<BreakdownFlag>>
 
     suspend fun acknowledgeFlag(flagId: String, userId: String, userName: String): Result<Unit>
+
+    // Spares picked while repairing. Held locally until [resolveFlag] posts them
+    // with the repair; the server is what actually moves stock.
+    fun observeSpares(flagId: String): Flow<List<BreakdownSpare>>
+    suspend fun logSpare(
+        flagId: String,
+        pick: com.candorfoods.factoryops.domain.model.spareparts.SparePartPick,
+        quantityUsed: Double,
+        notes: String?,
+    ): Result<Unit>
+    suspend fun deleteSpare(spareId: String): Result<Unit>
+
+    /**
+     * Post the completed repair. [partsUsed] is the free-text description of the
+     * work (it lands in work_done_des and feeds the F.06 sheet); the structured
+     * spares picked through [logSpare] travel alongside it and decrement stock
+     * server-side.
+     */
     suspend fun resolveFlag(
         flagId: String,
         userId: String,

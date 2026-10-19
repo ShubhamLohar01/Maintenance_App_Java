@@ -6,7 +6,11 @@
     <string name="breakdown_description_label">Description</string>
     <string name="breakdown_description_placeholder">Describe the breakdown — noise, smoke, vibration, etc.</string>
     <string name="breakdown_photo_optional">Photo (Optional)</string>
-    <string name="breakdown_photo_capture_hint">Photo capture via camera — available once permissions granted</string>
+    <string name="breakdown_photo_capture_hint">Add a photo of the fault to help the technician.</string>
+    <string name="breakdown_photo_take">Take photo</string>
+    <string name="breakdown_photo_choose">Choose</string>
+    <string name="breakdown_photo_retake">Retake</string>
+    <string name="breakdown_photo_remove">Remove</string>
     <string name="breakdown_photo_attached">Photo attached: …%1$s</string>
     <string name="breakdown_submit">Submit Breakdown Flag</string>
 </resources>

@@ -16,7 +16,7 @@ import javax.inject.Inject
 
 data class QcActivityHistoryUiState(
     val isLoading: Boolean = true,
-    val plant: String? = null,   // hyphenated UI form, e.g. "A-185"; null = Both
+    val plant: String? = null,   // compact UI form, e.g. "A185"; null = Both
     val from: String? = null,    // null = server default
     val to: String? = null,      // null = server default
     val rows: List<BreakdownFlag> = emptyList(),

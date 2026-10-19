@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
@@ -46,6 +47,8 @@ fun MachineListScreen(
         AddMachineSheet(
             isSaving = uiState.isAddingMachine,
             error = uiState.addError,
+            categoryOptions = uiState.categories,
+            subLocationsByBuilding = uiState.subLocationsByBuilding,
             onDismiss = viewModel::onAddDismiss,
             onSubmit = viewModel::onSubmitNewMachine,
         )
@@ -122,8 +125,15 @@ fun MachineListScreen(
         },
         floatingActionButton = {
             if (uiState.canAddMachine) {
-                FloatingActionButton(onClick = viewModel::onAddMachineClicked) {
-                    Icon(Icons.Default.Add, contentDescription = "Add new machine")
+                ExtendedFloatingActionButton(
+                    onClick = viewModel::onAddMachineClicked,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp),
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Add machine", fontWeight = FontWeight.SemiBold)
                 }
             }
         },
@@ -177,6 +187,18 @@ fun MachineListScreen(
                         singleLine = true,
                     )
 
+                    // Floor filter — scoped to the chosen warehouse; "All" clears it.
+                    if (uiState.floors.isNotEmpty()) {
+                        FloorFilterDropdown(
+                            value = uiState.selectedFloor,
+                            options = uiState.floors,
+                            onSelect = viewModel::onFloorSelected,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = Spacing.base, vertical = Spacing.xs),
+                        )
+                    }
+
                     if (uiState.categories.isNotEmpty()) {
                         val selectedIndex = uiState.selectedCategory
                             ?.let { uiState.categories.indexOf(it) }?.takeIf { it >= 0 }?.plus(1) ?: 0
@@ -226,6 +248,37 @@ fun MachineListScreen(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+/** Read-only floor filter; the first entry "All floors" clears the filter (null). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FloorFilterDropdown(
+    value: String?,
+    options: List<String>,
+    onSelect: (String?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }, modifier = modifier) {
+        OutlinedTextField(
+            value = value ?: "All floors",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Floor") },
+            singleLine = true,
+            trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
+            modifier = Modifier
+                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                .fillMaxWidth(),
+        )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(text = { Text("All floors") }, onClick = { onSelect(null); expanded = false })
+            options.forEach { opt ->
+                DropdownMenuItem(text = { Text(opt) }, onClick = { onSelect(opt); expanded = false })
             }
         }
     }

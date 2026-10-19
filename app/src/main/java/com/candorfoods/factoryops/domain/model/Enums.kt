@@ -5,7 +5,7 @@ enum class Criticality { A, B, C }
 enum class LoadFactorSource { ASSUMED, SPOT_MEASURED, IOT_METERED }
 enum class SyncStatus { PENDING, SYNCING, SYNCED, FAILED }
 enum class FlagStatus { MISSED_START, MISSED_STOP, RESOLVED }
-enum class UserRole { OPERATOR, TECHNICIAN, HEAD, QC_HEAD, QC_MEMBER, SUPERVISOR, ADMIN }
+enum class UserRole { OPERATOR, TECHNICIAN, HEAD, QC_HEAD, QC_MEMBER, SUPERVISOR, ADMIN, IT_TECHNICIAN }
 enum class Severity { CRITICAL, MAJOR, MINOR }
 enum class ActionType {
     RUN_START, RUN_STOP, FLAG_RAISE,

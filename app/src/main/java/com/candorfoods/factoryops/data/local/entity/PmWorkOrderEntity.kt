@@ -37,6 +37,7 @@ data class PmWorkOrderEntity(
     val qcChecklistJson: String?,
     val closedAt: Long?,
     val finalNotes: String?,
+    val overallResult: String?,    // machine-level PASS/FAIL (summary screen)
     val escalationTier: Int,
     val syncStatus: String
 )

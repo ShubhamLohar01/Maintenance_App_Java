@@ -8,7 +8,7 @@ package com.candorfoods.factoryops.domain.model
  */
 data class MtMachine(
     val assetId: String,            // asset_id, e.g. "W202-0005" / "A185-0001"
-    val building: String,           // "W-202" | "A-185"
+    val building: String,           // "W202" | "A185"
     val assetName: String,          // asset_name
     val category: String,           // backend category (free text)
     val subLocation: String,        // sub_location, was floor
@@ -21,6 +21,9 @@ data class MtMachine(
     val modelNo: String? = null,    // model_no
     val serialNo: String? = null,   // serial_no
     val remarks: String? = null,    // remarks
+    // True when a supervisor's active schedule owns this machine (backend schedule_locked).
+    // Such a machine records automatically, so the operator's production Start/Stop is off.
+    val scheduleLocked: Boolean = false,
 )
 
 /**
@@ -47,6 +50,25 @@ val NON_RUNNABLE_CATEGORIES: Set<String> = setOf(
 fun MtMachine.isRunnable(): Boolean =
     !powerLoadRaw.isNullOrBlank() &&
         category.trim().lowercase() !in NON_RUNNABLE_CATEGORIES
+
+/**
+ * Categories an OPERATOR has no use for — hidden from their asset list (they can't
+ * start production on them and don't maintain them). Exact backend category strings,
+ * matched case-insensitively.
+ */
+val OPERATOR_HIDDEN_CATEGORIES: Set<String> = setOf(
+    "Electric Asset",
+    "Lab Equipment",
+    "Utility/Infrastructure",
+    "Housekeeping",
+    "Furniture/Storage",
+    "Infrastructure",
+    "IT/Communication",
+).map { it.lowercase() }.toSet()
+
+/** True when this asset should NOT be shown to an operator (non-production support assets). */
+fun MtMachine.isHiddenFromOperator(): Boolean =
+    category.trim().lowercase() in OPERATOR_HIDDEN_CATEGORIES
 
 /** Canonical value written to [MtMachine.condition] to mark a machine as shut down. */
 const val CONDITION_SHUT_DOWN = "Shut Down"

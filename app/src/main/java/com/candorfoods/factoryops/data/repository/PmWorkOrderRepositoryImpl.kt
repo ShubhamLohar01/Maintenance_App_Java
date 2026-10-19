@@ -1,10 +1,21 @@
 package com.candorfoods.factoryops.data.repository
 
 import com.candorfoods.factoryops.data.local.AppDatabase
+import com.candorfoods.factoryops.data.local.AuthPreferences
 import com.candorfoods.factoryops.data.local.entity.PmWoSpareEntity
 import com.candorfoods.factoryops.data.local.entity.PmWoTaskLogEntity
 import com.candorfoods.factoryops.data.local.entity.PmWorkOrderEntity
 import com.candorfoods.factoryops.data.local.entity.SyncQueueEntity
+import com.candorfoods.factoryops.data.remote.api.PmSyncApi
+import com.candorfoods.factoryops.data.remote.dto.PmAtRequestDto
+import com.candorfoods.factoryops.data.remote.dto.PmQcAckRequestDto
+import com.candorfoods.factoryops.data.remote.dto.PmQcDecisionRequestDto
+import com.candorfoods.factoryops.data.remote.dto.PmSubmitRequestDto
+import com.candorfoods.factoryops.data.remote.dto.PmSupervisorApproveRequestDto
+import com.candorfoods.factoryops.data.remote.dto.PmSupervisorRejectRequestDto
+import com.candorfoods.factoryops.data.remote.dto.PmWorkOrderDto
+import com.candorfoods.factoryops.data.remote.dto.toDomain
+import com.candorfoods.factoryops.data.remote.dto.toDto
 import com.candorfoods.factoryops.domain.model.ActionType
 import com.candorfoods.factoryops.domain.model.MachineStatus
 import com.candorfoods.factoryops.domain.model.MachineType
@@ -16,17 +27,32 @@ import com.candorfoods.factoryops.domain.model.PmWorkOrder
 import com.candorfoods.factoryops.domain.model.Result
 import com.candorfoods.factoryops.domain.model.SyncStatus
 import com.candorfoods.factoryops.domain.model.TradeType
+import com.candorfoods.factoryops.domain.model.spareparts.MAX_WO_SPARES
+import com.candorfoods.factoryops.domain.model.spareparts.SparePartPick
+import com.candorfoods.factoryops.domain.model.spareparts.SparePartPickerCatalog
 import com.candorfoods.factoryops.domain.repository.PmWorkOrderRepository
+import com.candorfoods.factoryops.domain.repository.SparePartsRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.File
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class PmWorkOrderRepositoryImpl @Inject constructor(
-    private val db: AppDatabase
+    private val db: AppDatabase,
+    private val api: PmSyncApi,
+    private val authPreferences: AuthPreferences,
+    private val sparePartsRepo: SparePartsRepository,
 ) : PmWorkOrderRepository {
 
     private val woDao    get() = db.pmWorkOrderDao()
@@ -77,6 +103,53 @@ class PmWorkOrderRepositoryImpl @Inject constructor(
     override suspend fun getAllNonClosed(): List<PmWorkOrder> =
         woDao.getAllNonClosed().map { it.toDomain(emptyList(), emptyList()) }
 
+    override suspend fun refreshForTechnician(techId: String): Result<Unit> = try {
+        cacheServerWos(api.listWorkOrders(bearer(), technicianId = techId))
+        Result.Success(Unit)
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Failed to refresh PM work orders", e)
+    }
+
+    override suspend fun refreshByStatuses(statuses: List<PmWoStatus>): Result<Unit> = try {
+        if (statuses.isNotEmpty()) {
+            cacheServerWos(api.listWorkOrders(bearer(), status = statuses.joinToString(",") { it.name }))
+        }
+        Result.Success(Unit)
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Failed to refresh PM work orders", e)
+    }
+
+    override suspend fun qcClosedHistory(): Result<List<PmWorkOrder>> = try {
+        // Network-only (bypasses Room): the QC archive is org-wide and all-time, not the
+        // device's local slice. CLOSED = QC-approved for a work order.
+        Result.Success(api.listWorkOrders(bearer(), status = PmWoStatus.CLOSED.name).map { it.toDomain() })
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Failed to load QC history", e)
+    }
+
+    override suspend fun refreshWorkOrder(id: String): Result<Unit> = try {
+        cacheServerWos(listOf(api.getWorkOrder(bearer(), id)))
+        Result.Success(Unit)
+    } catch (e: Exception) {
+        Result.Error(e.message ?: "Failed to refresh PM work order", e)
+    }
+
+    /** Mirror server rows into Room as SYNCED (they came FROM the server — don't re-push). */
+    private suspend fun cacheServerWos(dtos: List<PmWorkOrderDto>) {
+        for (dto in dtos) {
+            val wo = dto.toDomain()
+            // escalation_tier isn't carried by the backend, so toDomain() reads it back as
+            // 0. Keep whatever this device already computed: overwriting it made every
+            // refresh look like a fresh tier increase, which re-notified the technician
+            // about the same work order every single hour.
+            val tier = woDao.getById(wo.id)?.escalationTier ?: wo.escalationTier
+            woDao.upsert(wo.toEntity().copy(syncStatus = SyncStatus.SYNCED.name, escalationTier = tier))
+            if (wo.taskLogs.isNotEmpty()) {
+                logDao.upsertAll(wo.taskLogs.map { it.toEntity().copy(syncStatus = SyncStatus.SYNCED.name) })
+            }
+        }
+    }
+
     override suspend fun insertGeneratedWo(wo: PmWorkOrder): Result<PmWorkOrder> = try {
         woDao.upsert(wo.toEntity())
         if (wo.taskLogs.isNotEmpty()) {
@@ -101,22 +174,21 @@ class PmWorkOrderRepositoryImpl @Inject constructor(
         val now = System.currentTimeMillis()
         woDao.markAcknowledged(woId, now)
         woDao.updateEscalationTier(woId, 0)
-        enqueueSync(ActionType.PM_ACKNOWLEDGE, """{"wo_id":"$woId"}""")
+        // Best-effort push (mt_pm_work_order -> ACKNOWLEDGED); reconcile from the response.
+        runCatching { applyServerWo(api.acknowledgeWorkOrder(bearer(), woId, PmAtRequestDto(at = now))) }
     }
 
     override suspend fun start(woId: String): Result<Unit> = mutate {
         val now = System.currentTimeMillis()
         woDao.markStarted(woId, now)
         woDao.updateEscalationTier(woId, 0)
-        enqueueSync(ActionType.PM_START, """{"wo_id":"$woId"}""")
+        runCatching { applyServerWo(api.startWorkOrder(bearer(), woId, PmAtRequestDto(at = now))) }
     }
 
     override suspend fun logTaskResult(
         logId: String,
         woId: String,
         status: PmTaskLogStatus,
-        measurementValue: Double?,
-        photoLocalPath: String?,
         notes: String?,
         userId: String
     ): Result<Unit> = mutate {
@@ -124,8 +196,6 @@ class PmWorkOrderRepositoryImpl @Inject constructor(
         logDao.updateLogResult(
             id = logId,
             status = status.name,
-            measurementValue = measurementValue,
-            photoLocalPath = photoLocalPath,
             notes = notes,
             ts = now,
             userId = userId
@@ -137,21 +207,44 @@ class PmWorkOrderRepositoryImpl @Inject constructor(
 
     override suspend fun logSpare(
         woId: String,
-        spareName: String,
+        pick: SparePartPick,
         quantityUsed: Double,
-        unit: String,
         notes: String?,
         userId: String
     ): Result<Unit> = mutate {
         val now = System.currentTimeMillis()
+        val existing = spareDao.getForWo(woId)
+
+        // Picking a part that is already on the list adds to that line instead of
+        // creating a second one — two lines for one part would still deduct the
+        // right total server-side, but read as a mistake on every review screen.
+        val duplicate = existing.firstOrNull { it.partId == pick.partId }
+        if (duplicate != null) {
+            spareDao.upsert(
+                duplicate.copy(
+                    quantityUsed = duplicate.quantityUsed + quantityUsed,
+                    notes = notes ?: duplicate.notes,
+                    syncStatus = "PENDING",
+                )
+            )
+            enqueueSync(ActionType.PM_LOG_SPARE, """{"wo_id":"$woId","spare_id":"${duplicate.id}"}""")
+            return@mutate
+        }
+
+        require(existing.size < MAX_WO_SPARES) {
+            "You can log at most $MAX_WO_SPARES spare parts on one PM."
+        }
+
         val spareId = "spare-${UUID.randomUUID()}"
         spareDao.upsert(
             PmWoSpareEntity(
                 id = spareId,
                 woId = woId,
-                spareName = spareName.trim(),
+                partId = pick.partId,
+                spareName = pick.partName.trim(),
+                machineName = pick.machineName,
                 quantityUsed = quantityUsed,
-                unit = unit.trim(),
+                unit = pick.unit.orEmpty().trim(),
                 notes = notes,
                 loggedAt = now,
                 loggedBy = userId,
@@ -161,26 +254,48 @@ class PmWorkOrderRepositoryImpl @Inject constructor(
         enqueueSync(ActionType.PM_LOG_SPARE, """{"wo_id":"$woId","spare_id":"$spareId"}""")
     }
 
+    override suspend fun sparePicker(assetId: String?): SparePartPickerCatalog =
+        sparePartsRepo.picker(assetId)
+
     override suspend fun deleteSpare(spareId: String, woId: String): Result<Unit> = mutate {
         spareDao.deleteById(spareId)
         // No sync action needed — server will reconcile by snapshot when Phase 3 ships.
     }
 
-    override suspend fun submit(woId: String, finalNotes: String?): Result<Unit> = mutate {
+    override suspend fun submit(woId: String, finalNotes: String?, overallResult: String?): Result<Unit> = mutate {
         val now = System.currentTimeMillis()
-        woDao.markSubmitted(woId, now, finalNotes)
+        // Gather the technician's completed checklist (status = Is-good verdict + remark) + spares.
+        val logDtos = logDao.getForWo(woId).map { it.toDomain().toDto() }
+        val spareDtos = spareDao.getForWo(woId).map { it.toDomain().toDto() }
+        // Backend-authoritative: the checklist MUST land in mt_pm_work_order before we advance
+        // local state, so a failure surfaces (the ticket stays executable to retry).
+        val dto = api.submitWorkOrder(
+            bearer(), woId,
+            PmSubmitRequestDto(
+                finalNotes = finalNotes.orEmpty(),
+                overallResult = overallResult.orEmpty(),
+                at = now,
+                taskLogs = logDtos,
+                spares = spareDtos,
+            ),
+        )
+        woDao.markSubmitted(woId, now, finalNotes, overallResult)
         woDao.updateEscalationTier(woId, 0)
-        enqueueSync(ActionType.PM_SUBMIT, """{"wo_id":"$woId"}""")
+        applyServerWo(dto)
     }
 
     override suspend fun supervisorApprove(woId: String, supervisorId: String, supervisorName: String): Result<Unit> = mutate {
         val wo = woDao.getById(woId) ?: throw IllegalStateException("PM not found: $woId")
         val now = System.currentTimeMillis()
+        // Backend-authoritative: persist the approval (-> PENDING_QC) before committing local.
+        val dto = api.supervisorApproveWorkOrder(
+            bearer(), woId,
+            PmSupervisorApproveRequestDto(supervisorId = supervisorId, supervisorName = supervisorName, at = now),
+        )
         woDao.markSupervisorApproved(woId, supervisorId, supervisorName, now)
-        // Phase 2C-3: handoff flips the machine to PENDING_QC so it shows up
-        // as "in QC review" on the operator/machine list while QC walks it.
+        // Handoff flips the machine to PENDING_QC so it shows as "in QC review".
         db.machineDao().updateStatus(wo.machineId, MachineStatus.PENDING_QC.name, now)
-        enqueueSync(ActionType.PM_SUPERVISOR_APPROVE, """{"wo_id":"$woId"}""")
+        applyServerWo(dto)
     }
 
     override suspend fun supervisorReject(
@@ -191,19 +306,15 @@ class PmWorkOrderRepositoryImpl @Inject constructor(
     ): Result<Unit> = mutate {
         val wo = woDao.getById(woId) ?: throw IllegalStateException("PM not found: $woId")
         val now = System.currentTimeMillis()
-        val safeNotes = notes.replace("\"", "\\\"")
-        woDao.markSupervisorRejected(woId, now, notes)
-        // If a prior approve cycle had flipped the machine to PENDING_QC, return
-        // it to IDLE now that the WO is back in IN_PROGRESS for tech rework.
-        db.machineDao().updateStatus(wo.machineId, MachineStatus.IDLE.name, now)
-        enqueueSync(
-            ActionType.PM_SUPERVISOR_REJECT,
-            """{"wo_id":"$woId","reason":"$safeNotes"}"""
+        val dto = api.supervisorRejectWorkOrder(
+            bearer(), woId,
+            PmSupervisorRejectRequestDto(supervisorId = supervisorId, supervisorName = supervisorName, notes = notes, at = now),
         )
+        woDao.markSupervisorRejected(woId, now, notes)
+        // Back to IN_PROGRESS for tech rework; return the machine to IDLE.
+        db.machineDao().updateStatus(wo.machineId, MachineStatus.IDLE.name, now)
+        applyServerWo(dto)
     }
-
-    override suspend fun suggestSpareNames(query: String, limit: Int): List<String> =
-        spareDao.suggestSpareNames(query.trim(), limit)
 
     // ─── Phase 2C-3 — QC inbox observers ──────────────────────────────────────
 
@@ -225,19 +336,17 @@ class PmWorkOrderRepositoryImpl @Inject constructor(
         }
         val now = System.currentTimeMillis()
         woDao.markQcAcknowledged(woId, userId, userName, now)
-        enqueueSync(
-            ActionType.PM_QC_ACKNOWLEDGE,
-            """{"wo_id":"$woId","user_id":"$userId","override":false}"""
-        )
+        runCatching {
+            applyServerWo(api.qcAcknowledgeWorkOrder(bearer(), woId, PmQcAckRequestDto(userId = userId, userName = userName, at = now)))
+        }
     }
 
     override suspend fun qcOverrideAcknowledge(woId: String, userId: String, userName: String): Result<Unit> = mutate {
         val now = System.currentTimeMillis()
         woDao.markQcOverrideAcknowledged(woId, userId, userName, now)
-        enqueueSync(
-            ActionType.PM_QC_ACKNOWLEDGE,
-            """{"wo_id":"$woId","user_id":"$userId","override":true}"""
-        )
+        runCatching {
+            applyServerWo(api.qcOverrideAcknowledgeWorkOrder(bearer(), woId, PmQcAckRequestDto(userId = userId, userName = userName, at = now)))
+        }
     }
 
     override suspend fun qcApprove(
@@ -250,6 +359,16 @@ class PmWorkOrderRepositoryImpl @Inject constructor(
     ): Result<Unit> = mutate {
         val wo = woDao.getById(woId) ?: throw IllegalStateException("PM not found: $woId")
         val now = System.currentTimeMillis()
+        val afterUrl = uploadIfLocal(afterPhotoLocalPath)
+        // Backend-authoritative: persist qc_checklist + CLOSED (this advances the plan's
+        // schedule for the next cycle) before committing local.
+        val dto = api.qcApproveWorkOrder(
+            bearer(), woId,
+            PmQcDecisionRequestDto(
+                userId = userId, userName = userName,
+                checklist = qcBlob(checklistJson, afterUrl, notes), notes = notes.orEmpty(), at = now,
+            ),
+        )
         woDao.markQcApproved(
             id = woId,
             userId = userId,
@@ -261,7 +380,7 @@ class PmWorkOrderRepositoryImpl @Inject constructor(
         )
         // Machine returns to operator-controllable state.
         db.machineDao().updateStatus(wo.machineId, MachineStatus.IDLE.name, now)
-        enqueueSync(ActionType.PM_QC_APPROVE, """{"wo_id":"$woId","user_id":"$userId"}""")
+        applyServerWo(dto)
     }
 
     override suspend fun qcDisapprove(
@@ -273,7 +392,14 @@ class PmWorkOrderRepositoryImpl @Inject constructor(
         reason: String
     ): Result<Unit> = mutate {
         val now = System.currentTimeMillis()
-        val safeReason = reason.replace("\"", "\\\"")
+        val afterUrl = uploadIfLocal(afterPhotoLocalPath)
+        val dto = api.qcDisapproveWorkOrder(
+            bearer(), woId,
+            PmQcDecisionRequestDto(
+                userId = userId, userName = userName,
+                checklist = qcBlob(checklistJson, afterUrl, reason), notes = reason, at = now,
+            ),
+        )
         woDao.markQcDisapproved(
             id = woId,
             userId = userId,
@@ -284,10 +410,7 @@ class PmWorkOrderRepositoryImpl @Inject constructor(
             checklistJson = checklistJson
         )
         // Machine stays on PENDING_QC — the supervisor still has it under review.
-        enqueueSync(
-            ActionType.PM_QC_DISAPPROVE,
-            """{"wo_id":"$woId","user_id":"$userId","reason":"$safeReason"}"""
-        )
+        applyServerWo(dto)
     }
 
     // ─── Phase 2C-4 — escalation tier ─────────────────────────────────────────
@@ -296,6 +419,14 @@ class PmWorkOrderRepositoryImpl @Inject constructor(
         woDao.updateEscalationTier(woId, newTier)
         // Q9A: fire-and-forget. No sync queue entry — tier is a UI urgency signal,
         // not an audit-worthy state change. Phase 3 backend will compute server-side.
+    }
+
+    override suspend fun history(status: String?): Result<List<PmWorkOrder>> {
+        return try {
+            Result.Success(api.listWorkOrders(bearer(), technicianId = null, status = status).map { it.toDomain() })
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Failed to load PM history", e)
+        }
     }
 
     // Helper — wraps an action body in try/catch, returning Result<Unit>.
@@ -315,6 +446,44 @@ class PmWorkOrderRepositoryImpl @Inject constructor(
                 createdAt = System.currentTimeMillis()
             )
         )
+    }
+
+    // ─── Backend write-back helpers (POST /pm/work-orders/{id}/…) ──────────────
+
+    private fun bearer() = "Bearer ${authPreferences.getToken().orEmpty()}"
+
+    /** Reconcile the local WO row to the server's returned truth after a lifecycle call.
+     *  Only the WO row is touched — task_logs/spares stay local so device photo paths and
+     *  in-progress edits aren't clobbered by the server's URLs. */
+    private suspend fun applyServerWo(dto: PmWorkOrderDto) {
+        woDao.upsert(dto.toDomain().toEntity().copy(syncStatus = SyncStatus.SYNCED.name))
+    }
+
+    /** Upload a device-local image to S3 (POST /pm/photos) and return its URL. An existing
+     *  http(s) URL passes through unchanged; a null/missing/empty file → null. */
+    private suspend fun uploadIfLocal(path: String?): String? {
+        if (path.isNullOrBlank()) return null
+        if (path.startsWith("http", ignoreCase = true)) return path
+        val file = File(path)
+        if (!file.exists() || file.length() == 0L) return null
+        val mime = if (file.extension.equals("png", ignoreCase = true)) "image/png" else "image/jpeg"
+        val part = MultipartBody.Part.createFormData(
+            "file", file.name, file.readBytes().toRequestBody(mime.toMediaType())
+        )
+        return api.uploadPmPhoto(bearer(), part).url
+    }
+
+    /** QC sign-off blob stored verbatim in qc_checklist: the app's checklist JSON + any
+     *  after-photo URL + notes. Null when there's nothing to record. */
+    private fun qcBlob(checklistJson: String?, afterUrl: String?, notes: String?): JsonElement? {
+        val checklist = checklistJson?.takeIf { it.isNotBlank() }
+            ?.let { runCatching { Json.parseToJsonElement(it) }.getOrNull() }
+        if (checklist == null && afterUrl == null && notes.isNullOrBlank()) return null
+        return buildJsonObject {
+            checklist?.let { put("checklist", it) }
+            afterUrl?.let { put("after_photo_url", it) }
+            if (!notes.isNullOrBlank()) put("notes", notes)
+        }
     }
 
     private fun PmWorkOrderEntity.toDomain(logs: List<PmWoTaskLog>, spares: List<PmWoSpare>) = PmWorkOrder(
@@ -350,6 +519,7 @@ class PmWorkOrderRepositoryImpl @Inject constructor(
         qcChecklistJson = qcChecklistJson,
         closedAt = closedAt,
         finalNotes = finalNotes,
+        overallResult = overallResult,
         escalationTier = escalationTier,
         taskLogs = logs,
         spares = spares
@@ -388,6 +558,7 @@ class PmWorkOrderRepositoryImpl @Inject constructor(
         qcChecklistJson = qcChecklistJson,
         closedAt = closedAt,
         finalNotes = finalNotes,
+        overallResult = overallResult,
         escalationTier = escalationTier,
         syncStatus = SyncStatus.PENDING.name
     )
@@ -399,15 +570,7 @@ class PmWorkOrderRepositoryImpl @Inject constructor(
         orderIndex = orderIndex,
         title = title,
         description = description,
-        expectedResult = expectedResult,
-        requiresPhoto = requiresPhoto,
-        requiresMeasurement = requiresMeasurement,
-        measurementUnit = measurementUnit,
-        measurementMin = measurementMin,
-        measurementMax = measurementMax,
         status = runCatching { PmTaskLogStatus.valueOf(status) }.getOrDefault(PmTaskLogStatus.PENDING),
-        measurementValue = measurementValue,
-        photoLocalPath = photoLocalPath,
         notes = notes,
         completedAt = completedAt,
         completedBy = completedBy
@@ -420,15 +583,7 @@ class PmWorkOrderRepositoryImpl @Inject constructor(
         orderIndex = orderIndex,
         title = title,
         description = description,
-        expectedResult = expectedResult,
-        requiresPhoto = requiresPhoto,
-        requiresMeasurement = requiresMeasurement,
-        measurementUnit = measurementUnit,
-        measurementMin = measurementMin,
-        measurementMax = measurementMax,
         status = status.name,
-        measurementValue = measurementValue,
-        photoLocalPath = photoLocalPath,
         notes = notes,
         completedAt = completedAt,
         completedBy = completedBy,
@@ -438,7 +593,9 @@ class PmWorkOrderRepositoryImpl @Inject constructor(
     private fun PmWoSpareEntity.toDomain() = PmWoSpare(
         id = id,
         woId = woId,
+        partId = partId,
         spareName = spareName,
+        machineName = machineName,
         quantityUsed = quantityUsed,
         unit = unit,
         notes = notes,

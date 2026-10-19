@@ -55,6 +55,9 @@ class TechnicianPmDetailViewModel @Inject constructor(
     private var cachedMachine: Machine? = null
 
     init {
+        // Best-effort: re-pull this WO from the backend so a change made on another
+        // device (supervisor rejection, QC bounce) is visible before the tech acts.
+        viewModelScope.launch { runCatching { woRepo.refreshWorkOrder(woId) } }
         viewModelScope.launch {
             woRepo.observeById(woId).collect { wo ->
                 if (wo == null) {

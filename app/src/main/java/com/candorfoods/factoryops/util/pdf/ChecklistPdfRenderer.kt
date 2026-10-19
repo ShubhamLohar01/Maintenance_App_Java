@@ -40,9 +40,14 @@ class ChecklistPdfRenderer @Inject constructor(
             cv.startDocument()
 
             cv.gap()
+            // A quarterly sheet is signed on one date but covers a period, and the
+            // controlled copy has to show the period it certifies. Monthly sheets
+            // store from == to, so hasDateRange keeps their header unchanged.
+            val dateLabel =
+                if (detail.hasDateRange) "Period: ${detail.checklistDateFrom} to ${detail.checklistDateTo}"
+                else "Date: ${detail.checklistDate.ifBlank { "—" }}"
             cv.textLine(
-                "Date: ${detail.checklistDate.ifBlank { "—" }}     " +
-                    "Done by: ${detail.doneBy.ifBlank { "—" }}",
+                "$dateLabel     Done by: ${detail.doneBy.ifBlank { "—" }}",
                 bold = true,
             )
             cv.textLine(
@@ -57,6 +62,7 @@ class ChecklistPdfRenderer @Inject constructor(
                 when (r) {
                     is PreventiveRow.SectionHeader   -> cv.banner(r.title)
                     is PreventiveRow.EquipmentHeader -> cv.row(listOf(r.title), listOf(1f), bold = true)
+                    is PreventiveRow.SubHeader        -> cv.row(listOf("   ${r.title}"), listOf(1f), fill = headerFill)
                     is PreventiveRow.Checkpoint      ->
                         cv.row(listOf(r.name, r.status, r.remarks), PREVENTIVE_WEIGHTS)
                 }
@@ -68,8 +74,11 @@ class ChecklistPdfRenderer @Inject constructor(
         }
     }
 
+    /** Both plants' registers have the same columns; [BreakdownDocData.spec] only
+     *  chooses which controlled-copy header block is printed. */
     suspend fun renderBreakdown(data: BreakdownDocData): File = withContext(Dispatchers.Default) {
-        val meta = docMetaFor(PdfForm.BREAKDOWN)
+        val form = data.spec.pdfForm
+        val meta = docMetaFor(form)
         val doc = PdfDocument()
         try {
             val cv = CandorPdfCanvas(doc, landscape = true, meta = meta, logo = logo)
@@ -91,7 +100,7 @@ class ChecklistPdfRenderer @Inject constructor(
             cv.gap()
             cv.textLine("Verified By: ${data.verifiedBy.ifBlank { "—" }}", bold = true)
             cv.finish()
-            writeToCache(doc, pdfFileName(PdfForm.BREAKDOWN, data.rows.firstOrNull()?.date ?: "", null))
+            writeToCache(doc, pdfFileName(form, data.rows.firstOrNull()?.date ?: "", null))
         } finally {
             doc.close()
         }

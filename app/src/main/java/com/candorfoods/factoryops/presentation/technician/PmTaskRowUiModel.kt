@@ -20,6 +20,10 @@ data class PmTaskRowUiModel(
             return ((due - today) / dayMs).toInt()
         }
 
+    /** When the technician finished it — the sort/group key on the history tab. Falls
+     *  back through closed → submitted → scheduled so a row is never undated. */
+    val doneAt: Long get() = wo.closedAt ?: wo.submittedAt ?: wo.scheduledDate
+
     val isOverdue: Boolean get() = daysToDue < 0
     val isCritical: Boolean get() = criticality == Criticality.A
 }

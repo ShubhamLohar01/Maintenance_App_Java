@@ -21,6 +21,7 @@
     <string name="transfer_form_warehouse_from">पासून</string>
     <string name="transfer_form_switch_warehouses">पासून आणि पर्यंत बदला</string>
     <string name="transfer_form_warehouse_to">पर्यंत</string>
+    <string name="transfer_form_same_warehouse_error">\"पासून\" आणि \"पर्यंत\" गोदाम एकच असू शकत नाही.</string>
     <string name="transfer_form_machine_name_label">मशीनचे नाव * — शोधा किंवा टाइप करा</string>
     <string name="transfer_form_take_photo">फोटो घ्या (कॅमेरा)</string>
     <string name="transfer_form_choose_gallery">गॅलरीमधून निवडा</string>

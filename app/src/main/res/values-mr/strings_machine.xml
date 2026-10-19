@@ -56,6 +56,7 @@
     <string name="machine_status_under_breakdown">● ब्रेकडाउनमध्ये</string>
     <string name="machine_severity_status">गंभीरता: %1$s  ·  स्थिती: %2$s</string>
     <string name="machine_breakdown_start_disabled">तंत्रज्ञ समस्या सोडवेपर्यंत आणि QC मंजुरी देईपर्यंत उत्पादन सुरू निष्क्रिय राहील.</string>
+    <string name="machine_schedule_locked_note">पर्यवेक्षकाच्या वेळापत्रकाखाली — हे मशीन आपोआप नोंद करते, त्यामुळे ऑपरेटरचे सुरू/थांबवा निष्क्रिय आहे.</string>
 
     <!-- Severity (enum labels) -->
     <string name="machine_severity_critical">गंभीर</string>

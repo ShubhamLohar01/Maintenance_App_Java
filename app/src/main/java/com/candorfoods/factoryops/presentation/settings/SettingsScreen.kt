@@ -72,25 +72,6 @@ fun SettingsScreen(
             HorizontalDivider()
 
             Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.settings_shift_schedule), style = MaterialTheme.typography.titleSmall)
-                    Text(stringResource(R.string.shift_a), style = MaterialTheme.typography.bodyMedium)
-                    Text(stringResource(R.string.shift_b), style = MaterialTheme.typography.bodyMedium)
-                    Text(stringResource(R.string.shift_c), style = MaterialTheme.typography.bodyMedium)
-                }
-            }
-
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(stringResource(R.string.settings_server), style = MaterialTheme.typography.titleSmall)
-                    Text("Mode: Mock (debug build)", style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-                    Text("Phase 2: Coming Soon", style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
-                }
-            }
-
-            Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(stringResource(R.string.settings_language), style = MaterialTheme.typography.titleSmall)
                     AppLanguage.entries.forEach { lang ->

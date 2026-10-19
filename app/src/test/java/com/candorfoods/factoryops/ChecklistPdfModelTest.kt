@@ -55,9 +55,9 @@ class ChecklistPdfModelTest {
             checklistDate = "2026-06-26", doneBy = "A", checkedBy = "B", verifiedBy = "C",
             remarks = "", createdAt = "",
             items = listOf(
-                ChecklistRecordItem("Lower Basement", "Lift 1 Old", 1, "", "Doors", "OK", ""),
-                ChecklistRecordItem("Lower Basement", "Lift 1 Old", 1, "", "Switches", "NOT_OK", "loose"),
-                ChecklistRecordItem("Service Floor", "Disel Generator", 15, "", "Valve", "OK", ""),
+                ChecklistRecordItem(section = "Lower Basement", equipment = "Lift 1 Old", srNo = 1, equipmentDate = "", checkpoint = "Doors", status = "OK", remarks = ""),
+                ChecklistRecordItem(section = "Lower Basement", equipment = "Lift 1 Old", srNo = 1, equipmentDate = "", checkpoint = "Switches", status = "NOT_OK", remarks = "loose"),
+                ChecklistRecordItem(section = "Service Floor", equipment = "Disel Generator", srNo = 15, equipmentDate = "", checkpoint = "Valve", status = "OK", remarks = ""),
             ),
         )
         val rows = flattenPreventive(detail)
@@ -74,7 +74,7 @@ class ChecklistPdfModelTest {
         val detail = ChecklistRecordDetail(
             id = 1, formType = "MONTHLY", status = "DRAFT", docNo = "", checklistDate = "",
             doneBy = "", checkedBy = "", verifiedBy = "", remarks = "", createdAt = "",
-            items = listOf(ChecklistRecordItem("S", "E", 1, "", "  ", "OK", "")),
+            items = listOf(ChecklistRecordItem(section = "S", equipment = "E", srNo = 1, equipmentDate = "", checkpoint = "  ", status = "OK", remarks = "")),
         )
         val rows = flattenPreventive(detail)
         assertEquals(PreventiveRow.Checkpoint("General check", "OK", ""), rows[2])

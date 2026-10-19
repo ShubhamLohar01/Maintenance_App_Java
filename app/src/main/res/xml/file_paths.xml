@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
+    <!-- The operator's fault photo, captured while raising the flag. Missing this
+         entry makes FileProvider.getUriForFile throw "Failed to find configured
+         root", which crashes the camera button rather than failing quietly. -->
+    <files-path name="breakdown_before" path="breakdown_before/" />
     <files-path name="breakdown_after" path="breakdown_after/" />
     <files-path name="breakdown_qc"    path="breakdown_qc/" />
     <files-path name="transfer_photos" path="transfer_photos/" />
+    <files-path name="pm_photos"       path="pm_photos/" />
     <cache-path  name="checklist_pdfs" path="checklist_pdfs/" />
+    <cache-path  name="reading_exports" path="reading_exports/" />
 </paths>

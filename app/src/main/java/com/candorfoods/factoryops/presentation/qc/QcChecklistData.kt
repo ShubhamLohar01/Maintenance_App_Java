@@ -1,128 +1,61 @@
 package com.candorfoods.factoryops.presentation.qc
 
+import com.candorfoods.factoryops.presentation.checklist.ChecklistCatalog
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 enum class CheckResult { PASS, FAIL, NA, UNANSWERED }
 
+/** One after-maintenance line in the QC snapshot (wire shape read by the backend sync:
+ *  it fills the machine's after-maintenance rows in the 50a/50b record). */
+@Serializable
+data class QcAfterMaintenanceDto(
+    val checkpoint: String,
+    val status: String,          // "PASS" | "FAIL"  (backend maps -> OK / NOT_OK)
+    val remarks: String? = null,
+)
+
 @Serializable
 data class QcChecklistSnapshot(
-    val visual: VisualSection,
-    val hygiene: HygieneSection,
-    val calibration: CalibrationSection,
-    val function: FunctionSection,
-    val notes: String?
+    @SerialName("after_maintenance") val afterMaintenance: List<QcAfterMaintenanceDto>,
+    val notes: String? = null,
 )
 
-@Serializable
-data class VisualSection(
-    val noForeignMatter: String,
-    val noOilLeaks: String,
-    val guardsInPlace: String
+/** One editable after-maintenance check in the QC sheet. */
+data class QcAfterMaintenanceItem(
+    val checkpoint: String,
+    val result: CheckResult = CheckResult.UNANSWERED,
+    val remarks: String = "",
 )
 
-@Serializable
-data class HygieneSection(
-    val isFoodContact: Boolean,
-    val surfacesSanitized: String,
-    val cleaningResidueOk: String
-)
-
-@Serializable
-data class CalibrationSection(
-    val isCalibrated: Boolean,
-    val calibrationVerified: String
-)
-
-@Serializable
-data class FunctionSection(
-    val testRunCompleted: String,
-    val outputSampleChecked: String
-)
-
+/**
+ * QC "After Maintenance" checklist — the 4 controlled housekeeping checks the QC person
+ * confirms per machine (replaces the old generic Visual/Hygiene/Calibration checklist).
+ * On approve these flow into the machine's after-maintenance rows in the month's 50a/50b
+ * preventive-checklist record.
+ */
 data class QcChecklistDraft(
-    val noForeignMatter: CheckResult = CheckResult.UNANSWERED,
-    val noOilLeaks: CheckResult = CheckResult.UNANSWERED,
-    val guardsInPlace: CheckResult = CheckResult.UNANSWERED,
-
-    val isFoodContact: Boolean = true,
-    val surfacesSanitized: CheckResult = CheckResult.UNANSWERED,
-    val cleaningResidueOk: CheckResult = CheckResult.UNANSWERED,
-
-    val isCalibrated: Boolean = false,
-    val calibrationVerified: CheckResult = CheckResult.UNANSWERED,
-
-    val testRunCompleted: CheckResult = CheckResult.UNANSWERED,
-    val outputSampleChecked: CheckResult = CheckResult.UNANSWERED,
-
+    val items: List<QcAfterMaintenanceItem> =
+        ChecklistCatalog.afterMaintenanceChecks.map { QcAfterMaintenanceItem(it) },
     val notes: String = "",
-    val afterPhotoLocalPath: String? = null
+    val afterPhotoLocalPath: String? = null,
 ) {
-    /**
-     * Approve eligibility: every applicable required item is PASS and the
-     * after-QC photo is captured. N/A is allowed only on outputSampleChecked.
-     */
+    /** Approve = every after-maintenance check is PASS. Photo/notes stay optional. */
     val canApprove: Boolean
-        get() {
-            if (afterPhotoLocalPath == null) return false
+        get() = items.isNotEmpty() && items.all { it.result == CheckResult.PASS }
 
-            // Visual — all 3 must be PASS.
-            if (noForeignMatter != CheckResult.PASS) return false
-            if (noOilLeaks != CheckResult.PASS) return false
-            if (guardsInPlace != CheckResult.PASS) return false
-
-            // Hygiene applies only when toggle is on.
-            if (isFoodContact) {
-                if (surfacesSanitized != CheckResult.PASS) return false
-                if (cleaningResidueOk != CheckResult.PASS) return false
-            }
-
-            // Calibration applies only when toggle is on.
-            if (isCalibrated) {
-                if (calibrationVerified != CheckResult.PASS) return false
-            }
-
-            // Function — test run mandatory; output sample may be N/A.
-            if (testRunCompleted != CheckResult.PASS) return false
-            if (outputSampleChecked != CheckResult.PASS &&
-                outputSampleChecked != CheckResult.NA) return false
-
-            return true
-        }
-
-    /**
-     * Disapprove eligibility: after-QC photo present (FSSAI/BRC needs visual
-     * evidence even on rejection) and at least one item answered, so we don't
-     * record an empty checklist.
-     */
+    /** Disapprove = at least one check answered (so we never record an empty checklist). */
     val canDisapprove: Boolean
-        get() {
-            if (afterPhotoLocalPath == null) return false
-            return listOf(
-                noForeignMatter, noOilLeaks, guardsInPlace,
-                surfacesSanitized, cleaningResidueOk,
-                calibrationVerified, testRunCompleted, outputSampleChecked
-            ).any { it != CheckResult.UNANSWERED }
-        }
+        get() = items.any { it.result != CheckResult.UNANSWERED }
 
     fun toSnapshot(): QcChecklistSnapshot = QcChecklistSnapshot(
-        visual = VisualSection(
-            noForeignMatter = noForeignMatter.name,
-            noOilLeaks = noOilLeaks.name,
-            guardsInPlace = guardsInPlace.name
-        ),
-        hygiene = HygieneSection(
-            isFoodContact = isFoodContact,
-            surfacesSanitized = surfacesSanitized.name,
-            cleaningResidueOk = cleaningResidueOk.name
-        ),
-        calibration = CalibrationSection(
-            isCalibrated = isCalibrated,
-            calibrationVerified = calibrationVerified.name
-        ),
-        function = FunctionSection(
-            testRunCompleted = testRunCompleted.name,
-            outputSampleChecked = outputSampleChecked.name
-        ),
-        notes = notes.takeIf { it.isNotBlank() }
+        afterMaintenance = items.map {
+            QcAfterMaintenanceDto(
+                checkpoint = it.checkpoint,
+                status = if (it.result == CheckResult.FAIL) "FAIL" else "PASS",
+                remarks = it.remarks.takeIf { r -> r.isNotBlank() },
+            )
+        },
+        notes = notes.takeIf { it.isNotBlank() },
     )
 }

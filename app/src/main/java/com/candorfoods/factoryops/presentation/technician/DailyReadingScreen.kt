@@ -28,7 +28,7 @@ fun DailyReadingScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("Daily Reading", style = MaterialTheme.typography.titleLarge)
+                        Text("Electric Consumption", style = MaterialTheme.typography.titleLarge)
                         Text(
                             "Floor meter readings vs system kWh",
                             style = MaterialTheme.typography.bodySmall,

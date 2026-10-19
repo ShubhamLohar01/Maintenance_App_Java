@@ -8,21 +8,26 @@ import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.candorfoods.factoryops.presentation.common.components.FactoryCard
 import com.candorfoods.factoryops.presentation.common.theme.Spacing
 
-/** Chooser between the two checklist documents. */
+/** Chooser between the two checklist documents of the technician's own plant. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChecklistHubScreen(
     onPreventive: () -> Unit,
     onBreakdown: () -> Unit,
     onBack: () -> Unit,
+    viewModel: ChecklistHubViewModel = hiltViewModel(),
 ) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     Scaffold(
         topBar = {
             TopAppBar(
@@ -42,13 +47,13 @@ fun ChecklistHubScreen(
             OptionCard(
                 icon = Icons.Filled.Build,
                 title = "Preventive Checklist",
-                subtitle = "Monthly (50a) / Quarterly (50b)",
+                subtitle = uiState.preventiveSubtitle,
                 onClick = onPreventive,
             )
             OptionCard(
                 icon = Icons.Filled.Warning,
                 title = "Breakdown Checklist",
-                subtitle = "Breakdown maintenance record (F.06)",
+                subtitle = uiState.breakdownSubtitle,
                 onClick = onBreakdown,
             )
         }

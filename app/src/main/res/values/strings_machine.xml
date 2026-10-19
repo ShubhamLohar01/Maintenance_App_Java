@@ -56,6 +56,7 @@
     <string name="machine_status_under_breakdown">● UNDER BREAKDOWN</string>
     <string name="machine_severity_status">Severity: %1$s  ·  Status: %2$s</string>
     <string name="machine_breakdown_start_disabled">Production Start is disabled until a technician resolves and QC clears it.</string>
+    <string name="machine_schedule_locked_note">Under a supervisor schedule — this machine records automatically, so operator Start/Stop is disabled.</string>
 
     <!-- Severity (enum labels) -->
     <string name="machine_severity_critical">Critical</string>

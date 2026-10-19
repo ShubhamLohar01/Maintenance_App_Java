@@ -93,6 +93,7 @@ fun QcChecklistSheet(
                 .fillMaxWidth()
                 .heightIn(max = 720.dp)
                 .verticalScroll(rememberScrollState())
+                .imePadding()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -102,89 +103,37 @@ fun QcChecklistSheet(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
 
-            // Section 1 — visual
-            ChecklistSection(title = "1. Visual inspection") {
-                PassFailRow(
-                    label = "No foreign matter on machine surface",
-                    value = draft.noForeignMatter,
-                    onChange = { onChange(draft.copy(noForeignMatter = it)) }
-                )
-                PassFailRow(
-                    label = "No oil leaks visible",
-                    value = draft.noOilLeaks,
-                    onChange = { onChange(draft.copy(noOilLeaks = it)) }
-                )
-                PassFailRow(
-                    label = "All guards and covers in place",
-                    value = draft.guardsInPlace,
-                    onChange = { onChange(draft.copy(guardsInPlace = it)) }
-                )
-            }
-
-            // Section 2 — hygiene
-            ChecklistSection(title = "2. Hygiene (food-contact)") {
-                ToggleRow(
-                    label = "Food-contact machine?",
-                    checked = draft.isFoodContact,
-                    onChange = { onChange(draft.copy(isFoodContact = it)) }
-                )
-                if (draft.isFoodContact) {
+            // After-maintenance checks (the 4 controlled housekeeping checks, per machine)
+            ChecklistSection(title = "After maintenance") {
+                draft.items.forEachIndexed { i, item ->
                     PassFailRow(
-                        label = "Food-contact surfaces sanitized",
-                        value = draft.surfacesSanitized,
-                        onChange = { onChange(draft.copy(surfacesSanitized = it)) }
+                        label = item.checkpoint,
+                        value = item.result,
+                        onChange = { r ->
+                            onChange(draft.copy(items = draft.items.toMutableList().also {
+                                it[i] = item.copy(result = r)
+                            }))
+                        }
                     )
-                    PassFailRow(
-                        label = "Cleaning agent residue test (visual)",
-                        value = draft.cleaningResidueOk,
-                        onChange = { onChange(draft.copy(cleaningResidueOk = it)) }
-                    )
-                } else {
-                    Text("Section marked N/A — won't count toward decision.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    if (item.result == CheckResult.FAIL) {
+                        OutlinedTextField(
+                            value = item.remarks,
+                            onValueChange = { v ->
+                                onChange(draft.copy(items = draft.items.toMutableList().also {
+                                    it[i] = item.copy(remarks = v)
+                                }))
+                            },
+                            label = { Text("Remarks") },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
             }
 
-            // Section 3 — calibration
-            ChecklistSection(title = "3. Calibration") {
-                ToggleRow(
-                    label = "Calibrated equipment?",
-                    checked = draft.isCalibrated,
-                    onChange = { onChange(draft.copy(isCalibrated = it)) }
-                )
-                if (draft.isCalibrated) {
-                    PassFailRow(
-                        label = "Calibration verified within tolerance",
-                        value = draft.calibrationVerified,
-                        onChange = { onChange(draft.copy(calibrationVerified = it)) }
-                    )
-                } else {
-                    Text("Section marked N/A — won't count toward decision.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-                }
-            }
-
-            // Section 4 — function
-            ChecklistSection(title = "4. Function test") {
-                PassFailRow(
-                    label = "Test run completed (60 sec minimum)",
-                    value = draft.testRunCompleted,
-                    onChange = { onChange(draft.copy(testRunCompleted = it)) }
-                )
-                PassFailRow(
-                    label = "Output sample checked",
-                    value = draft.outputSampleChecked,
-                    onChange = { onChange(draft.copy(outputSampleChecked = it)) },
-                    allowNa = true
-                )
-            }
-
-            // After-QC photo (mandatory)
+            // After-QC photo (optional — attached to the record when captured)
             FactoryCard(modifier = Modifier.fillMaxWidth()) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("After-QC photo (required)", fontWeight = FontWeight.SemiBold)
+                    Text("After-QC photo (optional)", fontWeight = FontWeight.SemiBold)
                     val photo = draft.afterPhotoLocalPath
                     if (photo != null) {
                         AsyncImage(
@@ -260,7 +209,7 @@ fun QcChecklistSheet(
             }
 
             if (!draft.canApprove && !draft.canDisapprove) {
-                Text("Capture the QC photo and answer at least one item.",
+                Text("Answer at least one item to decide (all required items must PASS to approve).",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
             }

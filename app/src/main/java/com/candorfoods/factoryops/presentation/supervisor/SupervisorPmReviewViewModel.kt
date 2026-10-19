@@ -59,6 +59,9 @@ class SupervisorPmReviewViewModel @Inject constructor(
     private var cachedMachine: Machine? = null
 
     init {
+        // Best-effort: re-pull this WO so the technician's latest submission (made on
+        // another device) is what the supervisor actually reviews.
+        viewModelScope.launch { runCatching { woRepo.refreshWorkOrder(woId) } }
         viewModelScope.launch {
             val user = getCurrentUser().first()
             _uiState.update { it.copy(currentUser = user) }

@@ -9,10 +9,10 @@ data class MachineDto(
     val code: String,
     val name: String,
     val location: String,
-    // Building this machine lives in ("W-202" | "A-185"). Defaults to "W-202"
+    // Building this machine lives in ("W202" | "A185"). Defaults to "W202"
     // for backward-compat: older /machines payloads omit it, and that matches
     // the mt_floor_utility_readings.building column default on the backend.
-    @SerialName("building") val building: String = "W-202",
+    @SerialName("building") val building: String = "W202",
     @SerialName("plant_id") val plantId: String,
     @SerialName("machine_type") val machineType: String = "OTHER",
     // Free-text classification from the backend (e.g. "Packaging", "Sealing").

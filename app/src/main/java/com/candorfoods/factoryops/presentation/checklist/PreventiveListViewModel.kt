@@ -5,11 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.candorfoods.factoryops.domain.model.ChecklistRecordSummary
 import com.candorfoods.factoryops.domain.model.Result
 import com.candorfoods.factoryops.domain.repository.ChecklistRepository
+import com.candorfoods.factoryops.domain.usecase.auth.GetCurrentUserUseCase
 import com.candorfoods.factoryops.util.pdf.ChecklistPdfRenderer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.File
@@ -17,6 +19,7 @@ import javax.inject.Inject
 
 data class PreventiveListUiState(
     val isLoading: Boolean = true,
+    /** This plant's records only — see [PreventiveListViewModel.plant]. */
     val records: List<ChecklistRecordSummary> = emptyList(),
     val error: String? = null,
     // PDF export (per-row download): which record is rendering, and the one-shot result.
@@ -29,19 +32,27 @@ data class PreventiveListUiState(
 class PreventiveListViewModel @Inject constructor(
     private val checklistRepository: ChecklistRepository,
     private val pdfRenderer: ChecklistPdfRenderer,
+    private val getCurrentUser: GetCurrentUserUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PreventiveListUiState())
     val uiState: StateFlow<PreventiveListUiState> = _uiState.asStateFlow()
+
+    /**
+     * The signed-in technician's plant. A technician sees only their own plant's
+     * checklist records: the endpoint returns every plant's, so the split happens here.
+     */
+    private var plant: String = ChecklistType.DEFAULT_PLANT
 
     init { refresh() }
 
     fun refresh() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
+            plant = ChecklistType.plantOf(getCurrentUser().firstOrNull()?.plantId)
             when (val r = checklistRepository.list()) {
                 is Result.Success -> _uiState.update {
-                    it.copy(isLoading = false, records = r.data, error = null)
+                    it.copy(isLoading = false, records = r.data.filter(::isOwnPlant), error = null)
                 }
                 is Result.Error -> _uiState.update {
                     it.copy(isLoading = false, error = r.message)
@@ -50,6 +61,9 @@ class PreventiveListViewModel @Inject constructor(
             }
         }
     }
+
+    private fun isOwnPlant(record: ChecklistRecordSummary): Boolean =
+        ChecklistType.plantOfRecord(record.formType, record.docNo) == plant
 
     /**
      * Fetch the full record, render the controlled-copy PDF (50a/50b format), and expose the

@@ -12,11 +12,19 @@ object DateTimeFormatter {
     private val timeFormat = SimpleDateFormat("HH:mm", Locale.ENGLISH).also { it.timeZone = IST }
     private val dateTimeFormat = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.ENGLISH).also { it.timeZone = IST }
     private val isoDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH).also { it.timeZone = IST }
+    private val monthYearFormat = SimpleDateFormat("MMMM yyyy", Locale.ENGLISH).also { it.timeZone = IST }
+    private val dayMonthFormat = SimpleDateFormat("dd MMM", Locale.ENGLISH).also { it.timeZone = IST }
 
     /** ISO `YYYY-MM-DD` in IST — what the backend stores in `reading_date`. */
     fun isoDate(epochMillis: Long): String = isoDateFormat.format(Date(epochMillis))
 
     fun formatDate(epochMillis: Long): String = dateFormat.format(Date(epochMillis))
+
+    /** "August 2026" — month-group headers on the technician's PM history tab. */
+    fun formatMonthYear(epochMillis: Long): String = monthYearFormat.format(Date(epochMillis))
+
+    /** "22 Aug" — compact done-date on history rows, where the month header carries the year. */
+    fun formatDayMonth(epochMillis: Long): String = dayMonthFormat.format(Date(epochMillis))
     fun formatTime(epochMillis: Long): String = timeFormat.format(Date(epochMillis))
     fun formatDateTime(epochMillis: Long): String = dateTimeFormat.format(Date(epochMillis))
 
@@ -42,6 +50,10 @@ object DateTimeFormatter {
             else       -> formatDate(thenMillis)
         }
     }
+
+    /** Hour of day (0..23) in IST — the plant's clock, not the device's locale. */
+    fun hourOfDayIst(epochMillis: Long): Int =
+        Calendar.getInstance(IST).apply { timeInMillis = epochMillis }.get(Calendar.HOUR_OF_DAY)
 
     fun startOfDayMillis(epochMillis: Long): Long {
         val cal = Calendar.getInstance(IST).apply {

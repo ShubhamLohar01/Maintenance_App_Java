@@ -10,12 +10,7 @@
     <string name="label_settings">सेटिंग्स</string>
     <string name="settings_role">भूमिका</string>
     <string name="settings_plant">प्लांट</string>
-    <string name="settings_shift_schedule">शिफ्ट अनुसूची</string>
-    <string name="settings_server">सर्वर</string>
     <string name="settings_language">भाषा</string>
-    <string name="shift_a">शिफ्ट A: 08:00 – 16:00 IST</string>
-    <string name="shift_b">शिफ्ट B: 16:00 – 24:00 IST</string>
-    <string name="shift_c">शिफ्ट C: 00:00 – 08:00 IST</string>
     <string name="confirm_logout_title">लॉग आउट</string>
     <string name="logout_confirm_message">कोई भी अनसिंक डेटा खो जाएगा। क्या आप निश्चित हैं?</string>
     <string name="notification_missed_stop_title">मिस्ड स्टॉप — %1$s</string>

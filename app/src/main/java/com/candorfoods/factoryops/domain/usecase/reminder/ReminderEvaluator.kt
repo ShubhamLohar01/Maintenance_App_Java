@@ -40,6 +40,11 @@ class ReminderEvaluator @Inject constructor() {
     // ── Breakdown ─────────────────────────────────────────────────────────────
 
     private fun evaluateBreakdown(user: User, f: BreakdownFlag, now: Long, out: MutableList<Reminder>) {
+        // Plant scoping: own-plant roles (TECHNICIAN / QC / OPERATOR) only get reminders
+        // for breakdowns in their OWN warehouse — an A-185 technician must not be nudged
+        // about a W-202 machine. HEAD/SUPERVISOR span every plant (cross-plant oversight).
+        // Mirrors the backend's scoped_buildings (_ALL_PLANT_ROLES = HEAD, SUPERVISOR).
+        if (!breakdownVisibleToUser(user, f)) return
         when (f.status) {
             BreakdownStatus.OPEN -> {
                 val tier = breakdownTier(now - f.raisedAt, f.severity)
@@ -112,7 +117,9 @@ class ReminderEvaluator @Inject constructor() {
         val t1 = Constants.BD_TIER_1_MINUTES * mult
         val t2 = Constants.BD_TIER_2_MINUTES * mult
         val t3 = Constants.BD_TIER_3_MINUTES * mult
+        val t4 = Constants.BD_TIER_4_MINUTES * mult
         return when {
+            minutes >= t4 -> 4
             minutes >= t3 -> 3
             minutes >= t2 -> 2
             minutes >= t1 -> 1
@@ -121,6 +128,35 @@ class ReminderEvaluator @Inject constructor() {
     }
 
     private fun assetLabel(f: BreakdownFlag): String = f.assetName?.takeIf { it.isNotBlank() } ?: f.machineId
+
+    /**
+     * Whether this breakdown belongs to the user's plant. HEAD/SUPERVISOR see all
+     * plants. For own-plant roles, compare the flag's warehouse to the user's. Unknown
+     * plant or building fails OPEN (delivers) so a missing field never silences a real
+     * alert — only a confirmed cross-plant mismatch is filtered out.
+     */
+    private fun breakdownVisibleToUser(user: User, f: BreakdownFlag): Boolean {
+        if (user.role in ALL_PLANT_ROLES) return true
+        val userBuilding = buildingCode(user.plantId) ?: return true
+        val flagBuilding = buildingCode(f.building) ?: return true
+        return userBuilding == flagBuilding
+    }
+
+    /**
+     * Lenient plant → canonical building-code match, mirroring the backend's
+     * building_for: the code ("A185"/"W202") OR just its digits ("185"/"202")
+     * appearing in the normalized input is enough, so a descriptive plant string
+     * ("A-185-Koparkhairne") still resolves. Returns null when nothing matches.
+     */
+    private fun buildingCode(raw: String?): String? {
+        val n = raw?.filter { it.isLetterOrDigit() }?.uppercase().orEmpty()
+        if (n.isBlank()) return null
+        for (code in KNOWN_BUILDING_CODES) {
+            val digits = code.filter { it.isDigit() }
+            if (n.contains(code) || (digits.isNotEmpty() && n.contains(digits))) return code
+        }
+        return null
+    }
 
     // ── PM work-order handoffs (P1 stays in PmSchedulerWorker; not emitted here) ──
 
@@ -200,14 +236,28 @@ class ReminderEvaluator @Inject constructor() {
     }
 
     companion object {
+        // Roles that see EVERY plant's breakdowns (cross-plant oversight). Everyone else
+        // is scoped to their own warehouse. Matches the backend's _ALL_PLANT_ROLES.
+        private val ALL_PLANT_ROLES = setOf(UserRole.HEAD, UserRole.SUPERVISOR)
+
+        // Canonical warehouse codes (compact form). Mirrors the backend's ALL_BUILDINGS.
+        private val KNOWN_BUILDING_CODES = listOf("A185", "W202")
+
         // Role -> minimum tier at which that role enters the audience.
-        private val B1_AUDIENCE = mapOf(UserRole.TECHNICIAN to 0, UserRole.SUPERVISOR to 2, UserRole.HEAD to 3)
+        private val B1_AUDIENCE = mapOf(UserRole.TECHNICIAN to 0, UserRole.SUPERVISOR to 2, UserRole.HEAD to 4)
         private val B2_AUDIENCE = mapOf(UserRole.TECHNICIAN to 1, UserRole.SUPERVISOR to 2)
         private val B3_AUDIENCE = mapOf(UserRole.QC_MEMBER to 0, UserRole.QC_HEAD to 2, UserRole.HEAD to 3)
         private val B4_AUDIENCE = mapOf(UserRole.TECHNICIAN to 0, UserRole.SUPERVISOR to 2)
-        private val P2_AUDIENCE = mapOf(UserRole.SUPERVISOR to 0, UserRole.HEAD to 2)
-        private val P3_AUDIENCE = mapOf(UserRole.TECHNICIAN to 0, UserRole.SUPERVISOR to 2)
-        private val P4_AUDIENCE = mapOf(UserRole.QC_MEMBER to 0, UserRole.QC_HEAD to 1, UserRole.HEAD to 2)
-        private val P5_AUDIENCE = mapOf(UserRole.SUPERVISOR to 0, UserRole.HEAD to 2)
+        // PM hand-offs start at tier 1, not 0: a PM that reached a queue minutes ago is
+        // not worth a notification, one still sitting there after the 24h handoff
+        // threshold is. Breakdown audiences below are deliberately untouched — those are
+        // the alerts that tell the floor a machine is down.
+        private val P2_AUDIENCE = mapOf(UserRole.SUPERVISOR to 1, UserRole.HEAD to 2)
+        // A technician gets exactly one PM notification: the daily "pending today" notice
+        // from PmSchedulerWorker. Rework lands back on them as an IN_PROGRESS work order,
+        // which that notice and the Today tab already cover — so P3 would only double up.
+        private val P3_AUDIENCE = mapOf(UserRole.SUPERVISOR to 2)
+        private val P4_AUDIENCE = mapOf(UserRole.QC_MEMBER to 1, UserRole.QC_HEAD to 1, UserRole.HEAD to 2)
+        private val P5_AUDIENCE = mapOf(UserRole.SUPERVISOR to 1, UserRole.HEAD to 2)
     }
 }

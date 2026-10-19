@@ -68,7 +68,7 @@ fun BreakdownFormScreen(
                     Column {
                         Text("Breakdown Record", style = MaterialTheme.typography.titleLarge)
                         Text(
-                            "Doc CFPLA.C4.F.06 · ${state.entries.size} " +
+                            "Doc ${state.spec.docNo} · ${state.entries.size} " +
                                 if (state.entries.size == 1) "entry" else "entries",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
